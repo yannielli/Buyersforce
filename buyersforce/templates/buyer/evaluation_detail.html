@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Evaluating {{ vendor.company_name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">{{ template.name }}</span>
+    <h1>Evaluating {{ vendor.company_name }}</h1>
+    <p class="lede">Collaborative scorecard — every reviewer on {{ ev.company }} scores independently.</p>
+  </div>
+  <a href="{{ url_for('buyer_vendor', vendor_id=vendor.id) }}" class="btn btn-secondary">View vendor profile</a>
+</div>
+
+<div class="grid grid-2" style="grid-template-columns: 1.5fr 1fr; align-items:start;">
+  <div class="card">
+    <h3 style="font-size:15px;">Your scores</h3>
+    <form method="post">
+      {% for c in criteria %}
+      <div class="criterion-row">
+        <div>
+          <div class="criterion-label">{{ c.label }}</div>
+          <div class="criterion-weight">Weight ×{{ c.weight }} {% if c.avg %}· team avg {{ c.avg }}{% endif %}</div>
+        </div>
+        <div class="score-pill-group">
+          {% for n in range(1, 6) %}
+          <label class="score-dot {{ 'selected' if my_scores.get(c.id) and my_scores[c.id].score == n }}">
+            <input type="radio" name="score_{{ c.id }}" value="{{ n }}" {{ 'checked' if my_scores.get(c.id) and my_scores[c.id].score == n }}>
+            {{ n }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <input type="text" name="comment_{{ c.id }}" placeholder="Optional note on {{ c.label|lower }}…"
+             value="{{ my_scores[c.id].comment if my_scores.get(c.id) else '' }}"
+             style="margin-bottom:14px; font-size:13px;">
+      {% endfor %}
+      <button class="btn btn-primary" type="submit">Save my scores</button>
+    </form>
+  </div>
+
+  <div>
+    <div class="card overall-score">
+      <div class="stat-label">Weighted overall score</div>
+      {% if overall %}
+      <div class="big-number">{{ overall }}<span class="of5"> / 5</span></div>
+      {% else %}
+      <div class="hint">No scores submitted yet</div>
+      {% endif %}
+    </div>
+
+    {% if reviewer_rows %}
+    <div class="card" style="margin-top:16px;">
+      <h3 style="font-size:14px;">Score by reviewer</h3>
+      <div class="bar-chart">
+        {% set colors = ['var(--series-1)','var(--series-2)','var(--series-3)','var(--series-4)','var(--series-5)'] %}
+        {% for r in reviewer_rows %}
+        <div class="bar-row">
+          <span class="bar-label">{{ r.name }}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:{{ (r.avg / 5 * 100)|round(1) }}%; background:{{ colors[loop.index0 % 5] }};"></div></div>
+          <span class="bar-value">{{ r.avg }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

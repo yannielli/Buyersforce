@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Create your account{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-head">
+      <h1 style="font-size:24px;">Create your account</h1>
+      <p style="margin:0;">Set up your BuyersForce workspace in under a minute.</p>
+    </div>
+    <form method="post">
+      <div class="role-toggle">
+        <label class="role-option {{ 'selected' if role == 'buyer' }}">
+          <input type="radio" name="role" value="buyer" {{ 'checked' if role == 'buyer' }}>
+          <strong>I'm a Buyer</strong>
+          <div class="hint">Sourcing & evaluating technology</div>
+        </label>
+        <label class="role-option {{ 'selected' if role == 'seller' }}">
+          <input type="radio" name="role" value="seller" {{ 'checked' if role == 'seller' }}>
+          <strong>I'm a Seller</strong>
+          <div class="hint">Listing a product for buyers</div>
+        </label>
+      </div>
+      <div class="field">
+        <label for="name">Full name</label>
+        <input type="text" id="name" name="name" required placeholder="Jordan Ellis">
+      </div>
+      <div class="field">
+        <label for="company">Company</label>
+        <input type="text" id="company" name="company" required placeholder="Acme Corp">
+      </div>
+      <div class="field">
+        <label for="email">Work email</label>
+        <input type="email" id="email" name="email" required placeholder="you@company.com">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required placeholder="Create a password">
+      </div>
+      <button class="btn btn-primary btn-block btn-lg" type="submit">Create account</button>
+    </form>
+    <p style="text-align:center; margin-top:16px; font-size:13.5px;">Already have an account?
+      <a href="{{ url_for('login') }}" style="color:var(--brand); font-weight:600;">Log in</a></p>
+  </div>
+</div>
+{% endblock %}

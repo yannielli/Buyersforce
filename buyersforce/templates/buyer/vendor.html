@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}{{ vendor.company_name }}{% endblock %}
+{% block content %}
+<div class="vendor-hero">
+  <span class="vendor-logo" style="background:{{ vendor.accent }};">{{ vendor.initials }}</span>
+  <div style="flex:1;">
+    <span class="eyebrow">{{ vendor.category }}</span>
+    <h1>{{ vendor.company_name }}</h1>
+    <p style="font-size:15px;">{{ vendor.tagline }}</p>
+    <div>{% for t in tags %}<span class="tag">{{ t }}</span>{% endfor %}</div>
+  </div>
+  {% if status %}<span class="badge {{ 'badge-good' if status in ['shortlisted','selected'] else ('badge-brand' if status == 'evaluating' else 'badge-neutral') }}">{{ status|capitalize }}</span>{% endif %}
+</div>
+
+<div class="grid grid-2" style="align-items:start; grid-template-columns: 1.6fr 1fr;">
+  <div>
+    <div class="card">
+      <h3 style="font-size:15px;">About</h3>
+      <p>{{ vendor.description }}</p>
+      {% if vendor.website %}<p class="hint">🔗 {{ vendor.website }}</p>{% endif %}
+    </div>
+
+    <div class="section-title" style="margin-top:22px;"><h2>Products & pricing</h2></div>
+    {% for l in listings %}
+    <div class="listing-card">
+      <h4>{{ l.name }}</h4>
+      {% if l.pricing_model %}<span class="price">{{ l.pricing_model }}</span>{% endif %}
+      {% if l.description %}<p style="font-size:13.5px;">{{ l.description }}</p>{% endif %}
+      <ul class="listing-feats">
+        {% for f in l.features %}<li>{{ f }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% else %}
+    <div class="card empty-state"><div class="icon">📦</div>No product listings yet.</div>
+    {% endfor %}
+  </div>
+
+  <div class="side-panel">
+    <div class="card">
+      <h3 style="font-size:15px;">Take action</h3>
+      <form method="post" action="{{ url_for('buyer_shortlist_toggle', vendor_id=vendor.id) }}" style="margin-bottom:10px;">
+        <select name="status" onchange="this.form.submit()">
+          <option value="discovered" {{ 'selected' if status == 'discovered' or not status }}>Discovered</option>
+          <option value="shortlisted" {{ 'selected' if status == 'shortlisted' }}>Shortlisted</option>
+          <option value="evaluating" {{ 'selected' if status == 'evaluating' }}>Evaluating</option>
+          <option value="selected" {{ 'selected' if status == 'selected' }}>Selected</option>
+          <option value="passed" {{ 'selected' if status == 'passed' }}>Passed</option>
+        </select>
+        <div class="hint">Update pipeline status</div>
+      </form>
+
+      <form method="post" action="{{ url_for('buyer_evaluation_start', vendor_id=vendor.id) }}" style="margin-bottom:10px;">
+        <div class="field" style="margin-bottom:8px;">
+          <select name="template_id">
+            {% for t in templates %}
+            <option value="{{ t.id }}">{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">
+          {{ 'Continue evaluation' if existing_eval else 'Start evaluation' }}
+        </button>
+      </form>
+
+      <details style="margin-bottom:10px;">
+        <summary class="btn btn-secondary btn-block" style="list-style:none; cursor:pointer;">✉️ Message vendor</summary>
+        <form method="post" action="{{ url_for('buyer_message_vendor', vendor_id=vendor.id) }}" style="margin-top:10px;">
+          <textarea name="body" placeholder="Ask a question — the vendor can only reply once you send the first message." required></textarea>
+          <button class="btn btn-primary btn-block" type="submit" style="margin-top:8px;">Send</button>
+        </form>
+      </details>
+
+      <details>
+        <summary class="btn btn-secondary btn-block" style="list-style:none; cursor:pointer;">🗓️ Request a meeting</summary>
+        <form method="post" action="{{ url_for('buyer_request_meeting', vendor_id=vendor.id) }}" style="margin-top:10px;">
+          <div class="field">
+            <label>Proposed time</label>
+            <input type="datetime-local" name="proposed_time" required>
+          </div>
+          <div class="field">
+            <label>Note</label>
+            <textarea name="note" placeholder="What would you like to cover?"></textarea>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Request meeting</button>
+        </form>
+      </details>
+    </div>
+    <div class="privacy-note" style="margin-top:14px;">🔒 {{ vendor.company_name }} can't see this profile visit or message you first — you're always the one who initiates.</div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}The dedicated platform for technology buyers{% endblock %}
+{% block content %}
+
+<section class="hero">
+  <span class="hero-badge">● Built for the people who actually use the technology</span>
+  <h1>Sellers have a thousand tools.<br>Buyers have none of their own.</h1>
+  <p class="sub">BuyersForce is a purpose-built SaaS platform that centralizes vendor sourcing,
+    evaluation, communication, and management — entirely on the buyer's terms.</p>
+  <div class="hero-cta">
+    <a href="{{ url_for('signup', role='buyer') }}" class="btn btn-primary btn-lg">Get started as a Buyer</a>
+    <a href="{{ url_for('signup', role='seller') }}" class="btn btn-secondary btn-lg">Get started as a Seller</a>
+  </div>
+  <div class="stat-strip">
+    <div><div class="big">90%</div><div class="lbl">of a technical purchase current buyer tools don't touch</div></div>
+    <div><div class="big">50%</div><div class="lbl">of the buying process handled without a salesperson</div></div>
+    <div><div class="big">0</div><div class="lbl">vendor trackers watching your activity</div></div>
+  </div>
+</section>
+
+<section class="section" id="problem">
+  <div class="section-head">
+    <span class="eyebrow" style="text-align:center;">The Buyer-Side Gap</span>
+    <h2>Procurement got all the tools. Engineering got none.</h2>
+    <p>Every platform in the market was built to help sellers sell — not to help the people who
+      actually have to solve a technical problem find, evaluate, and run the right solution.</p>
+  </div>
+
+  <div class="problem-grid">
+    <div class="problem-card">
+      <span class="num">01</span>
+      <h3>Buyer tools stop at renewal</h3>
+      <p>Current platforms serve acquisition and renewal for commodity products — monitors,
+        printers, office supplies. They have no cognition for a real technical evaluation.</p>
+    </div>
+    <div class="problem-card">
+      <span class="num">02</span>
+      <h3>The real buyer is engineering</h3>
+      <p>For complex technology like cybersecurity, the true buyer is the engineering team who
+        will live in the platform every day as part of their job — not a procurement generalist.</p>
+    </div>
+    <div class="problem-card">
+      <span class="num">03</span>
+      <h3>Built for the wrong person</h3>
+      <p>Every existing tool is designed around procurement workflows, not around the people who
+        feel the pain, evaluate the options, and run the solution once it's live.</p>
+    </div>
+  </div>
+
+  <div class="persona-row">
+    <div class="persona-card">
+      <div class="persona-icon">◆</div>
+      <div><h4>Has the pain</h4><p>The team whose gap the technology needs to close — not a
+        purchasing department three steps removed from the problem.</p></div>
+    </div>
+    <div class="persona-card">
+      <div class="persona-icon">◆</div>
+      <div><h4>Sources & selects</h4><p>The engineers who research, shortlist, and evaluate
+        vendors against the technical criteria that actually matter.</p></div>
+    </div>
+    <div class="persona-card">
+      <div class="persona-icon">◆</div>
+      <div><h4>Runs it daily</h4><p>The same team that will operate the solution as part of
+        their core responsibilities long after the deal closes.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="vendor-management">
+  <div class="split">
+    <div>
+      <span class="eyebrow">How Buyers Manage Vendors Today</span>
+      <h2>Vendor management is time-consuming, overwhelming, and inefficient</h2>
+      <p>Complex technology purchases — cybersecurity, IT infrastructure, and beyond — get managed
+        with tools that were never built for the buyer.</p>
+      <div class="feature-list">
+        <div class="feature-item"><span class="feature-check">✕</span>
+          <div><strong>Built for vendors, not buyers</strong><p>Every CRM and sales tool on the
+            market optimizes for the seller's pipeline.</p></div></div>
+        <div class="feature-item"><span class="feature-check">✕</span>
+          <div><strong>Outreach floods every channel</strong><p>Vendor prospecting fills email
+            and messaging with noise that crowds out real work.</p></div></div>
+        <div class="feature-item"><span class="feature-check">✕</span>
+          <div><strong>No time to evaluate properly</strong><p>Sourcing and evaluating vendors
+            competes directly with core job responsibilities.</p></div></div>
+        <div class="feature-item"><span class="feature-check">✕</span>
+          <div><strong>Overlapping vendors, unclear fit</strong><p>Too many similar tools make
+            it hard to tell what's actually relevant.</p></div></div>
+        <div class="feature-item"><span class="feature-check">✕</span>
+          <div><strong>Privacy compromised by design</strong><p>Vendor websites track buyer
+            activity the moment you start researching.</p></div></div>
+        <div class="feature-item"><span class="feature-check">✕</span>
+          <div><strong>Aggressive outbound sales</strong><p>Cold outreach drains attention that
+            should go toward solving the actual problem.</p></div></div>
+      </div>
+    </div>
+    <div class="mock-panel">
+      <div class="section-title" style="margin-bottom:14px;"><h2 style="font-size:15px;">What buyers need</h2><span class="badge badge-brand">Today, without BuyersForce</span></div>
+      <div class="mock-row"><span>📧 Email</span><span class="badge badge-serious">37 vendor emails this week</span></div>
+      <div class="mock-row"><span>💬 LinkedIn</span><span class="badge badge-serious">Cold InMail daily</span></div>
+      <div class="mock-row"><span>🌐 Vendor sites</span><span class="badge badge-serious">Tracked on every visit</span></div>
+      <div class="mock-row"><span>📊 Evaluation</span><span class="badge badge-neutral">Scattered spreadsheets</span></div>
+      <div class="mock-row"><span>🗓️ Scheduling</span><span class="badge badge-neutral">Back-and-forth threads</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="platform">
+  <div class="section-head">
+    <span class="eyebrow" style="text-align:center;">BuyersForce: Dedicated Buyer's Platform</span>
+    <h2>One purpose-built space, entirely on the buyer's terms</h2>
+    <p>A SaaS platform that centralizes vendor sourcing, evaluation, communications, and
+      management — designed around the engineering team that will actually live in it.</p>
+  </div>
+  <div class="grid grid-4">
+    <div class="card">
+      <h3 style="font-size:15.5px;">💬 Built-in messaging & scheduling</h3>
+      <p style="font-size:13.5px;">Message vendors, teammates, and peers — and schedule meetings —
+        without leaving the platform.</p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:15.5px;">🔎 Discovery & comparison</h3>
+      <p style="font-size:13.5px;">Discover vendors, review collateral, and compare features
+        side-by-side in one place.</p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:15.5px;">🧮 Collaborative evaluation</h3>
+      <p style="font-size:13.5px;">Shared scorecards let your whole team weigh in on technical
+        fit, integration, and support.</p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:15.5px;">🔒 Buyer-controlled engagement</h3>
+      <p style="font-size:13.5px;">You decide when and how vendors can reach you — handle up to
+        half the buying process without a salesperson.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="buyers">
+  <div class="split">
+    <div>
+      <span class="eyebrow">Advantages for Buyers</span>
+      <h2>Take control of vendor relationships and communications</h2>
+      <div class="feature-list">
+        <div class="feature-item"><span class="feature-check">✓</span>
+          <div><strong>Everything out of email and LinkedIn</strong><p>Consolidate vendor
+            activity into one dedicated, organized space.</p></div></div>
+        <div class="feature-item"><span class="feature-check">✓</span>
+          <div><strong>Engage privately, on your schedule</strong><p>Vendors can't reach you
+            until you choose to start the conversation.</p></div></div>
+        <div class="feature-item"><span class="feature-check">✓</span>
+          <div><strong>Shareable evaluation template library</strong><p>Reusable scorecards
+            accelerate vendor selection across your whole team.</p></div></div>
+        <div class="feature-item"><span class="feature-check">✓</span>
+          <div><strong>Reclaim time, reduce decision fatigue</strong><p>Less noise, less
+            frustration, faster and more confident decisions.</p></div></div>
+      </div>
+      <a href="{{ url_for('signup', role='buyer') }}" class="btn btn-primary" style="margin-top:20px;">Start evaluating as a Buyer</a>
+    </div>
+    <div class="mock-panel">
+      <div class="mock-row"><div class="mock-vendor"><span class="mock-logo" style="background:#2a78d6;">AS</span><span><strong style="font-size:14px;">Aegis Shield</strong><br><span style="font-size:12px;color:var(--ink-muted);">Cloud Security</span></span></div><span class="badge badge-brand">Evaluating</span></div>
+      <div class="mock-row"><div class="mock-vendor"><span class="mock-logo" style="background:#eb6834;">SG</span><span><strong style="font-size:14px;">Sentinel Grid</strong><br><span style="font-size:12px;color:var(--ink-muted);">Threat Detection</span></span></div><span class="badge badge-good">Shortlisted</span></div>
+      <div class="mock-row"><div class="mock-vendor"><span class="mock-logo" style="background:#1baf7a;">II</span><span><strong style="font-size:14px;">Ironclad Identity</strong><br><span style="font-size:12px;color:var(--ink-muted);">Identity & Access</span></span></div><span class="badge badge-neutral">Discovered</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="sellers">
+  <div class="split">
+    <div class="mock-panel" style="order:2;">
+      <div class="mock-row"><span>📥 Inbound leads</span><span class="badge badge-good">+12 this month</span></div>
+      <div class="mock-row"><span>🤝 Salesforce sync</span><span class="badge badge-brand">Connected</span></div>
+      <div class="mock-row"><span>💵 Outbound spend</span><span class="badge badge-good">↓ Lower GTM cost</span></div>
+      <div class="mock-row"><span>🧑‍🤝‍🧑 Partner portal</span><span class="badge badge-neutral">3 active alliances</span></div>
+    </div>
+    <div style="order:1;">
+      <span class="eyebrow">Advantages for Sellers</span>
+      <h2>Market directly to qualified, in-market buyers</h2>
+      <div class="feature-list">
+        <div class="feature-item"><span class="feature-check">✓</span>
+          <div><strong>A dedicated vendor space</strong><p>Post product information where
+            engaged buyers are actually looking.</p></div></div>
+        <div class="feature-item"><span class="feature-check">✓</span>
+          <div><strong>Qualified inbound leads</strong><p>Delivered through in-app comms and a
+            Salesforce integration — no cold list-building.</p></div></div>
+        <div class="feature-item"><span class="feature-check">✓</span>
+          <div><strong>Lower GTM costs</strong><p>Reduce reliance on outbound prospecting and
+            paid intelligence tools.</p></div></div>
+        <div class="feature-item"><span class="feature-check">✓</span>
+          <div><strong>Less dependence on resellers</strong><p>Generate leads directly instead
+            of relying on VAR relationships.</p></div></div>
+        <div class="feature-item"><span class="feature-check">✓</span>
+          <div><strong>Direct collaboration portal</strong><p>Work with buyers, alliance
+            partners, and resellers in one shared space.</p></div></div>
+      </div>
+      <a href="{{ url_for('signup', role='seller') }}" class="btn btn-primary" style="margin-top:20px;">List your product as a Seller</a>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="cta-band">
+    <h2>Take back the buying process.</h2>
+    <p>Join the platform built for the people who feel the pain, evaluate the options, and run the
+      solution every day.</p>
+    <div class="hero-cta">
+      <a href="{{ url_for('signup', role='buyer') }}" class="btn btn-primary btn-lg">Get started as a Buyer</a>
+      <a href="{{ url_for('signup', role='seller') }}" class="btn btn-secondary btn-lg">Get started as a Seller</a>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

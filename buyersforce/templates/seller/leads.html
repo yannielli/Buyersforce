@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Leads{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Inbound pipeline</span>
+    <h1>Leads</h1>
+    <p class="lede">Buyers appear here only after they engage — you never see anonymous profile views.</p>
+  </div>
+</div>
+
+{% if leads %}
+<table class="table">
+  <tr><th>Buyer</th><th>Company</th><th>Title</th><th>Status</th><th>Engaged</th><th></th></tr>
+  {% for l in leads %}
+  <tr>
+    <td>{{ l.buyer_name }}</td>
+    <td>{{ l.buyer_company }}</td>
+    <td>{{ l.buyer_title }}</td>
+    <td><span class="badge {{ 'badge-good' if l.status in ['shortlisted','selected'] else ('badge-brand' if l.status == 'evaluating' else 'badge-neutral') }}">{{ l.status|capitalize }}</span></td>
+    <td>{{ l.created_at|fmt_time }}</td>
+    <td>
+      <form method="post" action="{{ url_for('seller_leads_sync', lead_user_id=l.buyer_user_id) }}">
+        <button class="btn btn-secondary btn-sm" type="submit">Sync to Salesforce</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<div class="card empty-state"><div class="icon">📥</div>No leads yet.</div>
+{% endif %}
+{% endblock %}

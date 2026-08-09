@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Log in{% endblock %}
+{% block content %}
+<div class="auth-wrap wide">
+  <div class="auth-card">
+    <div class="auth-head">
+      <h1 style="font-size:24px;">Welcome back</h1>
+      <p style="margin:0;">Log in to your BuyersForce workspace.</p>
+    </div>
+    <form method="post">
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required autofocus placeholder="you@company.com">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required placeholder="••••••••">
+      </div>
+      <button class="btn btn-primary btn-block btn-lg" type="submit">Log in</button>
+    </form>
+    <p style="text-align:center; margin-top:16px; font-size:13.5px;">No account yet?
+      <a href="{{ url_for('signup') }}" style="color:var(--brand); font-weight:600;">Sign up</a></p>
+
+    <div class="demo-grid">
+      <div class="demo-col">
+        <h3>Demo buyer logins</h3>
+        {% for u in demo_buyers %}
+        <div class="demo-user">
+          <span class="who">{{ u.name }}<small>{{ u.title }} · {{ u.company }}</small></span>
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('demo_login', user_id=u.id) }}">Log in</a>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="demo-col">
+        <h3>Demo seller logins</h3>
+        {% for u in demo_sellers %}
+        <div class="demo-user">
+          <span class="who">{{ u.company }}<small>Vendor account</small></span>
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('demo_login', user_id=u.id) }}">Log in</a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <p class="hint" style="text-align:center; margin-top:14px;">All demo accounts use the password <code>demo1234</code> — one-click login also available above.</p>
+  </div>
+</div>
+{% endblock %}

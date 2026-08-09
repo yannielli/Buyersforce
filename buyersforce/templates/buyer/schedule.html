@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Schedule{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Meetings</span>
+    <h1>Schedule</h1>
+    <p class="lede">All the meetings you've requested with vendors, in one place.</p>
+  </div>
+</div>
+
+{% if meetings %}
+<table class="table">
+  <tr><th>Vendor</th><th>Proposed time</th><th>Note</th><th>Status</th></tr>
+  {% for m in meetings %}
+  <tr>
+    <td><span class="vendor-logo" style="background:{{ m.accent }}; width:28px;height:28px;font-size:10px;display:inline-flex;margin-right:8px;vertical-align:middle;">{{ m.initials }}</span>{{ m.company_name }}</td>
+    <td>{{ m.proposed_time|fmt_time }}</td>
+    <td>{{ m.note }}</td>
+    <td><span class="badge {{ 'badge-good' if m.status == 'confirmed' else ('badge-serious' if m.status == 'declined' else 'badge-neutral') }}">{{ m.status|capitalize }}</span></td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<div class="card empty-state"><div class="icon">🗓️</div>No meetings requested yet — request one from a vendor's profile.</div>
+{% endif %}
+{% endblock %}
