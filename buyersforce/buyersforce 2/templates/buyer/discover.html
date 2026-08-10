@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Discover vendors{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Vendor discovery</span>
+    <h1>Discover vendors</h1>
+    <p class="lede">Browse, filter, and compare — select up to three to compare side-by-side.</p>
+  </div>
+</div>
+
+<form class="toolbar" method="get">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search by name, category, or keyword…">
+  <select name="category" onchange="this.form.submit()">
+    <option value="">All categories</option>
+    {% for c in categories %}
+    <option value="{{ c }}" {{ 'selected' if c == category }}>{{ c }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-secondary" type="submit">Search</button>
+</form>
+
+<form id="compare-form" action="{{ url_for('buyer_compare') }}" method="get">
+  <div class="vendor-grid">
+    {% for v in vendors %}
+    <div class="vendor-card">
+      <div class="vendor-card-top">
+        <span class="vendor-logo" style="background:{{ v.accent }};">{{ v.initials }}</span>
+        <div>
+          <h3><a href="{{ url_for('buyer_vendor', vendor_id=v.id) }}">{{ v.company_name }}</a></h3>
+          <span class="cat">{{ v.category }}</span>
+        </div>
+        {% if v.status %}<span class="badge {{ 'badge-good' if v.status in ['shortlisted','selected'] else ('badge-brand' if v.status == 'evaluating' else 'badge-neutral') }}" style="margin-left:auto;">{{ v.status|capitalize }}</span>{% endif %}
+      </div>
+      <p class="tagline">{{ v.tagline }}</p>
+      <div>
+        {% for t in v.tags[:4] %}<span class="tag">{{ t }}</span>{% endfor %}
+      </div>
+      <div class="actions">
+        <a href="{{ url_for('buyer_vendor', vendor_id=v.id) }}" class="btn btn-secondary btn-sm">View profile</a>
+        <label class="compare-check">
+          <input type="checkbox" name="ids" value="{{ v.id }}"> Compare
+        </label>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty-state" style="grid-column:1/-1;"><div class="icon">🔎</div>No vendors match that search.</div>
+    {% endfor %}
+  </div>
+  {% if vendors %}
+  <div style="margin-top:20px; text-align:center;">
+    <button id="compare-submit" class="btn btn-primary" type="submit" disabled>Compare selected vendors</button>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}

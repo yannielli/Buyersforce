@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Messages{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Communications</span>
+    <h1>Messages</h1>
+    <p class="lede">Vendors only appear here after you start the conversation. Teammate threads
+      stay internal to {{ g.user.company }}.</p>
+  </div>
+</div>
+
+<div class="grid grid-2" style="align-items:start;">
+  <div>
+    <div class="section-title"><h2>Vendor conversations</h2></div>
+    <div class="thread-list">
+      {% for t in vendor_threads %}
+      <a class="thread-row" href="{{ url_for('buyer_thread', thread_id=t.id) }}">
+        <span class="vendor-logo" style="background:{{ t.accent }}; width:36px;height:36px;font-size:12px;">{{ t.initials }}</span>
+        <div style="flex:1; min-width:0;">
+          <strong style="font-size:14px;">{{ t.company_name }}</strong>
+          <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
+        </div>
+        <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
+      </a>
+      {% else %}
+      <div class="card empty-state"><div class="icon">✉️</div>No vendor conversations yet — message a vendor from their profile.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title"><h2>Team threads</h2></div>
+    <details class="card" style="margin-bottom:14px;">
+      <summary style="cursor:pointer; font-weight:600; font-size:14px;">+ New team thread</summary>
+      <form method="post" action="{{ url_for('buyer_new_team_thread') }}" style="margin-top:12px;">
+        <div class="field"><label>Subject</label><input type="text" name="subject" placeholder="e.g. Runtime security shortlist" required></div>
+        <div class="field"><label>Message</label><textarea name="body" placeholder="Kick off the discussion…"></textarea></div>
+        <button class="btn btn-primary" type="submit">Post</button>
+      </form>
+    </details>
+    <div class="thread-list">
+      {% for t in team_threads %}
+      <a class="thread-row" href="{{ url_for('buyer_thread', thread_id=t.id) }}">
+        <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:14px;">{{ g.user.company[0] }}</span>
+        <div style="flex:1; min-width:0;">
+          <strong style="font-size:14px;">{{ t.subject.split('] ')[1] if '] ' in t.subject else t.subject }}</strong>
+          <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
+        </div>
+        <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
+      </a>
+      {% else %}
+      <div class="card empty-state"><div class="icon">👥</div>No team threads yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

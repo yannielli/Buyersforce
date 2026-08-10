@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Compare vendors{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Side-by-side</span>
+    <h1>Compare vendors</h1>
+  </div>
+  <form method="get" style="display:flex; gap:8px;">
+    <input type="hidden" name="ids" value="{{ ids|join(',') }}">
+    <a href="{{ url_for('buyer_discover') }}" class="btn btn-secondary">Back to discover</a>
+  </form>
+</div>
+
+{% if vendors|length < 2 %}
+<div class="card empty-state"><div class="icon">⚖️</div>Select at least two vendors from Discover to compare.</div>
+{% else %}
+<div style="overflow-x:auto;">
+<table class="compare-table">
+  <tr>
+    <th>Vendor</th>
+    {% for v in vendors %}
+    <th><span class="vendor-logo" style="background:{{ v.accent }}; width:32px;height:32px;font-size:11px;display:inline-flex;margin-right:8px;vertical-align:middle;">{{ v.initials }}</span>{{ v.company_name }}</th>
+    {% endfor %}
+  </tr>
+  <tr>
+    <td>Category</td>
+    {% for v in vendors %}<td>{{ v.category }}</td>{% endfor %}
+  </tr>
+  <tr>
+    <td>Tagline</td>
+    {% for v in vendors %}<td>{{ v.tagline }}</td>{% endfor %}
+  </tr>
+  <tr>
+    <td>Tags</td>
+    {% for v in vendors %}<td>{% for t in v.tags %}<span class="tag">{{ t }}</span>{% endfor %}</td>{% endfor %}
+  </tr>
+  <tr>
+    <td>Products</td>
+    {% for v in vendors %}
+    <td>{% for l in v.listings %}<strong style="font-size:13px;">{{ l.name }}</strong><br><span class="hint">{{ l.pricing_model }}</span><br>{% endfor %}</td>
+    {% endfor %}
+  </tr>
+  <tr>
+    <td>Key features</td>
+    {% for v in vendors %}
+    <td>
+      <ul class="listing-feats">
+      {% for l in v.listings %}{% for f in l.features %}<li>{{ f }}</li>{% endfor %}{% endfor %}
+      </ul>
+    </td>
+    {% endfor %}
+  </tr>
+  <tr>
+    <td>Take action</td>
+    {% for v in vendors %}<td><a href="{{ url_for('buyer_vendor', vendor_id=v.id) }}" class="btn btn-primary btn-sm">View profile</a></td>{% endfor %}
+  </tr>
+</table>
+</div>
+{% endif %}
+{% endblock %}

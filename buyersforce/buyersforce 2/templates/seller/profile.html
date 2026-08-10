@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Vendor profile{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Your listing</span>
+    <h1>Vendor profile</h1>
+    <p class="lede">This is what buyers see when they discover you on BuyersForce.</p>
+  </div>
+</div>
+
+<div class="grid grid-2" style="grid-template-columns:1.2fr 1fr; align-items:start;">
+  <div class="card">
+    <h3 style="font-size:15px;">Profile details</h3>
+    <form method="post">
+      <div class="form-row">
+        <div class="field"><label>Company name</label><input type="text" name="company_name" value="{{ vendor.company_name }}" required></div>
+        <div class="field"><label>Category</label><input type="text" name="category" value="{{ vendor.category }}" required></div>
+      </div>
+      <div class="field"><label>Tagline</label><input type="text" name="tagline" value="{{ vendor.tagline }}" placeholder="One line describing your product"></div>
+      <div class="field"><label>Description</label><textarea name="description" placeholder="What does your product do, and for whom?">{{ vendor.description }}</textarea></div>
+      <div class="form-row">
+        <div class="field"><label>Website</label><input type="url" name="website" value="{{ vendor.website }}" placeholder="https://"></div>
+        <div class="field"><label>Accent color</label><input type="text" name="accent" value="{{ vendor.accent }}"></div>
+        <div class="field"><label>Initials</label><input type="text" name="initials" value="{{ vendor.initials }}" maxlength="3"></div>
+      </div>
+      <div class="field"><label>Tags (comma-separated)</label><input type="text" name="tags" value="{{ tags }}" placeholder="e.g. CNAPP, Kubernetes, Threat Detection"></div>
+      <button class="btn btn-primary" type="submit">Save profile</button>
+    </form>
+  </div>
+
+  <div class="card" style="background:var(--surface);">
+    <h3 style="font-size:14px;">Live preview</h3>
+    <div class="vendor-card" style="border:1px solid var(--gridline);">
+      <div class="vendor-card-top">
+        <span class="vendor-logo" style="background:{{ vendor.accent }};">{{ vendor.initials }}</span>
+        <div><h3>{{ vendor.company_name }}</h3><span class="cat">{{ vendor.category }}</span></div>
+      </div>
+      <p class="tagline">{{ vendor.tagline or "Add a tagline to stand out." }}</p>
+    </div>
+  </div>
+</div>
+
+<div class="section-title" style="margin-top:30px;"><h2>Product listings</h2></div>
+<div class="grid grid-2" style="align-items:start;">
+  <div>
+    {% for l in listings %}
+    <div class="listing-card">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+          <h4>{{ l.name }}</h4>
+          {% if l.pricing_model %}<span class="price">{{ l.pricing_model }}</span>{% endif %}
+        </div>
+        <form method="post" action="{{ url_for('seller_listing_delete', listing_id=l.id) }}">
+          <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
+        </form>
+      </div>
+      <ul class="listing-feats">{% for f in l.features %}<li>{{ f }}</li>{% endfor %}</ul>
+    </div>
+    {% else %}
+    <div class="card empty-state"><div class="icon">📦</div>No listings yet — add your first product.</div>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:15px;">Add a product listing</h3>
+    <form method="post" action="{{ url_for('seller_listing_new') }}">
+      <div class="field"><label>Product name</label><input type="text" name="name" required></div>
+      <div class="field"><label>Pricing model</label><input type="text" name="pricing_model" placeholder="e.g. Per-seat annual license"></div>
+      <div class="field"><label>Short description</label><textarea name="description"></textarea></div>
+      <div class="field"><label>Key features (one per line)</label><textarea name="features" placeholder="One feature per line" style="min-height:110px;"></textarea></div>
+      <button class="btn btn-primary" type="submit">Add listing</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

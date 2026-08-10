@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ buyer.name }}{% endblock %}
+{% block content %}
+<a href="{{ url_for('seller_messages') }}" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">← Back to messages</a>
+<div class="card" style="max-width:760px; margin:0 auto;">
+  <div class="thread-header">
+    <span class="vendor-logo" style="background:var(--brand);">{{ buyer.name[0] }}</span>
+    <div><h2 style="font-size:17px; margin:0;">{{ buyer.name }}</h2><span class="hint">{{ buyer.title }} · {{ buyer.company }}</span></div>
+  </div>
+
+  <div class="msg-list">
+    {% for m in messages %}
+    <div class="msg-bubble {{ 'mine' if m.sender_user_id == g.user.id }}">
+      <div class="msg-meta">{{ m.sender_name }} · {{ m.created_at|fmt_time }}</div>
+      <div class="msg-body">{{ m.body }}</div>
+    </div>
+    {% else %}
+    <div class="empty-state"><div class="icon">💬</div>No messages yet.</div>
+    {% endfor %}
+  </div>
+
+  <form method="post">
+    <textarea name="body" placeholder="Reply…" required></textarea>
+    <button class="btn btn-primary" type="submit" style="margin-top:10px;">Send</button>
+  </form>
+</div>
+{% endblock %}

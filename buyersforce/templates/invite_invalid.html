@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Invite link{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card" style="text-align:center;">
+    <div class="auth-head">
+      {% if reason == 'expired' %}
+        <h1 style="font-size:22px;">This link has expired</h1>
+        <p style="margin:0;">Access links are valid for 7 days. Ask your administrator to
+          generate a new one.</p>
+      {% elif reason == 'used' %}
+        <h1 style="font-size:22px;">This link has already been used</h1>
+        <p style="margin:0;">If you already set a password, just log in below. Otherwise ask
+          your administrator to generate a fresh link.</p>
+      {% else %}
+        <h1 style="font-size:22px;">This link isn't valid</h1>
+        <p style="margin:0;">Double-check the link, or ask your administrator to send a new one.</p>
+      {% endif %}
+    </div>
+    <a href="{{ url_for('login') }}" class="btn btn-primary" style="margin-top:10px;">Go to login</a>
+  </div>
+</div>
+{% endblock %}

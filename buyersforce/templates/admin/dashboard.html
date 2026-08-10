@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Access control{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Administrator</span>
+    <h1>Access control</h1>
+    <p class="lede">BuyersForce is invite-only. Grant access by email — nobody else can create
+      an account on their own.</p>
+  </div>
+</div>
+
+{% if new_invite_link %}
+<div class="card" style="border-color:var(--brand); background:var(--brand-tint); margin-bottom:24px;">
+  <h3 style="font-size:14.5px; color:var(--brand-dark);">Access link ready — send this to them yourself</h3>
+  <p style="font-size:13px; margin-bottom:10px;">This link isn't emailed automatically. Copy it and send it
+    however you'd like (email, Slack, text). It expires in 7 days and can only be used once.</p>
+  <div style="display:flex; gap:8px;">
+    <input type="text" readonly value="{{ new_invite_link }}" onclick="this.select()"
+           style="font-family:monospace; font-size:12.5px;">
+  </div>
+</div>
+{% endif %}
+
+<div class="grid grid-2" style="grid-template-columns:1fr 1.3fr; align-items:start;">
+  <div class="card">
+    <h3 style="font-size:15px;">Grant access to a new person</h3>
+    <form method="post" action="{{ url_for('admin_invite') }}">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" name="email" required placeholder="person@company.com">
+      </div>
+      <div class="field">
+        <label>Name (optional)</label>
+        <input type="text" name="name" placeholder="Full name">
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Account type</label>
+          <select name="role">
+            <option value="buyer">Buyer</option>
+            <option value="seller">Seller</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Company</label>
+          <input type="text" name="company" required placeholder="Their company">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" type="submit">Create access link</button>
+    </form>
+  </div>
+
+  <div>
+    <div class="section-title"><h2>Pending invites</h2></div>
+    {% if pending_invites %}
+    <div class="card" style="padding:8px 22px; margin-bottom:24px;">
+      {% for inv in pending_invites %}
+      <div class="mock-row">
+        <span>
+          <strong style="font-size:14px;">{{ inv.email }}</strong>
+          <div class="hint">{{ inv.role|capitalize }} · {{ inv.company }} · expires {{ inv.expires_at|fmt_time }}</div>
+        </span>
+        <span style="display:flex; gap:6px;">
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('admin_dashboard') }}?new_invite={{ inv.id }}">Copy link</a>
+          <form method="post" action="{{ url_for('admin_revoke_invite', invite_id=inv.id) }}">
+            <button class="btn btn-ghost btn-sm" type="submit">Revoke</button>
+          </form>
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✉️</div>No pending invites.</div>
+    {% endif %}
+
+    <div class="section-title"><h2>All accounts</h2></div>
+    {% if users %}
+    <table class="table">
+      <tr><th>Name</th><th>Email</th><th>Type</th><th>Company</th><th></th></tr>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.name }}</td>
+        <td>{{ u.email }}</td>
+        <td><span class="badge badge-neutral">{{ u.role|capitalize }}</span></td>
+        <td>{{ u.company }}</td>
+        <td>
+          <form method="post" action="{{ url_for('admin_grant_access', user_id=u.id) }}">
+            <button class="btn btn-secondary btn-sm" type="submit">Reset access</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <div class="card empty-state"><div class="icon">👤</div>No accounts yet — invite someone above.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
