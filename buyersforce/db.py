@@ -2,7 +2,10 @@ import sqlite3
 import os
 from flask import g
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "buyersforce.db")
+# DB_PATH can be overridden via env var to point at a persistent volume
+# mount (e.g. /data/buyersforce.db on Railway) so data survives redeploys.
+# Falls back to a file next to this script for local development.
+DB_PATH = os.environ.get("DB_PATH") or os.path.join(os.path.dirname(__file__), "buyersforce.db")
 
 
 def get_db():
