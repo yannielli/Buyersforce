@@ -4,7 +4,10 @@ import os
 import secrets
 from werkzeug.security import generate_password_hash
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "buyersforce.db")
+# DB_PATH can be overridden via env var to point at a persistent volume
+# mount (e.g. /data/buyersforce.db on Railway) so data survives redeploys.
+# Falls back to a file next to this script for local development.
+DB_PATH = os.environ.get("DB_PATH") or os.path.join(os.path.dirname(__file__), "buyersforce.db")
 SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.sql")
 
 # Admin account -- configurable via env vars so a real password can be set at
@@ -22,6 +25,7 @@ def _random_password_hash():
 
 
 def run():
+    os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
     if os.path.exists(DB_PATH):
         os.remove(DB_PATH)
     con = sqlite3.connect(DB_PATH)
