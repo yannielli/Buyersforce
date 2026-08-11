@@ -24,9 +24,17 @@ def _random_password_hash():
     return generate_password_hash(secrets.token_urlsafe(16))
 
 
-def run():
+def run(force=False):
     os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
     if os.path.exists(DB_PATH):
+        if not force:
+            # A database already exists at DB_PATH (e.g. on a persistent
+            # volume that survived a redeploy) -- don't clobber real data.
+            # This check lives here in Python, not in the shell startCommand,
+            # because it needs to reliably see the same DB_PATH env var the
+            # app itself uses.
+            print(f"Database already exists at {DB_PATH} -- skipping seed.")
+            return
         os.remove(DB_PATH)
     con = sqlite3.connect(DB_PATH)
     con.executescript(open(SCHEMA_PATH).read())
@@ -334,4 +342,5 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    import sys
+    run(force="--force" in sys.argv)
