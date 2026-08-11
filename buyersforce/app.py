@@ -150,6 +150,12 @@ def accept_invite(token):
         return render_template("invite_invalid.html", reason="expired")
 
     existing_user = dbm.query("SELECT * FROM users WHERE email = ?", (invite["email"],), one=True)
+    if existing_user and existing_user["is_admin"]:
+        # Safety net: an invite link should never be able to reset the master
+        # admin account's password. This shouldn't normally be reachable
+        # since admin_invite() blocks creating such an invite in the first
+        # place, but a defensive check here costs nothing.
+        return render_template("invite_invalid.html", reason="not_found")
 
     if request.method == "POST":
         password = request.form.get("password", "")
@@ -183,7 +189,8 @@ def accept_invite(token):
                         (user_id, invite["company"],
                          "".join([w[0] for w in invite["company"].split()[:2]]).upper() or "VN"),
                     )
-            dbm.execute("UPDATE invites SET used_at = datetime('now') WHERE id = ?", (invite["id"],))
+            now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            dbm.execute("UPDATE invites SET used_at = ? WHERE id = ?", (now_str, invite["id"]))
             session.clear()
             session["user_id"] = user_id
             flash("Your account is ready.", "success")
@@ -264,6 +271,12 @@ def admin_invite():
     name = request.form.get("name", "").strip()
     if not email or role not in ("buyer", "seller") or not company:
         flash("Email, account type, and company are required.", "error")
+        return redirect(url_for("admin_dashboard"))
+
+    existing = dbm.query("SELECT * FROM users WHERE email = ?", (email,), one=True)
+    if existing and existing["is_admin"]:
+        flash("That email belongs to an administrator account and can't be invited "
+              "as a buyer or seller.", "error")
         return redirect(url_for("admin_dashboard"))
 
     dbm.execute("DELETE FROM invites WHERE email = ? AND used_at IS NULL", (email,))
