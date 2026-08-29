@@ -185,7 +185,7 @@ def accept_invite(token):
                     dbm.execute(
                         "INSERT INTO vendors (seller_user_id, company_name, category, tagline, "
                         "description, website, accent, initials) VALUES (?, ?, 'Uncategorized', "
-                        "'', '', '', '#2a78d6', ?)",
+                        "'', '', '', '#3b82f6', ?)",
                         (user_id, invite["company"],
                          "".join([w[0] for w in invite["company"].split()[:2]]).upper() or "VN"),
                     )
@@ -868,7 +868,7 @@ def seller_profile():
             "website=?, accent=?, initials=? WHERE id=?",
             (
                 form["company_name"].strip(), form["category"].strip(), form["tagline"].strip(),
-                form["description"].strip(), form["website"].strip(), form["accent"].strip() or "#2a78d6",
+                form["description"].strip(), form["website"].strip(), form["accent"].strip() or "#3b82f6",
                 (form["initials"].strip() or "VN")[:3].upper(), vendor["id"],
             ),
         )
