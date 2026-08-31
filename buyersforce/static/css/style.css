@@ -1,4 +1,4 @@
-/* BuyersForce — design tokens (validated palette, see dataviz skill) */
+/* BuyersForce â€” design tokens (validated palette, see dataviz skill) */
 :root {
   --page: #f9f9f7;
   --surface: #fcfcfb;
@@ -14,6 +14,8 @@
   --brand-dark: #16325f;
   --brand-tint: #eaf1fe;
   --brand-navy: #0b1830;
+  --brand-mcm-ink: #2b2015;
+  --brand-mcm-coral: #e2603a;
   --series-1: #3b82f6;
   --series-2: #eb6834;
   --series-3: #1baf7a;
@@ -65,11 +67,11 @@ button { font-family: inherit; }
 }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; flex-shrink: 0; }
 .brand-mark {
-  width: 34px; height: 34px; border-radius: 9px; overflow: hidden;
+  width: 44px; height: 44px;
   display: flex; align-items: center; justify-content: center;
 }
-.brand-buyers { color: var(--brand-navy); }
-.brand-force { color: var(--brand); }
+.brand-buyers { color: var(--brand-mcm-ink); }
+.brand-force { color: var(--brand-mcm-coral); }
 .main-nav { display: flex; gap: 4px; flex: 1; }
 .main-nav a {
   padding: 8px 12px; border-radius: 8px; color: var(--ink-secondary); font-size: 14.5px; font-weight: 500;
@@ -281,7 +283,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .demo-user .who small { display: block; color: var(--ink-muted); font-size: 12px; }
 
 /* =========================================================
-   APP — vendor cards / discover
+   APP â€” vendor cards / discover
    ========================================================= */
 .toolbar { display: flex; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
 .toolbar input[type=text] { flex: 1; min-width: 200px; }
@@ -311,7 +313,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .listing-card h4 { font-size: 15.5px; margin-bottom: 2px; }
 .listing-card .price { font-size: 12.5px; color: var(--brand-dark); font-weight: 600; margin-bottom: 10px; display: block; }
 .listing-feats li { position: relative; padding-left: 20px; font-size: 13.5px; color: var(--ink-secondary); margin-bottom: 6px; }
-.listing-feats li::before { content: "✓"; position: absolute; left: 0; color: var(--good); font-weight: 700; }
+.listing-feats li::before { content: "âœ“"; position: absolute; left: 0; color: var(--good); font-weight: 700; }
 .side-panel { position: sticky; top: 84px; }
 
 /* compare table */
