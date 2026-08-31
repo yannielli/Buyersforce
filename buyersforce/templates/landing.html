@@ -2,23 +2,39 @@
 {% block title %}The dedicated platform for technology buyers{% endblock %}
 {% block content %}
 
+<svg width="0" height="0" style="position:absolute;" aria-hidden="true">
+  <defs>
+    <path id="m-sparkle" d="M0 -60 C 6 -18 18 -6 60 0 C 18 6 6 18 0 60 C -6 18 -18 6 -60 0 C -18 -6 -6 -18 0 -60 Z"/>
+    <polygon id="m-compass" points="0.0,-64.0 5.0,-12.0 19.1,-19.1 12.0,-5.0 42.0,-0.0 12.0,5.0 19.1,19.1 5.0,12.0 0.0,64.0 -5.0,12.0 -19.1,19.1 -12.0,5.0 -42.0,0.0 -12.0,-5.0 -19.1,-19.1 -5.0,-12.0"/>
+  </defs>
+</svg>
+
 <section class="hero">
-  <span class="hero-badge">● Built for the people who actually use the technology</span>
-  <h1>Sellers have a thousand tools.<br>Buyers have none of their own.</h1>
-  <p class="sub">BuyersForce is a purpose-built SaaS platform that centralizes vendor sourcing,
-    evaluation, communication, and management — entirely on the buyer's terms.</p>
-  <div class="hero-cta">
-    <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">Log in</a>
-    <a href="{{ url_for('signup') }}" class="btn btn-secondary btn-lg">Request access</a>
-  </div>
-  <div class="stat-strip">
-    <div><div class="big">90%</div><div class="lbl">of a technical purchase current buyer tools don't touch</div></div>
-    <div><div class="big">50%</div><div class="lbl">of the buying process handled without a salesperson</div></div>
-    <div><div class="big">0</div><div class="lbl">vendor trackers watching your activity</div></div>
+  <svg class="hero-spark" style="top:6%; right:2%;" width="46" height="46" viewBox="-60 -60 120 120" aria-hidden="true"><use href="#m-sparkle" class="shimmer" fill="var(--brand-mcm-coral)"/></svg>
+  <svg class="hero-spark" style="top:46%; left:1%;" width="30" height="30" viewBox="-60 -60 120 120" aria-hidden="true"><use href="#m-sparkle" class="shimmer" style="animation-delay:1.1s" fill="var(--brand-dark)"/></svg>
+  <svg class="hero-spark" style="top:70%; right:3%;" width="26" height="26" viewBox="-60 -60 120 120" aria-hidden="true"><use href="#m-sparkle" class="shimmer" style="animation-delay:0.6s" fill="var(--brand)"/></svg>
+  <svg class="hero-spark" style="top:80%; left:8%;" width="22" height="22" viewBox="-60 -60 120 120" aria-hidden="true"><use href="#m-sparkle" class="shimmer" style="animation-delay:1.7s" fill="var(--brand-mcm-mustard)"/></svg>
+  <div class="hero-inner">
+    <span class="hero-badge">● Built for the people who actually use the technology</span>
+    <h1>Sellers have a thousand tools.<br>Buyers have none of their own.</h1>
+    <p class="sub">BuyersForce is a purpose-built SaaS platform that centralizes vendor sourcing,
+      evaluation, communication, and management — entirely on the buyer's terms.</p>
+    <div class="hero-cta">
+      <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">Log in</a>
+      <a href="{{ url_for('signup') }}" class="btn btn-secondary btn-lg">Request access</a>
+    </div>
+    <div class="stat-strip">
+      <div><div class="big">90%</div><div class="lbl">of a technical purchase current buyer tools don't touch</div></div>
+      <div><div class="big">50%</div><div class="lbl">of the buying process handled without a salesperson</div></div>
+      <div><div class="big">0</div><div class="lbl">vendor trackers watching your activity</div></div>
+    </div>
   </div>
 </section>
 
 <section class="section" id="problem">
+  <div class="section-icon">
+    <svg width="72" height="72" viewBox="-46 -50 92 100" aria-hidden="true"><g transform="translate(0,0) rotate(0) scale(0.85)" opacity="1"><line x1="0" y1="0" x2="0.0" y2="-46.0" stroke="var(--ink-primary)" stroke-width="2.4"/><line x1="0" y1="0" x2="32.5" y2="-32.5" stroke="var(--ink-primary)" stroke-width="2.4"/><line x1="0" y1="0" x2="46.0" y2="-0.0" stroke="var(--ink-primary)" stroke-width="2.4"/><line x1="0" y1="0" x2="32.5" y2="32.5" stroke="var(--ink-primary)" stroke-width="2.4"/><line x1="0" y1="0" x2="0.0" y2="46.0" stroke="var(--ink-primary)" stroke-width="2.4"/><line x1="0" y1="0" x2="-32.5" y2="32.5" stroke="var(--ink-primary)" stroke-width="2.4"/><line x1="0" y1="0" x2="-46.0" y2="0.0" stroke="var(--ink-primary)" stroke-width="2.4"/><line x1="0" y1="0" x2="-32.5" y2="-32.5" stroke="var(--ink-primary)" stroke-width="2.4"/><circle cx="0.0" cy="-46.0" r="7" fill="var(--brand-mcm-coral)"/><circle cx="32.5" cy="-32.5" r="5.5" fill="var(--brand-mcm-mustard)"/><circle cx="46.0" cy="-0.0" r="7" fill="var(--brand-mcm-sage)"/><circle cx="32.5" cy="32.5" r="5.5" fill="var(--brand-mcm-coral)"/><circle cx="0.0" cy="46.0" r="7" fill="var(--brand-mcm-mustard)"/><circle cx="-32.5" cy="32.5" r="5.5" fill="var(--brand-mcm-sage)"/><circle cx="-46.0" cy="0.0" r="7" fill="var(--brand-mcm-coral)"/><circle cx="-32.5" cy="-32.5" r="5.5" fill="var(--brand-mcm-mustard)"/></g></svg>
+  </div>
   <div class="section-head">
     <span class="eyebrow" style="text-align:center;">The Buyer-Side Gap</span>
     <h2>Procurement got all the tools. Engineering got none.</h2>
@@ -28,18 +44,21 @@
 
   <div class="problem-grid">
     <div class="problem-card">
+      <svg class="accent" width="36" height="36" viewBox="-30 -30 60 60" aria-hidden="true"><use href="#m-sparkle" class="shimmer" fill="var(--brand)"/></svg>
       <span class="num">01</span>
       <h3>Buyer tools stop at renewal</h3>
       <p>Current platforms serve acquisition and renewal for commodity products — monitors,
         printers, office supplies. They have no cognition for a real technical evaluation.</p>
     </div>
     <div class="problem-card">
+      <svg class="accent" width="36" height="36" viewBox="-30 -30 60 60" aria-hidden="true"><use href="#m-sparkle" class="shimmer" fill="var(--brand-mcm-coral)"/></svg>
       <span class="num">02</span>
       <h3>The real buyer is engineering</h3>
       <p>For complex technology like cybersecurity, the true buyer is the engineering team who
         will live in the platform every day as part of their job — not a procurement generalist.</p>
     </div>
     <div class="problem-card">
+      <svg class="accent" width="36" height="36" viewBox="-30 -30 60 60" aria-hidden="true"><use href="#m-sparkle" class="shimmer" fill="var(--brand-dark)"/></svg>
       <span class="num">03</span>
       <h3>Built for the wrong person</h3>
       <p>Every existing tool is designed around procurement workflows, not around the people who
@@ -67,6 +86,9 @@
 </section>
 
 <section class="section" id="vendor-management">
+  <div class="section-icon">
+    <svg width="72" height="72" viewBox="-50 -55 100 115" aria-hidden="true"><g transform="translate(0,8) rotate(0) scale(0.82)" opacity="1"><polygon points="0,-46 16,0 0,46 -16,0" fill="var(--brand)" transform="translate(-22,4)"/><polygon points="0,-60 20,0 0,60 -20,0" fill="var(--brand-mcm-coral)" transform="translate(0,0)"/><polygon points="0,-34 13,0 0,34 -13,0" fill="var(--brand-dark)" transform="translate(21,8)"/></g></svg>
+  </div>
   <div class="split">
     <div>
       <span class="eyebrow">How Buyers Manage Vendors Today</span>
@@ -106,6 +128,9 @@
 </section>
 
 <section class="section" id="platform">
+  <div class="section-icon">
+    <svg width="72" height="72" viewBox="-46 -50 92 100" aria-hidden="true"><use href="#m-compass" transform="translate(0,0) rotate(0) scale(0.72)" fill="var(--brand-mcm-coral)"/></svg>
+  </div>
   <div class="section-head">
     <span class="eyebrow" style="text-align:center;">BuyersForce: Dedicated Buyer's Platform</span>
     <h2>One purpose-built space, entirely on the buyer's terms</h2>
@@ -137,6 +162,9 @@
 </section>
 
 <section class="section" id="buyers">
+  <div class="section-icon">
+    <svg width="72" height="72" viewBox="-58 -62 116 124" aria-hidden="true"><g transform="translate(0,0) rotate(0) scale(0.85)" opacity="1"><line x1="0" y1="0" x2="0.0" y2="-50.0" stroke="var(--ink-primary)" stroke-width="2.4"/><line x1="0" y1="0" x2="21.2" y2="-21.2" stroke="var(--ink-primary)" stroke-width="2.4"/><line x1="0" y1="0" x2="42.0" y2="-0.0" stroke="var(--ink-primary)" stroke-width="2.4"/><line x1="0" y1="0" x2="15.6" y2="15.6" stroke="var(--ink-primary)" stroke-width="2.4"/><line x1="0" y1="0" x2="0.0" y2="34.0" stroke="var(--ink-primary)" stroke-width="2.4"/><line x1="0" y1="0" x2="-14.1" y2="14.1" stroke="var(--ink-primary)" stroke-width="2.4"/><line x1="0" y1="0" x2="-46.0" y2="0.0" stroke="var(--ink-primary)" stroke-width="2.4"/><line x1="0" y1="0" x2="-18.4" y2="-18.4" stroke="var(--ink-primary)" stroke-width="2.4"/><circle cx="0.0" cy="-50.0" r="9" fill="var(--brand)"/><circle cx="21.2" cy="-21.2" r="5" fill="var(--brand-mcm-coral)"/><circle cx="42.0" cy="-0.0" r="7" fill="var(--brand-dark)"/><circle cx="15.6" cy="15.6" r="4.5" fill="var(--brand-mcm-mustard)"/><circle cx="0.0" cy="34.0" r="6.5" fill="var(--brand-mcm-sage)"/><circle cx="-14.1" cy="14.1" r="4" fill="var(--brand-mcm-coral)"/><circle cx="-46.0" cy="0.0" r="8" fill="var(--brand)"/><circle cx="-18.4" cy="-18.4" r="5" fill="var(--brand-mcm-mustard)"/></g></svg>
+  </div>
   <div class="split">
     <div>
       <span class="eyebrow">Advantages for Buyers</span>
@@ -166,6 +194,9 @@
 </section>
 
 <section class="section" id="sellers">
+  <div class="section-icon">
+    <svg width="72" height="72" viewBox="-44 -70 88 148" aria-hidden="true"><g transform="translate(0,0) rotate(0) scale(0.62)" opacity="1"><line x1="0" y1="-83.0" x2="0" y2="83.0" stroke="var(--ink-primary)" stroke-width="2.6"/><circle cx="0" cy="-83.0" r="5.5" fill="var(--ink-primary)"/><circle cx="0" cy="83.0" r="5.5" fill="var(--ink-primary)"/><polygon points="-7,-22 7,-22 18,0 7,22 -7,22 -18,0" fill="var(--brand)" transform="translate(0,-46.0)"/><polygon points="-7,-22 7,-22 18,0 7,22 -7,22 -18,0" fill="var(--brand-mcm-mustard)" transform="translate(0,0.0)"/><polygon points="-7,-22 7,-22 18,0 7,22 -7,22 -18,0" fill="var(--brand-mcm-coral)" transform="translate(0,46.0)"/></g></svg>
+  </div>
   <div class="split">
     <div class="mock-panel" style="order:2;">
       <div class="mock-row"><span>📥 Inbound leads</span><span class="badge badge-good">+12 this month</span></div>
@@ -198,14 +229,22 @@
   </div>
 </section>
 
-<section class="section">
+<section class="section" style="padding-top:8px;">
+  <div class="section-icon">
+    <svg width="72" height="72" viewBox="-42 -60 84 122" aria-hidden="true"><g transform="translate(0,6) rotate(0) scale(0.85)" opacity="1"><path d="M -9,26 C -12,42 -4,54 0,60 C 4,54 12,42 9,26 Z" fill="var(--brand-mcm-mustard)"/><path d="M -5,26 C -7,38 -2,48 0,52 C 2,48 7,38 5,26 Z" fill="var(--brand-mcm-coral)"/><path d="M -22,14 L -40,32 L -16,26 Z" fill="var(--brand-dark)"/><path d="M 22,14 L 40,32 L 16,26 Z" fill="var(--brand-dark)"/><path d="M 0,-58 C 20,-34 24,4 22,28 L -22,28 C -24,4 -20,-34 0,-58 Z" fill="var(--brand-mcm-cream)"/><path d="M 0,-58 C 10,-46 15,-30 16,-16 L -16,-16 C -15,-30 -10,-46 0,-58 Z" fill="var(--brand)"/><circle cx="0" cy="-4" r="9" fill="var(--brand-dark)"/><circle cx="0" cy="-4" r="4" fill="#ffffff"/></g></svg>
+  </div>
   <div class="cta-band">
-    <h2>Take back the buying process.</h2>
-    <p>Join the platform built for the people who feel the pain, evaluate the options, and run the
-      solution every day.</p>
-    <div class="hero-cta">
-      <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">Log in</a>
-      <a href="{{ url_for('signup') }}" class="btn btn-secondary btn-lg">Request access</a>
+    <svg class="cta-spark" style="top:14%; right:5%;" width="36" height="36" viewBox="-60 -60 120 120" aria-hidden="true"><use href="#m-sparkle" class="shimmer" fill="var(--brand-mcm-mustard)"/></svg>
+    <svg class="cta-spark" style="top:58%; left:6%;" width="26" height="26" viewBox="-60 -60 120 120" aria-hidden="true"><use href="#m-sparkle" class="shimmer" style="animation-delay:0.9s" fill="#ffffff"/></svg>
+    <svg class="cta-spark" style="top:64%; right:9%;" width="22" height="22" viewBox="-60 -60 120 120" aria-hidden="true"><use href="#m-sparkle" class="shimmer" style="animation-delay:1.6s" fill="#ffffff"/></svg>
+    <div class="cta-band-inner">
+      <h2>Take back the buying process.</h2>
+      <p>Join the platform built for the people who feel the pain, evaluate the options, and run the
+        solution every day.</p>
+      <div class="hero-cta">
+        <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">Log in</a>
+        <a href="{{ url_for('signup') }}" class="btn btn-secondary btn-lg">Request access</a>
+      </div>
     </div>
   </div>
 </section>
