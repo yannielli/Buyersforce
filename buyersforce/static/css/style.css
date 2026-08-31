@@ -10,12 +10,20 @@
   --border: rgba(11,11,11,0.10);
   --border-strong: rgba(11,11,11,0.16);
 
-  --brand: #3b82f6;
-  --brand-dark: #16325f;
-  --brand-tint: #eaf1fe;
+  /* Primary brand color = teal, from the Sputnik Orbit / Bar-Mark logos.
+     Coral is kept out of --brand on purpose: it's close in hue to
+     --serious/--critical below, so it's used only as a decorative accent
+     (wordmark, dividers, illustrations) rather than on buttons or badges,
+     to avoid reading as a warning. */
+  --brand: #17948f;
+  --brand-dark: #0d5f5c;
+  --brand-tint: #e3f2f0;
   --brand-navy: #0b1830;
   --brand-mcm-ink: #2b2015;
   --brand-mcm-coral: #e2603a;
+  --brand-mcm-mustard: #e4a72e;
+  --brand-mcm-sage: #8fb3a8;
+  --brand-mcm-cream: #f5ecd7;
   --series-1: #3b82f6;
   --series-2: #eb6834;
   --series-3: #1baf7a;
@@ -266,6 +274,28 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .stat-strip div { text-align: center; }
 .stat-strip .big { font-size: 30px; font-weight: 800; color: var(--brand-dark); }
 .stat-strip .lbl { font-size: 13px; color: var(--ink-muted); }
+
+/* ---- Googie decorative motifs (sparkles + per-section icons) ---- */
+@keyframes shimmer {
+  0%, 100% { opacity: 0.45; transform: scale(0.78); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+.shimmer { transform-box: fill-box; transform-origin: center; animation: shimmer 2.8s ease-in-out infinite; }
+
+.hero { position: relative; overflow: hidden; }
+.hero-inner { position: relative; z-index: 2; }
+.hero-spark { position: absolute; z-index: 1; pointer-events: none; }
+@media (max-width: 900px) { .hero-spark { display: none; } }
+
+.section-icon { display: flex; justify-content: center; margin-bottom: 14px; }
+
+.problem-card { position: relative; overflow: hidden; }
+.problem-card .accent { position: absolute; top: 14px; right: 14px; }
+
+.cta-band { position: relative; overflow: hidden; }
+.cta-band-inner { position: relative; z-index: 2; }
+.cta-spark { position: absolute; z-index: 1; pointer-events: none; }
+@media (max-width: 900px) { .cta-spark { display: none; } }
 
 /* ---------- login / signup ---------- */
 .auth-wrap { max-width: 440px; margin: 20px auto; }
