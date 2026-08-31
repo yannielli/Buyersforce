@@ -1,14 +1,93 @@
- BuyersForce {% if g.user %}
-{% if g.user.role == 'buyer' %} Dashboard Discover Evaluations Messages Schedule {% elif g.user.role == 'seller' %} Dashboard Vendor Profile Leads Messages Partners {% elif g.user.role == 'admin' %} Access control {% endif %}
-{% if g.user.is_admin and g.user.role != 'admin' %} Admin {% endif %} {{ g.user.name[0] }} {{ g.user.name }} {{ g.user.company }} Account Sign out
-{% else %}
-Why BuyersForce For Buyers For Sellers
-Log in
-{% endif %}
-{% with messages = get_flashed_messages(with_categories=true) %} {% if messages %}
-{% for category, message in messages %}
-{{ message }}
-{% endfor %}
-{% endif %} {% endwith %}
-{% block content %}{% endblock %}
-© 2026 BuyersForce, Inc. — a dedicated platform for buyers. Home For Buyers For Sellers
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}BuyersForce{% endblock %} · BuyersForce</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon-32x32.png') }}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/favicon-16x16.png') }}">
+  <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+</head>
+<body class="{{ body_class|default('') }}">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="{{ url_for('landing') }}">
+        <span class="brand-mark"><svg width="44" height="44" viewBox="0 0 100 100" role="img" aria-label="BuyersForce logo"><ellipse cx="50" cy="50" rx="44" ry="16" fill="none" stroke="#e4a72e" stroke-width="3.2" transform="rotate(-18 50 50)"></ellipse><ellipse cx="50" cy="50" rx="44" ry="16" fill="none" stroke="#e2603a" stroke-width="3.2" transform="rotate(38 50 50)"></ellipse><ellipse cx="50" cy="50" rx="44" ry="16" fill="none" stroke="#0d5f5c" stroke-width="3.2" transform="rotate(94 50 50)"></ellipse><circle cx="50" cy="50" r="16" fill="#17948f"></circle><svg x="39" y="39" width="22" height="22" viewBox="0 0 64 64"><rect x="14" y="12" width="8" height="40" rx="4" fill="#ffffff"></rect><rect x="26" y="12" width="25" height="16" rx="8" fill="#ffffff"></rect><rect x="26" y="36" width="25" height="16" rx="8" fill="#ffffff"></rect></svg><circle cx="87" cy="45" r="3.4" fill="#e4a72e"></circle><circle cx="20" cy="61" r="3.4" fill="#e2603a"></circle><circle cx="61" cy="14" r="3.4" fill="#0d5f5c"></circle><polygon points="84.5,14 80.03,14.84 81.18,17.18 78.84,16.03 78,23 77.16,16.03 74.82,17.18 75.97,14.84 71.5,14 75.97,13.16 74.82,10.82 77.16,11.97 78,5 78.84,11.97 81.18,10.82 80.03,13.16" fill="#e2603a"></polygon><polygon points="18.5,80 14.27,81.27 13,85.5 11.73,81.27 7.5,80 11.73,78.73 13,74.5 14.27,78.73" fill="#0d5f5c"></polygon><polygon points="89,93 85.919,93.919 85,97 84.081,93.919 81,93 84.081,92.081 85,89 85.919,92.081" fill="#e4a72e"></polygon></svg></span>
+        <span class="brand-name"><span class="brand-buyers">Buyers</span><span class="brand-force">Force</span></span>
+      </a>
+
+      {% if g.user %}
+        <nav class="main-nav">
+          {% if g.user.role == 'buyer' %}
+            <a href="{{ url_for('buyer_dashboard') }}" class="{{ 'active' if request.endpoint == 'buyer_dashboard' }}">Dashboard</a>
+            <a href="{{ url_for('buyer_discover') }}" class="{{ 'active' if request.endpoint in ['buyer_discover','buyer_vendor','buyer_compare'] }}">Discover</a>
+            <a href="{{ url_for('buyer_evaluations') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('buyer_evaluation') }}">Evaluations</a>
+            <a href="{{ url_for('buyer_messages') }}" class="{{ 'active' if request.endpoint in ['buyer_messages','buyer_thread'] }}">Messages</a>
+            <a href="{{ url_for('buyer_schedule') }}" class="{{ 'active' if request.endpoint == 'buyer_schedule' }}">Schedule</a>
+          {% elif g.user.role == 'seller' %}
+            <a href="{{ url_for('seller_dashboard') }}" class="{{ 'active' if request.endpoint == 'seller_dashboard' }}">Dashboard</a>
+            <a href="{{ url_for('seller_profile') }}" class="{{ 'active' if request.endpoint == 'seller_profile' }}">Vendor Profile</a>
+            <a href="{{ url_for('seller_leads') }}" class="{{ 'active' if request.endpoint == 'seller_leads' }}">Leads</a>
+            <a href="{{ url_for('seller_messages') }}" class="{{ 'active' if request.endpoint in ['seller_messages','seller_thread'] }}">Messages</a>
+            <a href="{{ url_for('seller_partners') }}" class="{{ 'active' if request.endpoint == 'seller_partners' }}">Partners</a>
+          {% elif g.user.role == 'admin' %}
+            <a href="{{ url_for('admin_dashboard') }}" class="{{ 'active' if request.endpoint == 'admin_dashboard' }}">Access control</a>
+          {% endif %}
+        </nav>
+        <div class="user-menu">
+          {% if g.user.is_admin and g.user.role != 'admin' %}
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">Admin</a>
+          {% endif %}
+          <span class="user-chip">
+            <span class="user-avatar">{{ g.user.name[0] }}</span>
+            <span class="user-meta">
+              <span class="user-name">{{ g.user.name }}</span>
+              <span class="user-company">{{ g.user.company }}</span>
+            </span>
+          </span>
+          <a href="{{ url_for('account') }}" class="btn btn-ghost btn-sm">Account</a>
+          <a href="{{ url_for('logout') }}" class="btn btn-ghost btn-sm">Sign out</a>
+        </div>
+      {% else %}
+        <nav class="main-nav">
+          <a href="{{ url_for('landing') }}#problem">Why BuyersForce</a>
+          <a href="{{ url_for('landing') }}#buyers">For Buyers</a>
+          <a href="{{ url_for('landing') }}#sellers">For Sellers</a>
+        </nav>
+        <div class="user-menu">
+          <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm">Log in</a>
+        </div>
+      {% endif %}
+    </div>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-stack">
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main class="page {{ 'page-wide' if wide|default(false) else '' }}">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <span>&copy; 2026 BuyersForce, Inc. — a dedicated platform for buyers.</span>
+      <span class="footer-links">
+        <a href="{{ url_for('landing') }}">Home</a>
+        <a href="{{ url_for('landing') }}#buyers">For Buyers</a>
+        <a href="{{ url_for('landing') }}#sellers">For Sellers</a>
+      </span>
+    </div>
+  </footer>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
