@@ -579,7 +579,8 @@ def mark_thread_read(user_id, thread_id):
     latest_id = (latest["max_id"] if latest else 0) or 0
     dbm.execute(
         "INSERT INTO thread_reads (user_id, thread_id, last_read_message_id) VALUES (?, ?, ?) "
-        "ON CONFLICT (user_id, thread_id) DO UPDATE SET last_read_message_id = EXCLUDED.last_read_message_id",
+        "ON CONFLICT (user_id, thread_id) DO UPDATE SET last_read_message_id = EXCLUDED.last_read_message_id "
+        "RETURNING user_id",
         (user_id, thread_id, latest_id),
     )
 
