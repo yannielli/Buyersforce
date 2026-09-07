@@ -16,6 +16,8 @@ DROP TABLE IF EXISTS eval_scores CASCADE;
 DROP TABLE IF EXISTS partner_contacts CASCADE;
 DROP TABLE IF EXISTS activity_log CASCADE;
 DROP TABLE IF EXISTS invites CASCADE;
+DROP TABLE IF EXISTS contacts CASCADE;
+DROP TABLE IF EXISTS thread_reads CASCADE;
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -89,17 +91,53 @@ CREATE TABLE shortlist (
     UNIQUE(buyer_user_id, vendor_id)
 );
 
--- A thread is always initiated by a buyer. type distinguishes vendor conversations
--- from internal teammate / partner conversations.
+-- type distinguishes buyer<->vendor conversations, internal per-company
+-- teammate discussion boards, seller partner threads, and general 1:1
+-- "direct" conversations (teammate-to-teammate, or to someone who isn't
+-- a member yet -- participant_b_id stays NULL and external_name/email
+-- carry who it's for).
 CREATE TABLE threads (
     id SERIAL PRIMARY KEY,
-    type TEXT NOT NULL CHECK (type IN ('vendor','teammate','partner')),
+    type TEXT NOT NULL CHECK (type IN ('vendor','teammate','partner','direct')),
     buyer_user_id INTEGER REFERENCES users(id),
     vendor_id INTEGER REFERENCES vendors(id),
+    participant_a_id INTEGER REFERENCES users(id),
+    participant_b_id INTEGER REFERENCES users(id),
+    external_name TEXT,
+    external_email TEXT,
+    pending_email_sent_at TEXT,
     subject TEXT NOT NULL DEFAULT '',
     created_by INTEGER NOT NULL REFERENCES users(id),
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
 );
+
+-- Tracks the highest message id each user has seen in each thread, to
+-- compute an unread-messages badge. A message-id cursor rather than a
+-- timestamp, since this app's timestamps only have one-second
+-- resolution.
+CREATE TABLE thread_reads (
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    thread_id INTEGER NOT NULL REFERENCES threads(id),
+    last_read_message_id INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, thread_id)
+);
+
+-- A user's personal address book. A row with contact_user_id set is a
+-- fellow BuyersForce member; one with external_email instead is someone
+-- reached by email who isn't a member. Rows are added automatically the
+-- first time two people message each other.
+CREATE TABLE contacts (
+    id SERIAL PRIMARY KEY,
+    owner_user_id INTEGER NOT NULL REFERENCES users(id),
+    contact_user_id INTEGER REFERENCES users(id),
+    external_name TEXT,
+    external_email TEXT,
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+);
+CREATE UNIQUE INDEX contacts_owner_contact_uniq ON contacts (owner_user_id, contact_user_id)
+    WHERE contact_user_id IS NOT NULL;
+CREATE UNIQUE INDEX contacts_owner_external_email_uniq ON contacts (owner_user_id, external_email)
+    WHERE contact_user_id IS NULL AND external_email IS NOT NULL;
 
 CREATE TABLE messages (
     id SERIAL PRIMARY KEY,
