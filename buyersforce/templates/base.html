@@ -25,13 +25,13 @@
             <a href="{{ url_for('buyer_dashboard') }}" class="{{ 'active' if request.endpoint == 'buyer_dashboard' }}">Dashboard</a>
             <a href="{{ url_for('buyer_discover') }}" class="{{ 'active' if request.endpoint in ['buyer_discover','buyer_vendor','buyer_compare'] }}">Discover</a>
             <a href="{{ url_for('buyer_evaluations') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('buyer_evaluation') }}">Evaluations</a>
-            <a href="{{ url_for('buyer_messages') }}" class="{{ 'active' if request.endpoint in ['buyer_messages','buyer_thread'] }}">Messages</a>
+            <a href="{{ url_for('buyer_messages') }}" class="{{ 'active' if request.endpoint in ['buyer_messages','buyer_thread','messages_new'] }}">Messages{% if g.unread_count %}<span class="nav-badge">{{ g.unread_count }}</span>{% endif %}</a>
             <a href="{{ url_for('buyer_schedule') }}" class="{{ 'active' if request.endpoint == 'buyer_schedule' }}">Schedule</a>
           {% elif g.user.role == 'seller' %}
             <a href="{{ url_for('seller_dashboard') }}" class="{{ 'active' if request.endpoint == 'seller_dashboard' }}">Dashboard</a>
             <a href="{{ url_for('seller_profile') }}" class="{{ 'active' if request.endpoint == 'seller_profile' }}">Vendor Profile</a>
             <a href="{{ url_for('seller_leads') }}" class="{{ 'active' if request.endpoint == 'seller_leads' }}">Leads</a>
-            <a href="{{ url_for('seller_messages') }}" class="{{ 'active' if request.endpoint in ['seller_messages','seller_thread'] }}">Messages</a>
+            <a href="{{ url_for('seller_messages') }}" class="{{ 'active' if request.endpoint in ['seller_messages','seller_thread','messages_new'] }}">Messages{% if g.unread_count %}<span class="nav-badge">{{ g.unread_count }}</span>{% endif %}</a>
             <a href="{{ url_for('seller_partners') }}" class="{{ 'active' if request.endpoint == 'seller_partners' }}">Partners</a>
           {% elif g.user.role == 'admin' %}
             <a href="{{ url_for('admin_dashboard') }}" class="{{ 'active' if request.endpoint == 'admin_dashboard' }}">Access control</a>
