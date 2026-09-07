@@ -206,6 +206,27 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .flash-success { background: var(--good-tint); color: #0b6b0b; }
 .flash-error { background: var(--critical-tint); color: #96271f; }
 
+/* ---------- admin "view as" mode banner ---------- */
+.impersonation-bar {
+  background: var(--warning-tint);
+  border-bottom: 1px solid var(--warning);
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13.5px;
+  color: #6b4e05;
+}
+.impersonation-bar form { margin: 0; }
+.impersonation-bar-btn {
+  background: #fff;
+  border: 1px solid var(--warning);
+  color: #6b4e05;
+}
+.impersonation-bar-btn:hover { background: var(--warning); color: #fff; }
+
 /* ---------- footer ---------- */
 .site-footer { border-top: 1px solid var(--gridline); margin-top: 60px; }
 .site-footer-inner {
