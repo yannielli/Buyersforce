@@ -27,6 +27,11 @@ def load_logged_in_user():
         g.user = None
     else:
         g.user = dbm.query("SELECT * FROM users WHERE id = ?", (user_id,), one=True)
+    # "View as" mode: an admin can look at the platform through a buyer's or
+    # seller's eyes without a separate login. While this is set, g.user is
+    # the account being viewed (so every existing buyer/seller page just
+    # works, unchanged) and impersonator_id remembers who to snap back to.
+    g.impersonating = session.get("impersonator_id") is not None
 
 
 def login_required(view):
@@ -304,6 +309,40 @@ def admin_grant_access(user_id):
 def admin_revoke_invite(invite_id):
     dbm.execute("DELETE FROM invites WHERE id = ? AND used_at IS NULL", (invite_id,))
     flash("Invite revoked.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/app/admin/view-as/<int:user_id>", methods=("POST",))
+@admin_required
+def admin_view_as(user_id):
+    if session.get("impersonator_id"):
+        flash("Return to your admin account before switching to someone else.", "error")
+        return redirect(url_for("admin_dashboard"))
+    target = dbm.query("SELECT * FROM users WHERE id = ? AND is_admin = 0", (user_id,), one=True)
+    if not target:
+        abort(404)
+    log_activity(g.user["id"], f"started viewing as {target['name']} ({target['role']})")
+    session["impersonator_id"] = g.user["id"]
+    session["user_id"] = target["id"]
+    flash(f"You're now viewing BuyersForce as {target['name']}.", "success")
+    return redirect(home_for_role(target["role"]))
+
+
+@app.route("/app/admin/stop-view-as", methods=("POST",))
+def admin_stop_view_as():
+    # Deliberately not @admin_required: while impersonating, g.user IS the
+    # buyer/seller being viewed, so an admin-only check would lock the real
+    # admin out of their own "return to admin" button. The session's
+    # impersonator_id is the actual guard here.
+    admin_id = session.get("impersonator_id")
+    if not admin_id:
+        abort(404)
+    viewed_user = g.user
+    session["user_id"] = admin_id
+    session.pop("impersonator_id", None)
+    if viewed_user:
+        log_activity(admin_id, f"stopped viewing as {viewed_user['name']} ({viewed_user['role']})")
+    flash("You're back in your admin account.", "success")
     return redirect(url_for("admin_dashboard"))
 
 
