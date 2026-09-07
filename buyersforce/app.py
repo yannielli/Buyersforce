@@ -10,6 +10,7 @@ from flask import (
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import db as dbm
+import emailer
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "buyersforce-dev-secret-key-demo-only")
@@ -32,6 +33,7 @@ def load_logged_in_user():
     # the account being viewed (so every existing buyer/seller page just
     # works, unchanged) and impersonator_id remembers who to snap back to.
     g.impersonating = session.get("impersonator_id") is not None
+    g.unread_count = unread_count_for(g.user) if g.user and g.user["role"] in ("buyer", "seller") else 0
 
 
 def login_required(view):
@@ -352,9 +354,336 @@ def admin_stop_view_as():
 
 def teammates_of(user):
     return dbm.query(
-        "SELECT * FROM users WHERE company = ? AND role = 'buyer' AND id != ? ORDER BY name",
-        (user["company"], user["id"]),
+        "SELECT * FROM users WHERE company = ? AND role = ? AND id != ? ORDER BY name",
+        (user["company"], user["role"], user["id"]),
     )
+
+
+# ---------------------------------------------------------------------------
+# Direct messaging: "message anyone" (contacts, directory search, and
+# messaging someone who isn't a BuyersForce member yet)
+# ---------------------------------------------------------------------------
+
+def _can_message(user, candidate):
+    """Buyers and sellers can message their own teammates and anyone on
+    the other side of the marketplace -- not other buyers at a different
+    company, and not other, competing sellers. Admin accounts are never
+    reachable this way (their role is neither 'buyer' nor 'seller', so
+    both checks below simply fail for them)."""
+    if candidate["id"] == user["id"]:
+        return False
+    opposite = "seller" if user["role"] == "buyer" else "buyer"
+    if candidate["role"] == opposite:
+        return True
+    return candidate["role"] == user["role"] and candidate["company"] == user["company"]
+
+
+def search_recipients(user, q):
+    """Contacts (always shown) plus a directory search (only once the
+    viewer has typed something) -- teammates and anyone on the other
+    side of the marketplace, matched by name, company, or email."""
+    results = []
+    seen_user_ids = set()
+
+    contact_rows = dbm.query(
+        "SELECT c.*, u.name u_name, u.company u_company, u.role u_role, u.email u_email "
+        "FROM contacts c LEFT JOIN users u ON u.id = c.contact_user_id "
+        "WHERE c.owner_user_id = ? ORDER BY COALESCE(u.name, c.external_name)",
+        (user["id"],),
+    )
+    needle = q.lower().strip()
+    for c in contact_rows:
+        if c["contact_user_id"]:
+            name, company, role, email = c["u_name"], c["u_company"], c["u_role"], c["u_email"]
+        else:
+            name, company, role, email = c["external_name"] or c["external_email"], "", None, c["external_email"]
+        if needle and needle not in (name or "").lower() and needle not in (company or "").lower() \
+                and needle not in (email or "").lower():
+            continue
+        results.append({
+            "source": "contact", "user_id": c["contact_user_id"], "name": name,
+            "company": company, "role": role, "email": email,
+        })
+        if c["contact_user_id"]:
+            seen_user_ids.add(c["contact_user_id"])
+
+    if len(needle) >= 2:
+        opposite = "seller" if user["role"] == "buyer" else "buyer"
+        directory_rows = dbm.query(
+            "SELECT * FROM users WHERE is_admin = 0 AND ((role = ?) OR (role = ? AND company = ?)) "
+            "AND id != ? AND (LOWER(name) LIKE ? OR LOWER(company) LIKE ? OR LOWER(email) LIKE ?) "
+            "ORDER BY name LIMIT 25",
+            (opposite, user["role"], user["company"], user["id"],
+             f"%{needle}%", f"%{needle}%", f"%{needle}%"),
+        )
+        for r in directory_rows:
+            if r["id"] in seen_user_ids:
+                continue
+            results.append({
+                "source": "directory", "user_id": r["id"], "name": r["name"],
+                "company": r["company"], "role": r["role"], "email": r["email"],
+            })
+    return results
+
+
+def ensure_contact(owner_id, contact_user_id=None, external_name=None, external_email=None):
+    if contact_user_id:
+        dbm.execute(
+            "INSERT INTO contacts (owner_user_id, contact_user_id) VALUES (?, ?) "
+            "ON CONFLICT (owner_user_id, contact_user_id) WHERE contact_user_id IS NOT NULL DO NOTHING",
+            (owner_id, contact_user_id),
+        )
+    elif external_email:
+        dbm.execute(
+            "INSERT INTO contacts (owner_user_id, external_name, external_email) VALUES (?, ?, ?) "
+            "ON CONFLICT (owner_user_id, external_email) "
+            "WHERE contact_user_id IS NULL AND external_email IS NOT NULL DO NOTHING",
+            (owner_id, external_name, external_email),
+        )
+
+
+def get_or_create_direct_thread(a_id, b_id):
+    lo, hi = sorted((a_id, b_id))
+    thread = dbm.query(
+        "SELECT * FROM threads WHERE type='direct' AND participant_a_id=? AND participant_b_id=?",
+        (lo, hi), one=True,
+    )
+    if thread:
+        return thread
+    thread_id = dbm.execute(
+        "INSERT INTO threads (type, participant_a_id, participant_b_id, subject, created_by) "
+        "VALUES ('direct', ?, ?, '', ?)",
+        (lo, hi, a_id),
+    )
+    return dbm.query("SELECT * FROM threads WHERE id=?", (thread_id,), one=True)
+
+
+def get_or_create_external_thread(sender_id, email, name=None):
+    thread = dbm.query(
+        "SELECT * FROM threads WHERE type='direct' AND participant_a_id=? "
+        "AND participant_b_id IS NULL AND external_email=?",
+        (sender_id, email), one=True,
+    )
+    if thread:
+        return thread
+    thread_id = dbm.execute(
+        "INSERT INTO threads (type, participant_a_id, external_name, external_email, subject, created_by) "
+        "VALUES ('direct', ?, ?, ?, '', ?)",
+        (sender_id, name or email.split("@")[0], email, sender_id),
+    )
+    return dbm.query("SELECT * FROM threads WHERE id=?", (thread_id,), one=True)
+
+
+def thread_with_user(user, other):
+    """Route a "message this person" click to the right kind of thread:
+    the existing buyer<->vendor thread when the other side is a seller,
+    or a new 1:1 direct thread for a teammate."""
+    opposite = "seller" if user["role"] == "buyer" else "buyer"
+    if other["role"] == opposite:
+        buyer, seller = (user, other) if user["role"] == "buyer" else (other, user)
+        vendor = seller_vendor(seller)
+        if not vendor:
+            abort(400)
+        return get_or_create_vendor_thread(buyer["id"], vendor["id"])
+    return get_or_create_direct_thread(user["id"], other["id"])
+
+
+def thread_display_info(thread, viewer):
+    """Describes who/what a thread is with, regardless of its type, so
+    buyer/thread.html and seller/thread.html can render one consistent
+    header instead of special-casing every thread shape. For a 'vendor'
+    thread the "other side" depends on which of the two is looking: a
+    seller sees the buyer they're talking to, a buyer sees the vendor."""
+    if thread["type"] == "vendor":
+        if viewer["role"] == "seller":
+            buyer = dbm.query("SELECT * FROM users WHERE id=?", (thread["buyer_user_id"],), one=True)
+            return {"kind": "vendor", "buyer": buyer}
+        vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (thread["vendor_id"],), one=True)
+        return {"kind": "vendor", "vendor": vendor}
+    if thread["type"] == "teammate":
+        return {"kind": "teammate"}
+    if thread["type"] == "direct":
+        if thread["participant_b_id"]:
+            other_id = (
+                thread["participant_b_id"] if thread["participant_a_id"] == viewer["id"]
+                else thread["participant_a_id"]
+            )
+            other = dbm.query("SELECT * FROM users WHERE id=?", (other_id,), one=True)
+            return {"kind": "direct", "other_user": other}
+        return {
+            "kind": "pending_email",
+            "external_name": thread["external_name"],
+            "external_email": thread["external_email"],
+            "email_sent": bool(thread["pending_email_sent_at"]),
+        }
+    return {"kind": "unknown"}
+
+
+def visible_thread_ids(user):
+    """Every thread id this user is a party to, across all thread
+    shapes -- used to compute the unread-messages badge."""
+    ids = []
+    if user["role"] == "seller":
+        vendor = seller_vendor(user)
+        if vendor:
+            ids += [r["id"] for r in dbm.query(
+                "SELECT id FROM threads WHERE type='vendor' AND vendor_id=?", (vendor["id"],)
+            )]
+    else:
+        ids += [r["id"] for r in dbm.query(
+            "SELECT id FROM threads WHERE type='vendor' AND buyer_user_id=?", (user["id"],)
+        )]
+        ids += [r["id"] for r in dbm.query(
+            "SELECT id FROM threads WHERE type='teammate' AND subject LIKE ?",
+            (f"%{user['company']}%",),
+        )]
+    ids += [r["id"] for r in dbm.query(
+        "SELECT id FROM threads WHERE type='direct' AND (participant_a_id=? OR participant_b_id=?)",
+        (user["id"], user["id"]),
+    )]
+    return ids
+
+
+def unread_count_for(user):
+    # Compares message ids rather than timestamps: this app's timestamps
+    # only have one-second resolution, so a message posted in the same
+    # second as a "mark as read" could otherwise tie and be missed.
+    ids = visible_thread_ids(user)
+    if not ids:
+        return 0
+    placeholders = ",".join("?" for _ in ids)
+    others_messages = dbm.query(
+        f"SELECT thread_id, id FROM messages "
+        f"WHERE thread_id IN ({placeholders}) AND sender_user_id != ?",
+        list(ids) + [user["id"]],
+    )
+    if not others_messages:
+        return 0
+    read_rows = dbm.query(
+        f"SELECT thread_id, last_read_message_id FROM thread_reads "
+        f"WHERE user_id=? AND thread_id IN ({placeholders})",
+        [user["id"]] + list(ids),
+    )
+    last_read = {r["thread_id"]: r["last_read_message_id"] for r in read_rows}
+    unread = set()
+    for m in others_messages:
+        if m["id"] > last_read.get(m["thread_id"], 0):
+            unread.add(m["thread_id"])
+    return len(unread)
+
+
+def mark_thread_read(user_id, thread_id):
+    latest = dbm.query(
+        "SELECT MAX(id) AS max_id FROM messages WHERE thread_id=?", (thread_id,), one=True
+    )
+    latest_id = (latest["max_id"] if latest else 0) or 0
+    dbm.execute(
+        "INSERT INTO thread_reads (user_id, thread_id, last_read_message_id) VALUES (?, ?, ?) "
+        "ON CONFLICT (user_id, thread_id) DO UPDATE SET last_read_message_id = EXCLUDED.last_read_message_id",
+        (user_id, thread_id, latest_id),
+    )
+
+
+def _thread_route_for(user):
+    return "buyer_thread" if user["role"] == "buyer" else "seller_thread"
+
+
+@app.route("/app/messages/new")
+@login_required
+def messages_new():
+    if g.user["role"] not in ("buyer", "seller"):
+        abort(404)
+    q = request.args.get("q", "").strip()
+    to_id = request.args.get("to", type=int)
+    to_email = request.args.get("email", "").strip().lower()
+
+    selected = None
+    if to_id:
+        candidate = dbm.query("SELECT * FROM users WHERE id=?", (to_id,), one=True)
+        if candidate and _can_message(g.user, candidate):
+            selected = {"kind": "user", "user": candidate}
+        else:
+            flash("You can't start a conversation with that account.", "error")
+    elif to_email:
+        if "@" not in to_email:
+            flash(
+                "Texting a phone number isn't supported yet — enter an email address instead.",
+                "error",
+            )
+        else:
+            existing = dbm.query("SELECT * FROM users WHERE email=?", (to_email,), one=True)
+            if existing:
+                if _can_message(g.user, existing):
+                    selected = {"kind": "user", "user": existing}
+                else:
+                    flash("That email belongs to a BuyersForce account you can't message directly.", "error")
+            else:
+                selected = {"kind": "email", "email": to_email}
+
+    results = search_recipients(g.user, q) if (q and not selected) else []
+    return render_template("messages_new.html", q=q, results=results, selected=selected)
+
+
+@app.route("/app/messages/start", methods=("POST",))
+@login_required
+def messages_start():
+    if g.user["role"] not in ("buyer", "seller"):
+        abort(404)
+    body = request.form.get("body", "").strip()
+    to_id = request.form.get("to_id", type=int)
+    to_email = request.form.get("to_email", "").strip().lower()
+    thread_endpoint = _thread_route_for(g.user)
+
+    if not body:
+        flash("Write a message before sending.", "error")
+        return redirect(url_for("messages_new", to=to_id or None, email=to_email or None))
+
+    candidate = None
+    if to_id:
+        candidate = dbm.query("SELECT * FROM users WHERE id=?", (to_id,), one=True)
+    elif to_email:
+        candidate = dbm.query("SELECT * FROM users WHERE email=?", (to_email,), one=True)
+
+    if candidate:
+        if not _can_message(g.user, candidate):
+            abort(400)
+        thread = thread_with_user(g.user, candidate)
+        ensure_contact(g.user["id"], contact_user_id=candidate["id"])
+        ensure_contact(candidate["id"], contact_user_id=g.user["id"])
+        dbm.execute(
+            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
+            (thread["id"], g.user["id"], body),
+        )
+        log_activity(g.user["id"], f"messaged {candidate['name']}")
+        return redirect(url_for(thread_endpoint, thread_id=thread["id"]))
+
+    if to_email:
+        if "@" not in to_email:
+            flash("Texting a phone number isn't supported yet — enter an email address instead.", "error")
+            return redirect(url_for("messages_new"))
+        thread = get_or_create_external_thread(g.user["id"], to_email)
+        ensure_contact(g.user["id"], external_email=to_email)
+        dbm.execute(
+            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
+            (thread["id"], g.user["id"], body),
+        )
+        sent = emailer.send_message_notification(to_email, g.user, body)
+        if sent:
+            now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            dbm.execute(
+                "UPDATE threads SET pending_email_sent_at=? WHERE id=?", (now_str, thread["id"])
+            )
+            flash(f"Message sent — we emailed {to_email} since they're not on BuyersForce yet.", "success")
+        else:
+            flash(
+                f"Message saved, but we couldn't email {to_email} — BuyersForce's email "
+                f"sending isn't set up yet. Ask Claude to help you finish connecting it.",
+                "error",
+            )
+        log_activity(g.user["id"], f"messaged {to_email} (not yet a member)")
+        return redirect(url_for(thread_endpoint, thread_id=thread["id"]))
+
+    abort(400)
 
 
 def vendor_tags(vendor_id):
@@ -609,9 +938,29 @@ def buyer_messages():
         "AND t.subject LIKE ? ORDER BY last_at DESC",
         (u["id"], u["id"], u["id"], f"%{u['company']}%"),
     )
+    direct_threads = _direct_threads_for(u)
     return render_template(
-        "buyer/messages.html", vendor_threads=vendor_threads, team_threads=team_threads
+        "buyer/messages.html", vendor_threads=vendor_threads, team_threads=team_threads,
+        direct_threads=direct_threads,
     )
+
+
+def _direct_threads_for(user):
+    """1:1 'direct' threads for the inbox list -- teammate DMs, and
+    pending conversations with someone who isn't a member yet."""
+    rows = dbm.query(
+        "SELECT t.*, "
+        "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC LIMIT 1) last_body, "
+        "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC LIMIT 1) last_at "
+        "FROM threads t WHERE t.type='direct' AND (t.participant_a_id=? OR t.participant_b_id=?) "
+        "ORDER BY last_at DESC",
+        (user["id"], user["id"]),
+    )
+    out = []
+    for t in rows:
+        info = thread_display_info(t, user)
+        out.append({**dict(t), **info})
+    return out
 
 
 @app.route("/app/buyer/messages/team/new", methods=("POST",))
@@ -649,6 +998,9 @@ def _load_thread_for_user(thread_id, user):
     elif thread["type"] == "teammate":
         if user["role"] != "buyer" or user["company"] not in thread["subject"]:
             abort(403)
+    elif thread["type"] == "direct":
+        if thread["participant_a_id"] != user["id"] and thread["participant_b_id"] != user["id"]:
+            abort(403)
     return thread
 
 
@@ -669,10 +1021,9 @@ def buyer_thread(thread_id):
         "JOIN users u ON u.id = m.sender_user_id WHERE thread_id=? ORDER BY m.created_at",
         (thread_id,),
     )
-    vendor = None
-    if thread["vendor_id"]:
-        vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (thread["vendor_id"],), one=True)
-    return render_template("buyer/thread.html", thread=thread, messages=messages, vendor=vendor)
+    mark_thread_read(g.user["id"], thread_id)
+    info = thread_display_info(thread, g.user)
+    return render_template("buyer/thread.html", thread=thread, messages=messages, info=info)
 
 
 @app.route("/app/buyer/evaluations")
@@ -993,7 +1344,10 @@ def seller_messages():
         "WHERE t.type='vendor' AND t.vendor_id=? ORDER BY last_at DESC",
         (vendor["id"],),
     )
-    return render_template("seller/messages.html", threads=threads, vendor=vendor)
+    direct_threads = _direct_threads_for(g.user)
+    return render_template(
+        "seller/messages.html", threads=threads, vendor=vendor, direct_threads=direct_threads
+    )
 
 
 @app.route("/app/seller/messages/<int:thread_id>", methods=("GET", "POST"))
@@ -1013,8 +1367,9 @@ def seller_thread(thread_id):
         "JOIN users u ON u.id = m.sender_user_id WHERE thread_id=? ORDER BY m.created_at",
         (thread_id,),
     )
-    buyer = dbm.query("SELECT * FROM users WHERE id=?", (thread["buyer_user_id"],), one=True)
-    return render_template("seller/thread.html", thread=thread, messages=messages, buyer=buyer)
+    mark_thread_read(g.user["id"], thread_id)
+    info = thread_display_info(thread, g.user)
+    return render_template("seller/thread.html", thread=thread, messages=messages, info=info)
 
 
 @app.route("/app/seller/meetings/<int:meeting_id>/<action>", methods=("POST",))
