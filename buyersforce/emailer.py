@@ -46,6 +46,11 @@ def send_email(to_email, subject, text):
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            # Resend's API sits behind Cloudflare, which blocks Python's
+            # default "Python-urllib/x.y" user agent as a bot signature
+            # (HTTP 403, Cloudflare error 1010). A normal-looking user
+            # agent avoids that.
+            "User-Agent": "BuyersForce/1.0 (+https://buyersforce.io)",
         },
     )
     try:
