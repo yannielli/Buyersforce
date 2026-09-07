@@ -10,5 +10,6 @@ python3 seed.py
 # see migrate.py for why this runs here, once, before gunicorn.
 python3 migrate.py
 exec gunicorn app:app --bind "0.0.0.0:${PORT:-5055}" --workers 2 --threads 4 --timeout 60
+# redeploy trigger
 
 
