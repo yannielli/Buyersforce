@@ -5,10 +5,37 @@
   <div>
     <span class="eyebrow">Communications</span>
     <h1>Messages</h1>
-    <p class="lede">Buyer-initiated conversations only — {{ vendor.company_name }} cannot message a buyer first.</p>
+    <p class="lede">Buyer conversations, plus your own teammates and anyone you've reached out to directly.</p>
   </div>
+  <a href="{{ url_for('messages_new') }}" class="btn btn-primary">+ Create message</a>
 </div>
 
+<div class="section-title"><h2>Direct messages</h2></div>
+<div class="thread-list" style="margin-bottom:28px;">
+  {% for t in direct_threads %}
+  <a class="thread-row" href="{{ url_for('seller_thread', thread_id=t.id) }}">
+    {% if t.kind == 'direct' %}
+    <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:13px;">{{ t.other_user.name[0] }}</span>
+    <div style="flex:1; min-width:0;">
+      <strong style="font-size:14px;">{{ t.other_user.name }}</strong> <span class="hint">· {{ t.other_user.company }}</span>
+      <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
+    </div>
+    {% else %}
+    <span class="vendor-logo" style="background:var(--brand-mcm-mustard); width:36px;height:36px;font-size:13px;">@</span>
+    <div style="flex:1; min-width:0;">
+      <strong style="font-size:14px;">{{ t.external_name or t.external_email }}</strong>
+      <span class="badge badge-warning" style="margin-left:6px;">{{ "Emailed" if t.email_sent else "Not delivered" }}</span>
+      <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
+    </div>
+    {% endif %}
+    <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
+  </a>
+  {% else %}
+  <div class="card empty-state"><div class="icon">💬</div>No direct messages yet — click Create message above.</div>
+  {% endfor %}
+</div>
+
+<div class="section-title"><h2>Buyer conversations</h2></div>
 <div class="thread-list">
   {% for t in threads %}
   <a class="thread-row" href="{{ url_for('seller_thread', thread_id=t.id) }}">
@@ -20,7 +47,7 @@
     <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
   </a>
   {% else %}
-  <div class="card empty-state"><div class="icon">✉️</div>No buyer conversations yet.</div>
+  <div class="card empty-state"><div class="icon">✉️</div>No buyer conversations yet — click Create message to reach out first.</div>
   {% endfor %}
 </div>
 {% endblock %}
