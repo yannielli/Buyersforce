@@ -64,6 +64,15 @@
     </div>
   </header>
 
+  {% if g.impersonating %}
+    <div class="impersonation-bar">
+      <span>You're viewing BuyersForce as <strong>{{ g.user.name }}</strong> &middot; {{ g.user.role|capitalize }} at {{ g.user.company }}.</span>
+      <form method="post" action="{{ url_for('admin_stop_view_as') }}">
+        <button class="btn btn-sm impersonation-bar-btn" type="submit">Return to admin</button>
+      </form>
+    </div>
+  {% endif %}
+
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <div class="flash-stack">
