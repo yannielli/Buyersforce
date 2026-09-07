@@ -1,12 +1,24 @@
 {% extends "base.html" %}
-{% block title %}{{ vendor.company_name if vendor else thread.subject }}{% endblock %}
+{% block title %}{% if info.kind == 'vendor' %}{{ info.vendor.company_name }}{% elif info.kind == 'direct' %}{{ info.other_user.name }}{% elif info.kind == 'pending_email' %}{{ info.external_name or info.external_email }}{% else %}{{ thread.subject }}{% endif %}{% endblock %}
 {% block content %}
 <a href="{{ url_for('buyer_messages') }}" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">← Back to messages</a>
 <div class="card" style="max-width:760px; margin:0 auto;">
   <div class="thread-header">
-    {% if vendor %}
-    <span class="vendor-logo" style="background:{{ vendor.accent }};">{{ vendor.initials }}</span>
-    <div><h2 style="font-size:17px; margin:0;">{{ vendor.company_name }}</h2><span class="hint">{{ vendor.category }}</span></div>
+    {% if info.kind == 'vendor' %}
+    <span class="vendor-logo" style="background:{{ info.vendor.accent }};">{{ info.vendor.initials }}</span>
+    <div><h2 style="font-size:17px; margin:0;">{{ info.vendor.company_name }}</h2><span class="hint">{{ info.vendor.category }}</span></div>
+    {% elif info.kind == 'direct' %}
+    <span class="vendor-logo" style="background:var(--brand);">{{ info.other_user.name[0] }}</span>
+    <div><h2 style="font-size:17px; margin:0;">{{ info.other_user.name }}</h2><span class="hint">{{ info.other_user.role|capitalize }} · {{ info.other_user.company }}</span></div>
+    {% elif info.kind == 'pending_email' %}
+    <span class="vendor-logo" style="background:var(--brand-mcm-mustard);">@</span>
+    <div>
+      <h2 style="font-size:17px; margin:0;">{{ info.external_name or info.external_email }}</h2>
+      <span class="hint">
+        {{ info.external_email }} ·
+        {% if info.email_sent %}we emailed them your message{% else %}not delivered yet{% endif %}
+      </span>
+    </div>
     {% else %}
     <span class="vendor-logo" style="background:var(--brand);">{{ g.user.company[0] }}</span>
     <div><h2 style="font-size:17px; margin:0;">{{ thread.subject.split('] ')[1] if '] ' in thread.subject else thread.subject }}</h2><span class="hint">Internal team thread</span></div>
