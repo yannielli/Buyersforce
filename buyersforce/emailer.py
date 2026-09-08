@@ -13,6 +13,7 @@ get real delivery working today. Sending from your own address (e.g.
 notifications@buyersforce.io) means verifying that domain with Resend
 first and setting EMAIL_FROM to it.
 """
+import html as html_lib
 import json
 import os
 import urllib.error
@@ -22,7 +23,7 @@ RESEND_API_URL = "https://api.resend.com/emails"
 DEFAULT_FROM = "BuyersForce <onboarding@resend.dev>"
 
 
-def send_email(to_email, subject, text, reply_to=None):
+def send_email(to_email, subject, text, reply_to=None, html=None):
     """Best-effort send. Returns True only on a confirmed successful
     send; False (logged) for anything else, including "not configured
     yet" -- callers should treat False as "message saved, but nobody
@@ -33,6 +34,12 @@ def send_email(to_email, subject, text, reply_to=None):
     it, so a reply sent there bounces with "address not found". Setting
     reply_to makes a recipient's own "Reply" button do the right thing
     instead of relying on them to notice and retype an address.
+
+    html, when given, is sent alongside text -- most email apps show it
+    instead of the plain-text version, so it's the one that can carry
+    styling (e.g. distinguishing BuyersForce's own note from the
+    sender's message). Recipients whose email app can't render HTML
+    still get the plain text.
     """
     api_key = os.environ.get("RESEND_API_KEY")
     if not api_key:
@@ -46,6 +53,8 @@ def send_email(to_email, subject, text, reply_to=None):
         "subject": subject,
         "text": text,
     }
+    if html:
+        payload["html"] = html
     if reply_to:
         payload["reply_to"] = [reply_to]
     payload = json.dumps(payload).encode("utf-8")
@@ -74,16 +83,36 @@ def send_email(to_email, subject, text, reply_to=None):
         return False
 
 
-def send_message_notification(to_email, sender, body):
+def send_message_notification(to_email, sender, body, signup_url):
     """Notifies someone who isn't a BuyersForce member yet that a member
-    sent them a message. sender is a users row (dict-like)."""
+    sent them a message. sender is a users row (dict-like). signup_url
+    is where they can go to request their own BuyersForce account.
+
+    The BuyersForce-authored note (as opposed to the sender's own
+    message) is styled in teal in the HTML version, so it's visually
+    obvious which part a person actually typed and which part is the
+    platform talking.
+    """
     subject = f"{sender['name']} sent you a message on BuyersForce"
+    note = (
+        f"BuyersForce is an invite-only platform connecting technology buyers and vendors. "
+        f"You don't have an account yet, so just hit reply and it'll go straight to "
+        f"{sender['name']}. Want an account of your own? Request access here: {signup_url}"
+    )
     text = (
         f"{sender['name']} ({sender['company']}) sent you a message through BuyersForce:\n\n"
         f"\"{body}\"\n\n"
-        f"BuyersForce is an invite-only platform connecting technology buyers and vendors. "
-        f"You don't have an account yet, so the fastest way to reply is directly to "
-        f"{sender['email']}. If {sender['name']} invites you to BuyersForce, you'll be able "
-        f"to reply from within the app instead."
+        f"{note}"
     )
-    return send_email(to_email, subject, text, reply_to=sender["email"])
+    html = (
+        f"<p>{html_lib.escape(sender['name'])} ({html_lib.escape(sender['company'])}) sent you "
+        f"a message through BuyersForce:</p>"
+        f"<blockquote style=\"margin:0 0 16px; padding:8px 12px; border-left:3px solid #ccc; "
+        f"color:#111;\">{html_lib.escape(body)}</blockquote>"
+        f"<p style=\"color:teal; font-style:italic;\">BuyersForce is an invite-only platform "
+        f"connecting technology buyers and vendors. You don't have an account yet, so just hit "
+        f"reply and it'll go straight to {html_lib.escape(sender['name'])}. Want an account of "
+        f"your own? <a href=\"{html_lib.escape(signup_url)}\" style=\"color:teal;\">Request "
+        f"access here</a>.</p>"
+    )
+    return send_email(to_email, subject, text, reply_to=sender["email"], html=html)
