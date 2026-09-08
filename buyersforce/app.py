@@ -366,14 +366,19 @@ def teammates_of(user):
 
 def _can_message(user, candidate):
     """Buyers and sellers can message their own teammates and anyone on
-    the other side of the marketplace -- not other buyers at a different
-    company, and not other, competing sellers. Admin accounts are never
-    reachable this way (their role is neither 'buyer' nor 'seller', so
-    both checks below simply fail for them)."""
+    the other side of the marketplace. Buyers can additionally message
+    any other buyer, at any company -- peer buyers often want a second
+    opinion on a vendor or a referral, and that's worth more than the
+    company boundary here. Sellers still can't reach competing sellers
+    at another company. Admin accounts are never reachable this way
+    (their role is neither 'buyer' nor 'seller', so every check below
+    simply fails for them)."""
     if candidate["id"] == user["id"]:
         return False
     opposite = "seller" if user["role"] == "buyer" else "buyer"
     if candidate["role"] == opposite:
+        return True
+    if user["role"] == "buyer" and candidate["role"] == "buyer":
         return True
     return candidate["role"] == user["role"] and candidate["company"] == user["company"]
 
@@ -408,14 +413,22 @@ def search_recipients(user, q):
             seen_user_ids.add(c["contact_user_id"])
 
     if len(needle) >= 2:
-        opposite = "seller" if user["role"] == "buyer" else "buyer"
-        directory_rows = dbm.query(
-            "SELECT * FROM users WHERE is_admin = 0 AND ((role = ?) OR (role = ? AND company = ?)) "
-            "AND id != ? AND (LOWER(name) LIKE ? OR LOWER(company) LIKE ? OR LOWER(email) LIKE ?) "
-            "ORDER BY name LIMIT 25",
-            (opposite, user["role"], user["company"], user["id"],
-             f"%{needle}%", f"%{needle}%", f"%{needle}%"),
-        )
+        if user["role"] == "buyer":
+            # Any other buyer (any company) or any seller -- mirrors the
+            # widened _can_message rule above.
+            directory_rows = dbm.query(
+                "SELECT * FROM users WHERE is_admin = 0 AND role IN ('buyer', 'seller') "
+                "AND id != ? AND (LOWER(name) LIKE ? OR LOWER(company) LIKE ? OR LOWER(email) LIKE ?) "
+                "ORDER BY name LIMIT 25",
+                (user["id"], f"%{needle}%", f"%{needle}%", f"%{needle}%"),
+            )
+        else:
+            directory_rows = dbm.query(
+                "SELECT * FROM users WHERE is_admin = 0 AND ((role = 'buyer') OR (role = 'seller' AND company = ?)) "
+                "AND id != ? AND (LOWER(name) LIKE ? OR LOWER(company) LIKE ? OR LOWER(email) LIKE ?) "
+                "ORDER BY name LIMIT 25",
+                (user["company"], user["id"], f"%{needle}%", f"%{needle}%", f"%{needle}%"),
+            )
         for r in directory_rows:
             if r["id"] in seen_user_ids:
                 continue

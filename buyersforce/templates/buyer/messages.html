@@ -6,7 +6,8 @@
     <span class="eyebrow">Communications</span>
     <h1>Messages</h1>
     <p class="lede">Vendors only appear here after you start the conversation. Teammate threads
-      stay internal to {{ g.user.company }}.</p>
+      stay internal to {{ g.user.company }}. Want a second opinion on a vendor? You can message
+      any buyer on BuyersForce, not just your own team.</p>
   </div>
   <a href="{{ url_for('messages_new') }}" class="btn btn-primary">+ Create message</a>
 </div>
@@ -18,7 +19,8 @@
     {% if t.kind == 'direct' %}
     <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:13px;">{{ t.other_user.name[0] }}</span>
     <div style="flex:1; min-width:0;">
-      <strong style="font-size:14px;">{{ t.other_user.name }}</strong> <span class="hint">· {{ t.other_user.company }}</span>
+      <strong style="font-size:14px;">{{ t.other_user.name }}</strong>
+      <span class="hint">· {{ t.other_user.role|capitalize }} · {{ t.other_user.company }}</span>
       <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
     </div>
     {% else %}
