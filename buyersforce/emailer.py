@@ -22,23 +22,33 @@ RESEND_API_URL = "https://api.resend.com/emails"
 DEFAULT_FROM = "BuyersForce <onboarding@resend.dev>"
 
 
-def send_email(to_email, subject, text):
+def send_email(to_email, subject, text, reply_to=None):
     """Best-effort send. Returns True only on a confirmed successful
     send; False (logged) for anything else, including "not configured
     yet" -- callers should treat False as "message saved, but nobody
-    was actually emailed" rather than raising."""
+    was actually emailed" rather than raising.
+
+    reply_to, when given, is where a reply should land. BuyersForce's
+    sending address (EMAIL_FROM) is send-only -- there's no inbox behind
+    it, so a reply sent there bounces with "address not found". Setting
+    reply_to makes a recipient's own "Reply" button do the right thing
+    instead of relying on them to notice and retype an address.
+    """
     api_key = os.environ.get("RESEND_API_KEY")
     if not api_key:
         print(f"[emailer] RESEND_API_KEY not set -- not emailing {to_email}: {subject!r}")
         return False
 
     from_addr = os.environ.get("EMAIL_FROM", DEFAULT_FROM)
-    payload = json.dumps({
+    payload = {
         "from": from_addr,
         "to": [to_email],
         "subject": subject,
         "text": text,
-    }).encode("utf-8")
+    }
+    if reply_to:
+        payload["reply_to"] = [reply_to]
+    payload = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         RESEND_API_URL,
         data=payload,
@@ -76,4 +86,4 @@ def send_message_notification(to_email, sender, body):
         f"{sender['email']}. If {sender['name']} invites you to BuyersForce, you'll be able "
         f"to reply from within the app instead."
     )
-    return send_email(to_email, subject, text)
+    return send_email(to_email, subject, text, reply_to=sender["email"])
