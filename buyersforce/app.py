@@ -668,7 +668,8 @@ def messages_start():
             "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
             (thread["id"], g.user["id"], body),
         )
-        sent = emailer.send_message_notification(to_email, g.user, body)
+        signup_url = url_for("signup", _external=True)
+        sent = emailer.send_message_notification(to_email, g.user, body, signup_url)
         if sent:
             now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             dbm.execute(
