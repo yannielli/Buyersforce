@@ -1894,9 +1894,11 @@ def buyer_discover():
     sql = "SELECT * FROM vendors WHERE technology_category = ?"
     args = [technology_category]
     if q:
+        # ILIKE, not LIKE -- LIKE is case-sensitive in Postgres, so a lowercase
+        # search like "tines" would never match a stored "Tines".
         sql += (
-            " AND (company_name LIKE ? OR tagline LIKE ? OR description LIKE ? "
-            "OR hq_location LIKE ?)"
+            " AND (company_name ILIKE ? OR tagline ILIKE ? OR description ILIKE ? "
+            "OR hq_location ILIKE ?)"
         )
         args += [f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%"]
     if segments:
