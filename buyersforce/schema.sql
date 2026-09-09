@@ -130,6 +130,11 @@ CREATE TABLE vendors (
     contact_email TEXT,
     contact_phone TEXT,
     source TEXT NOT NULL DEFAULT '',
+    -- A specific, verified Wikipedia/Wikimedia Commons logo image URL,
+    -- set for admin-seeded vendors where one was found and quality-checked
+    -- (see the vendor-logo enrichment pass). NULL falls back to the
+    -- website-favicon guess in app.py's vendor_favicon_url.
+    wiki_logo_url TEXT,
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
 );
 

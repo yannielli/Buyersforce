@@ -7,7 +7,8 @@
     "description": "Provides a security information and event management (SIEM) and behavioral analytics platform for threat detection.",
     "website": "https://www.exabeam.com/",
     "company_size": "501-1000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": null
   },
   {
     "name": "IBM Security",
@@ -18,7 +19,8 @@
     "description": "IBM's enterprise security division offering SIEM, identity, and data protection software and services.",
     "website": "https://www.ibm.com/security",
     "company_size": "10000+",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/IBM_logo.svg"
   },
   {
     "name": "Recorded Future",
@@ -28,7 +30,8 @@
     "description": "Delivers real-time threat intelligence built from web, dark web, and technical data sources.",
     "website": "https://www.recordedfuture.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": null
   },
   {
     "name": "Webroot",
@@ -39,7 +42,8 @@
     "description": "Offers cloud-based endpoint antivirus and threat intelligence feeds (BrightCloud) for consumers and businesses.",
     "website": "https://www.webroot.com/",
     "company_size": "501-1000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Webroot_logo.svg"
   },
   {
     "name": "Check Point Software",
@@ -50,7 +54,8 @@
     "description": "Provides network security appliances and a threat intelligence service (ThreatCloud) for enterprises.",
     "website": "https://www.checkpoint.com/",
     "company_size": "5001-10000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Check_Point_logo_2022.svg"
   },
   {
     "name": "FireEye",
@@ -61,7 +66,8 @@
     "description": "Cybersecurity firm known for threat intelligence and incident response, later rebranded as Mandiant/Trellix.",
     "website": "https://www.trellix.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/FireEye_logo.png"
   },
   {
     "name": "CrowdStrike",
@@ -72,7 +78,8 @@
     "description": "Cloud-native endpoint protection platform combining EDR, threat intelligence, and managed hunting.",
     "website": "https://www.crowdstrike.com/",
     "company_size": "5001-10000",
-    "source": "awesome-cybersecurity,momentum-cyber"
+    "source": "awesome-cybersecurity,momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/CrowdStrike_logo.svg"
   },
   {
     "name": "Clavister",
@@ -82,7 +89,8 @@
     "description": "Swedish vendor of next-generation firewalls and network security appliances.",
     "website": "https://www.clavister.com/",
     "company_size": "51-200",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Logo_of_Clavister_AB.svg"
   },
   {
     "name": "root9B",
@@ -93,7 +101,8 @@
     "description": "Provided network defense and cyber threat response services to government and enterprise clients.",
     "website": null,
     "company_size": null,
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": null
   },
   {
     "name": "Endgame",
@@ -103,7 +112,8 @@
     "description": "Built an endpoint detection and response platform later acquired by Elastic.",
     "website": null,
     "company_size": null,
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": null
   },
   {
     "name": "Heimdal Security",
@@ -114,7 +124,8 @@
     "description": "Danish vendor offering endpoint protection, patch management, and threat prevention software.",
     "website": "https://heimdalsecurity.com/",
     "company_size": "201-500",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Heimdal%E2%84%A2_Security_company_logo.png"
   },
   {
     "name": "Cybereason",
@@ -125,7 +136,8 @@
     "description": "Provides an EDR/XDR platform focused on detecting multi-stage cyberattacks across endpoints.",
     "website": "https://www.cybereason.com/",
     "company_size": "501-1000",
-    "source": "awesome-cybersecurity,momentum-cyber"
+    "source": "awesome-cybersecurity,momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/CybereasonLogo.png"
   },
   {
     "name": "Cylance",
@@ -135,7 +147,8 @@
     "description": "Pioneered AI-driven antivirus and endpoint protection, later part of BlackBerry.",
     "website": null,
     "company_size": null,
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Cylance_Logo.svg"
   },
   {
     "name": "Metapacket",
@@ -146,7 +159,8 @@
     "description": "Developed lightweight network traffic control and malware protection technology for endpoints.",
     "website": null,
     "company_size": null,
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": null
   },
   {
     "name": "Avast",
@@ -156,7 +170,8 @@
     "description": "Consumer and small-business antivirus and internet security software provider.",
     "website": "https://www.avast.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Avast_logo.svg"
   },
   {
     "name": "Symantec",
@@ -167,7 +182,8 @@
     "description": "Long-standing vendor of antivirus, endpoint, and data loss prevention software, now part of Broadcom.",
     "website": "https://www.broadcom.com/products/cybersecurity",
     "company_size": "10000+",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Symantec_Logo.svg"
   },
   {
     "name": "F-Secure",
@@ -177,7 +193,8 @@
     "description": "Finnish cybersecurity company offering endpoint protection and threat detection, consumer business now WithSecure.",
     "website": "https://www.f-secure.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/F-Secure_Logo.png"
   },
   {
     "name": "Kaspersky",
@@ -188,7 +205,8 @@
     "description": "Global antivirus and threat intelligence vendor headquartered in Russia.",
     "website": "https://www.kaspersky.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Kaspersky_logo.svg"
   },
   {
     "name": "McAfee",
@@ -198,7 +216,8 @@
     "description": "Long-established antivirus and consumer/enterprise endpoint security vendor.",
     "website": "https://www.mcafee.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/McAfee_logo.svg"
   },
   {
     "name": "Sophos",
@@ -209,7 +228,8 @@
     "description": "Provides endpoint protection, firewalls, and managed detection and response services.",
     "website": "https://www.sophos.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Sophos_logo.svg"
   },
   {
     "name": "Bitdefender",
@@ -219,7 +239,8 @@
     "description": "Romanian vendor of antivirus and endpoint protection technology used by consumers and OEM partners.",
     "website": "https://www.bitdefender.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Bitdefender_logo.svg"
   },
   {
     "name": "Cyphort",
@@ -230,7 +251,8 @@
     "description": "Developed advanced threat detection technology for malware analysis, later acquired by Juniper Networks.",
     "website": null,
     "company_size": null,
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": null
   },
   {
     "name": "DefenseCode",
@@ -240,7 +262,8 @@
     "description": "Provides automated web and source-code vulnerability scanning tools.",
     "website": "https://www.defensecode.com/",
     "company_size": "1-10",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": null
   },
   {
     "name": "Tenable",
@@ -250,7 +273,8 @@
     "description": "Vulnerability management vendor known for the Nessus scanner and exposure management platform.",
     "website": "https://www.tenable.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity,momentum-cyber"
+    "source": "awesome-cybersecurity,momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Tenable%2C_Inc._logo.svg"
   },
   {
     "name": "Wallarm",
@@ -261,7 +285,8 @@
     "description": "Provides API and web application security testing and runtime protection.",
     "website": "https://www.wallarm.com/",
     "company_size": "51-200",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": null
   },
   {
     "name": "Akamai",
@@ -272,7 +297,8 @@
     "description": "Content delivery network provider offering DDoS mitigation, WAF, and application security services.",
     "website": "https://www.akamai.com/",
     "company_size": "5001-10000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Akamai_logo.svg"
   },
   {
     "name": "Alert Logic",
@@ -282,7 +308,8 @@
     "description": "Delivers managed detection and response and web application firewall services.",
     "website": "https://www.alertlogic.com/",
     "company_size": "501-1000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": null
   },
   {
     "name": "Imperva",
@@ -293,7 +320,8 @@
     "description": "Provides web application firewall, DDoS protection, and data security solutions (formerly Incapsula).",
     "website": "https://www.imperva.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Imperva-logo.svg"
   },
   {
     "name": "Arbor Networks",
@@ -303,7 +331,8 @@
     "description": "NETSCOUT-owned provider of DDoS detection and mitigation appliances.",
     "website": "https://www.netscout.com/arbor",
     "company_size": null,
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Arbor_Networks_logo.png"
   },
   {
     "name": "OVHcloud",
@@ -313,7 +342,8 @@
     "description": "European cloud hosting provider with built-in DDoS protection for hosted infrastructure.",
     "website": "https://www.ovhcloud.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/OVH_Logo.svg"
   },
   {
     "name": "Fortinet",
@@ -324,7 +354,8 @@
     "description": "Manufactures next-generation firewalls and a broad security fabric including SIEM (FortiSIEM).",
     "website": "https://www.fortinet.com/",
     "company_size": "10000+",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Fortinet_logo.svg"
   },
   {
     "name": "Radware",
@@ -334,7 +365,8 @@
     "description": "Provides DDoS protection and application delivery security solutions.",
     "website": "https://www.radware.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Radware_logo.svg"
   },
   {
     "name": "Juniper Networks",
@@ -344,7 +376,8 @@
     "description": "Networking vendor offering firewalls and DDoS/network security products, acquired by HPE in 2024.",
     "website": "https://www.juniper.net/",
     "company_size": "5001-10000",
-    "source": "awesome-cybersecurity,momentum-cyber"
+    "source": "awesome-cybersecurity,momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Juniper_Networks_logo.svg"
   },
   {
     "name": "AWS Shield",
@@ -355,7 +388,8 @@
     "description": "Amazon Web Services' managed DDoS protection service for cloud workloads.",
     "website": "https://aws.amazon.com/shield/",
     "company_size": "10000+",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Amazon_Web_Services_Logo.svg"
   },
   {
     "name": "Trustwave",
@@ -366,7 +400,8 @@
     "description": "Provides managed security services, SIEM, and threat detection for enterprises.",
     "website": "https://www.trustwave.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Trustwave_logo_Color.png"
   },
   {
     "name": "Fastly",
@@ -377,7 +412,8 @@
     "description": "Edge cloud platform offering CDN, DDoS protection, and web application firewall capabilities.",
     "website": "https://www.fastly.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Fastly_logo.svg"
   },
   {
     "name": "Splunk",
@@ -387,7 +423,8 @@
     "description": "Data platform widely used for SIEM, security analytics, and operational monitoring, now part of Cisco.",
     "website": "https://www.splunk.com/",
     "company_size": "5001-10000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Splunk_logo.svg"
   },
   {
     "name": "Hewlett Packard Enterprise",
@@ -397,7 +434,8 @@
     "description": "Enterprise IT vendor offering security management and SIEM-adjacent software (ArcSight legacy line).",
     "website": "https://www.hpe.com/",
     "company_size": "10000+",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Hewlett_Packard_Enterprise_logo.svg"
   },
   {
     "name": "LogRhythm",
@@ -407,7 +445,8 @@
     "description": "Provides a SIEM and security analytics platform for threat detection and response.",
     "website": "https://www.logrhythm.com/",
     "company_size": "501-1000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Logrhythm-main-logo-r.jpg"
   },
   {
     "name": "RSA Security",
@@ -418,7 +457,8 @@
     "description": "Longtime provider of identity, SIEM (NetWitness), and fraud detection technology, formerly part of EMC.",
     "website": "https://www.rsa.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/RSA_Security_logo.svg"
   },
   {
     "name": "OpenText (NetIQ)",
@@ -429,7 +469,8 @@
     "description": "Owns the former Micro Focus NetIQ identity and security management product line.",
     "website": "https://www.opentext.com/",
     "company_size": "10000+",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/OpenText_logo.svg"
   },
   {
     "name": "SolarWinds",
@@ -439,7 +480,8 @@
     "description": "IT management vendor offering network and security event monitoring tools.",
     "website": "https://www.solarwinds.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Official_SolarWinds_Logo.svg"
   },
   {
     "name": "AT&T Cybersecurity (AlienVault)",
@@ -450,7 +492,8 @@
     "description": "Offers the USM/AlienVault unified security management and open threat exchange platform.",
     "website": "https://cybersecurity.att.com/",
     "company_size": "10000+",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/AT%26T_Cybersecurity.png"
   },
   {
     "name": "Netsurion (EventTracker)",
@@ -461,7 +504,8 @@
     "description": "Provides managed SIEM/XDR services under the EventTracker product line.",
     "website": "https://www.netsurion.com/",
     "company_size": "201-500",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": null
   },
   {
     "name": "BlackStratus",
@@ -472,7 +516,8 @@
     "description": "Delivers SIEM and co-managed security services for MSSPs and mid-market enterprises.",
     "website": "https://www.blackstratus.com/",
     "company_size": "11-50",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": null
   },
   {
     "name": "NTT Security",
@@ -482,7 +527,8 @@
     "description": "NTT's global managed security services and SOC arm.",
     "website": "https://www.security.ntt/",
     "company_size": "10000+",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/NTT_logo.svg"
   },
   {
     "name": "Sentor",
@@ -492,7 +538,8 @@
     "description": "Swedish managed detection and response and penetration testing provider.",
     "website": "https://www.sentor.se/",
     "company_size": "51-200",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": null
   },
   {
     "name": "Rejlers",
@@ -502,7 +549,8 @@
     "description": "Nordic engineering and IT consultancy with an information and IT security practice.",
     "website": "https://www.rejlers.com/",
     "company_size": "1001-5000",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": null
   },
   {
     "name": "Apiiro",
@@ -513,7 +561,8 @@
     "description": "Provides application risk and software supply chain security through deep code analysis.",
     "website": "https://apiiro.com/",
     "company_size": "201-500",
-    "source": "awesome-cybersecurity"
+    "source": "awesome-cybersecurity",
+    "wiki_logo_url": null
   },
   {
     "name": "Pindrop",
@@ -523,7 +572,8 @@
     "description": "Detects voice fraud and authenticates callers for call centers using voice biometrics.",
     "website": "https://www.pindrop.com/",
     "company_size": "501-1000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "ThreatMetrix",
@@ -533,7 +583,8 @@
     "description": "LexisNexis-owned digital identity and fraud risk scoring network for online transactions.",
     "website": "https://risk.lexisnexis.com/",
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/ThreatMetrix_Logo.jpg"
   },
   {
     "name": "Verisys",
@@ -544,7 +595,8 @@
     "description": "Provides credentialing and identity verification data for healthcare and workforce screening.",
     "website": "https://www.verisys.com/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Guardian Analytics",
@@ -554,7 +606,8 @@
     "description": "Behavioral analytics for detecting account takeover and payments fraud in banking, now part of NICE Actimize.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Sift",
@@ -564,7 +617,8 @@
     "description": "Machine-learning fraud prevention platform protecting online businesses from account and payment fraud.",
     "website": "https://sift.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Jumio",
@@ -575,7 +629,8 @@
     "description": "Provides AI-based identity verification and document authentication for onboarding.",
     "website": "https://www.jumio.com/",
     "company_size": "501-1000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Agari",
@@ -586,7 +641,8 @@
     "description": "Email security vendor specializing in anti-phishing and business email compromise protection, now part of Fortra.",
     "website": "https://www.fortra.com/",
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Radar (ID Experts)",
@@ -597,7 +653,8 @@
     "description": "Offers breach response and identity protection/credit monitoring software for incident management.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Trulioo",
@@ -607,7 +664,8 @@
     "description": "Global identity verification network for KYC and AML compliance.",
     "website": "https://www.trulioo.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Trulioo_300.png"
   },
   {
     "name": "Feedzai",
@@ -617,7 +675,8 @@
     "description": "Machine-learning platform that detects financial fraud in real time for banks and payment providers.",
     "website": "https://www.feedzai.com/",
     "company_size": "501-1000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Feedzai_logo%2C_2020.svg"
   },
   {
     "name": "Socure",
@@ -627,7 +686,8 @@
     "description": "Provides digital identity verification and fraud risk scoring for onboarding and KYC.",
     "website": "https://www.socure.com/",
     "company_size": "501-1000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Shift Technology",
@@ -638,7 +698,8 @@
     "description": "AI-powered fraud detection and claims decisioning software for insurers.",
     "website": "https://www.shift-technology.com/",
     "company_size": "501-1000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Simility",
@@ -648,7 +709,8 @@
     "description": "Adaptive machine-learning fraud detection platform, acquired by PayPal.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Elliptic",
@@ -659,7 +721,8 @@
     "description": "Blockchain analytics company that traces cryptocurrency transactions for AML and fraud investigations.",
     "website": "https://www.elliptic.co/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Elliptic_logo.svg"
   },
   {
     "name": "SecuredTouch",
@@ -670,7 +733,8 @@
     "description": "Behavioral biometrics platform for continuous fraud detection, acquired by Ping Identity.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Ravelin",
@@ -680,7 +744,8 @@
     "description": "Machine-learning fraud and chargeback prevention for online retailers.",
     "website": "https://www.ravelin.com/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Intensity Analytics",
@@ -691,7 +756,8 @@
     "description": "Provides behavioral biometric authentication based on typing and interaction patterns.",
     "website": "https://www.intensityanalytics.com/",
     "company_size": "1-10",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "VU Security",
@@ -701,7 +767,8 @@
     "description": "Latin American provider of digital identity and fraud prevention technology.",
     "website": "https://vusecurity.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "GreatHorn",
@@ -711,7 +778,8 @@
     "description": "Cloud email security platform that detects and stops phishing and spear-phishing attacks.",
     "website": "https://www.greathorn.com/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Veridu",
@@ -721,7 +789,8 @@
     "description": "Provided social and identity verification APIs for fraud prevention.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Fortscale",
@@ -732,7 +801,8 @@
     "description": "User and entity behavior analytics vendor for insider threat and fraud detection, acquired by CyberArk.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "VChain Technology",
@@ -742,7 +812,8 @@
     "description": "Blockchain-based anti-counterfeiting and identity verification technology provider.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Dashlane",
@@ -752,7 +823,8 @@
     "description": "Consumer and business password manager and digital identity security app.",
     "website": "https://www.dashlane.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "ID.me",
@@ -763,7 +835,8 @@
     "description": "Identity verification network letting individuals prove their identity once for government and commercial services.",
     "website": "https://www.id.me/",
     "company_size": "501-1000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "SecureAuth",
@@ -773,7 +846,8 @@
     "description": "Adaptive authentication and identity access management platform for enterprises.",
     "website": "https://www.secureauth.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/SecureAuth_Corporation_Logo_Blue_Hori.png"
   },
   {
     "name": "Confident Technologies",
@@ -783,7 +857,8 @@
     "description": "Developed image-based multi-factor authentication technology.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Trusona",
@@ -793,7 +868,8 @@
     "description": "Provides passwordless, phishing-resistant authentication for enterprises.",
     "website": "https://www.trusona.com/",
     "company_size": "11-50",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Secret Double Octopus",
@@ -803,7 +879,8 @@
     "description": "Passwordless multi-factor authentication platform for enterprise workforce identity.",
     "website": "https://doubleoctopus.com/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Virgil Security",
@@ -814,7 +891,8 @@
     "description": "Provided end-to-end encryption and PKI-as-a-service for developers.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "my1login",
@@ -824,7 +902,8 @@
     "description": "Single sign-on and credential management platform for enterprises.",
     "website": "https://www.my1login.com/",
     "company_size": "11-50",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Seklarity",
@@ -834,7 +913,8 @@
     "description": "Gave organizations visibility into privileged credential exposure across their networks.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Skeyecode",
@@ -844,7 +924,8 @@
     "description": "Provided visual cryptographic authentication and key management technology.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Nymi",
@@ -855,7 +936,8 @@
     "description": "Makes wearable biometric bands for continuous workforce authentication.",
     "website": "https://www.nymi.com/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "BIOWATCH",
@@ -865,7 +947,8 @@
     "description": "Develops wrist vein biometric authentication technology.",
     "website": "https://www.biowatch.ch/",
     "company_size": "1-10",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Futurae",
@@ -875,7 +958,8 @@
     "description": "Provides multi-factor authentication and fraud prevention for banks and enterprises.",
     "website": "https://www.futurae.com/",
     "company_size": "11-50",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "OneLogin",
@@ -885,7 +969,8 @@
     "description": "Cloud-based single sign-on and identity management platform, now part of One Identity.",
     "website": "https://www.onelogin.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/OneLogin_logo.svg"
   },
   {
     "name": "Ping Identity",
@@ -895,7 +980,8 @@
     "description": "Enterprise identity platform providing SSO, MFA, and API access security.",
     "website": "https://www.pingidentity.com/",
     "company_size": "1001-5000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Ping_Identity_logo.svg"
   },
   {
     "name": "Centrify",
@@ -905,7 +991,8 @@
     "description": "Privileged access and identity security vendor, merged into Delinea.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Centrify-logo.png"
   },
   {
     "name": "Auth0",
@@ -915,7 +1002,8 @@
     "description": "Developer-focused identity platform for authentication and authorization, now part of Okta.",
     "website": "https://auth0.com/",
     "company_size": "1001-5000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Logo_de_Auth0.svg"
   },
   {
     "name": "BioCatch",
@@ -925,7 +1013,8 @@
     "description": "Behavioral biometrics platform used by banks to detect fraud and account takeover.",
     "website": "https://www.biocatch.com/",
     "company_size": "501-1000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "MIRACL",
@@ -935,7 +1024,8 @@
     "description": "Provides single-step passwordless multi-factor authentication.",
     "website": "https://miracl.com/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Civic Technologies",
@@ -945,7 +1035,8 @@
     "description": "Blockchain-based identity verification and reusable KYC platform.",
     "website": "https://www.civic.com/",
     "company_size": "11-50",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "HYPR",
@@ -955,7 +1046,8 @@
     "description": "Provides passwordless, FIDO-based authentication for enterprises and consumers.",
     "website": "https://www.hypr.com/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Prove",
@@ -965,7 +1057,8 @@
     "description": "Phone-number based identity verification platform (formerly Payfone) used for onboarding and fraud prevention.",
     "website": "https://www.prove.com/",
     "company_size": "501-1000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Nok Nok Labs",
@@ -975,7 +1068,8 @@
     "description": "Provides FIDO-standards-based passwordless authentication infrastructure.",
     "website": "https://noknok.com/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Nok_Nok_Labs_logo.png"
   },
   {
     "name": "Duo Security",
@@ -985,7 +1079,8 @@
     "description": "Cisco-owned multi-factor authentication and device trust platform.",
     "website": "https://duo.com/",
     "company_size": "1001-5000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Duo_Security_Logo_Navy.png"
   },
   {
     "name": "Transmit Security",
@@ -996,7 +1091,8 @@
     "description": "Provides passwordless customer identity and fraud prevention orchestration.",
     "website": "https://transmitsecurity.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Keyfactor",
@@ -1007,7 +1103,8 @@
     "description": "Machine identity and PKI management platform, formerly Device Authority's category.",
     "website": "https://www.keyfactor.com/",
     "company_size": "501-1000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Uniken",
@@ -1018,7 +1115,8 @@
     "description": "Provides device fingerprinting and continuous authentication for digital banking.",
     "website": "https://www.uniken.com/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "MedCrypt",
@@ -1028,7 +1126,8 @@
     "description": "Provides cybersecurity and cryptographic key management for connected medical devices.",
     "website": "https://medcrypt.com/",
     "company_size": "11-50",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Smile Identity",
@@ -1038,7 +1137,8 @@
     "description": "Digital identity verification platform focused on African markets.",
     "website": "https://www.smileidentity.com/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Netskope",
@@ -1049,7 +1149,8 @@
     "description": "Security service edge platform providing CASB, SWG, and zero-trust network access.",
     "website": "https://www.netskope.com/",
     "company_size": "1001-5000",
-    "source": "cb-insights,momentum-cyber"
+    "source": "cb-insights,momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/NetskopeLogo.png"
   },
   {
     "name": "Bitglass",
@@ -1059,7 +1160,8 @@
     "description": "Cloud access security broker (CASB) platform, acquired by Forcepoint.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "BeyondTrust",
@@ -1069,7 +1171,8 @@
     "description": "Privileged access management and remote support security vendor.",
     "website": "https://www.beyondtrust.com/",
     "company_size": "1001-5000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/BeyondTrust_logo.svg"
   },
   {
     "name": "Avecto",
@@ -1080,7 +1183,8 @@
     "description": "Endpoint privilege management vendor, acquired by BeyondTrust.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Dome9",
@@ -1090,7 +1194,8 @@
     "description": "Cloud security posture management platform, acquired by Check Point (CloudGuard).",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Omada",
@@ -1100,7 +1205,8 @@
     "description": "Identity governance and administration software for enterprises.",
     "website": "https://omadaidentity.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Protenus",
@@ -1110,7 +1216,8 @@
     "description": "Healthcare compliance analytics platform that detects inappropriate access to patient data.",
     "website": "https://www.protenus.com/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Delinea (Thycotic)",
@@ -1120,7 +1227,8 @@
     "description": "Privileged access management and secrets management vendor formed from Thycotic and Centrify.",
     "website": "https://delinea.com/",
     "company_size": "501-1000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "CensorNet",
@@ -1131,7 +1239,8 @@
     "description": "Provides multi-factor authentication and web/email security for mid-market organizations.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Castle",
@@ -1141,7 +1250,8 @@
     "description": "Provides real-time account takeover and fraud detection for online applications.",
     "website": "https://castle.io/",
     "company_size": "11-50",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Cybertonica",
@@ -1151,7 +1261,8 @@
     "description": "AI-based fraud prevention and transaction risk decisioning platform.",
     "website": "https://cybertonica.com/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "DataVisor",
@@ -1161,7 +1272,8 @@
     "description": "Unsupervised machine-learning platform for detecting fraud rings and abuse.",
     "website": "https://www.datavisor.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "IDwall",
@@ -1171,7 +1283,8 @@
     "description": "Brazilian identity verification and background check automation platform.",
     "website": "https://idwall.co/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Precognitive",
@@ -1181,7 +1294,8 @@
     "description": "Behavioral and device intelligence platform for fraud detection.",
     "website": "https://www.precognitive.com/",
     "company_size": "11-50",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Rippleshot",
@@ -1191,7 +1305,8 @@
     "description": "Payment card fraud detection analytics for banks and credit unions.",
     "website": "https://www.rippleshot.com/",
     "company_size": "11-50",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Shumei",
@@ -1201,7 +1316,8 @@
     "description": "China-based AI risk-control and content/fraud detection platform.",
     "website": "https://www.ishumei.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Smyte",
@@ -1211,7 +1327,8 @@
     "description": "Provided trust and safety/fraud prevention tools before being acquired by Twitter.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Authbase",
@@ -1221,7 +1338,8 @@
     "description": "Provided blockchain-based application and code authentication technology.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Cryptosense",
@@ -1231,7 +1349,8 @@
     "description": "Automated cryptography vulnerability discovery tools for applications and infrastructure.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Demisto",
@@ -1241,7 +1360,8 @@
     "description": "Security orchestration, automation, and response (SOAR) platform, acquired by Palo Alto Networks as Cortex XSOAR.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Mimecast (EdgeWave)",
@@ -1251,7 +1371,8 @@
     "description": "Email security and resilience platform providing anti-phishing and archiving, incorporating EdgeWave technology.",
     "website": "https://www.mimecast.com/",
     "company_size": "1001-5000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Mimecast_Logo.png"
   },
   {
     "name": "Javelin Networks",
@@ -1262,7 +1383,8 @@
     "description": "Protected Active Directory environments from lateral-movement attacks.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "LogicHub",
@@ -1272,7 +1394,8 @@
     "description": "Automated threat detection and investigation platform using decision automation.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Tanium",
@@ -1282,7 +1405,8 @@
     "description": "Endpoint management and security platform providing real-time visibility at scale.",
     "website": "https://www.tanium.com/",
     "company_size": "1001-5000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Zenedge",
@@ -1293,7 +1417,8 @@
     "description": "Provided cloud-based WAF and DDoS protection, acquired by Oracle.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Illusive Networks",
@@ -1304,7 +1429,8 @@
     "description": "Deception technology platform that plants decoys to detect lateral movement, acquired by Proofpoint.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Bastille Networks",
@@ -1314,7 +1440,8 @@
     "description": "Detects and locates rogue wireless and IoT devices emitting radio signals.",
     "website": "https://www.bastille.net/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "CUJO AI",
@@ -1324,7 +1451,8 @@
     "description": "AI-driven network security and parental-control platform for connected/IoT home devices.",
     "website": "https://cujo.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "SparkCognition",
@@ -1334,7 +1462,8 @@
     "description": "Applies AI to industrial asset protection, safety, and cybersecurity monitoring.",
     "website": "https://www.sparkcognition.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Appthority",
@@ -1344,7 +1473,8 @@
     "description": "Mobile application risk and threat analysis platform, acquired by Symantec.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Sentegrity",
@@ -1354,7 +1484,8 @@
     "description": "Provided behavioral risk scoring for mobile device security.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Skycure",
@@ -1364,7 +1495,8 @@
     "description": "Mobile threat defense platform acquired by Symantec.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Skycure_logo.png"
   },
   {
     "name": "Zimperium",
@@ -1374,7 +1506,8 @@
     "description": "Mobile threat defense platform protecting devices and apps from exploits and malware.",
     "website": "https://www.zimperium.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Deep Instinct",
@@ -1385,7 +1518,8 @@
     "description": "Uses deep learning to predict and prevent malware before it executes.",
     "website": "https://www.deepinstinct.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Deep_Instinct_logo.png"
   },
   {
     "name": "indeni",
@@ -1395,7 +1529,8 @@
     "description": "Automated network security device health and configuration monitoring.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Indeni_Logo.png"
   },
   {
     "name": "Innefu Labs",
@@ -1405,7 +1540,8 @@
     "description": "India-based provider of AI-driven threat intelligence and facial recognition security tools.",
     "website": "https://innefu.com/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "JASK",
@@ -1415,7 +1551,8 @@
     "description": "Cloud-native SOC platform for automated alert triage, acquired by Sumo Logic.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "PatternEx",
@@ -1426,7 +1563,8 @@
     "description": "AI-driven platform for predicting and detecting cyberattacks from analyst feedback loops.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "SecBI",
@@ -1437,7 +1575,8 @@
     "description": "Network detection and response platform using autonomous investigation of threats.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Seclytics",
@@ -1447,7 +1586,8 @@
     "description": "Predictive threat intelligence platform that forecasts attacker infrastructure before attacks launch.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "SentinelOne",
@@ -1458,7 +1598,8 @@
     "description": "Autonomous endpoint and XDR platform using AI to prevent, detect, and respond to threats.",
     "website": "https://www.sentinelone.com/",
     "company_size": "1001-5000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/SentinelOne_logo.svg"
   },
   {
     "name": "Anomali",
@@ -1468,7 +1609,8 @@
     "description": "Threat intelligence platform that aggregates and operationalizes threat data for SOC teams.",
     "website": "https://www.anomali.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Anomali_logo.jpg"
   },
   {
     "name": "CyberSaint",
@@ -1478,7 +1620,8 @@
     "description": "Cyber risk management and compliance automation platform (CyberStrong).",
     "website": "https://www.cybersaint.io/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Cyence",
@@ -1488,7 +1631,8 @@
     "description": "Cyber risk quantification analytics used by insurers, acquired by Guidewire.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Cytora",
@@ -1498,7 +1642,8 @@
     "description": "Risk data platform helping commercial insurers underwrite risk, including cyber.",
     "website": "https://www.cytora.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Haystax",
@@ -1509,7 +1654,8 @@
     "description": "Insider threat and risk analytics platform for security operations.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "MetaCert",
@@ -1520,7 +1666,8 @@
     "description": "URL threat-verification technology to block phishing links in messaging apps.",
     "website": "https://metacert.com/",
     "company_size": "1-10",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "BehavioSec",
@@ -1530,7 +1677,8 @@
     "description": "Behavioral biometrics platform for continuous authentication, part of LexisNexis Risk Solutions.",
     "website": "https://www.behaviosec.com/",
     "company_size": "51-200",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "CyberX",
@@ -1540,7 +1688,8 @@
     "description": "Industrial IoT/OT threat monitoring platform, now part of Microsoft Defender for IoT.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Darktrace",
@@ -1551,7 +1700,8 @@
     "description": "Uses AI/self-learning models to detect and autonomously respond to network anomalies.",
     "website": "https://darktrace.com/",
     "company_size": "1001-5000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "E8 Security",
@@ -1561,7 +1711,8 @@
     "description": "User and entity behavior analytics platform, acquired by VMware Carbon Black.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Interset",
@@ -1571,7 +1722,8 @@
     "description": "UEBA analytics platform for insider threat detection, owned by OpenText/Micro Focus.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "HUMAN Security (PerimeterX)",
@@ -1582,7 +1734,8 @@
     "description": "Bot mitigation and application fraud protection platform formed from HUMAN and PerimeterX.",
     "website": "https://www.humansecurity.com/",
     "company_size": "501-1000",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Prisma Cloud (RedLock)",
@@ -1592,7 +1745,8 @@
     "description": "Cloud security posture management technology acquired by Palo Alto Networks and folded into Prisma Cloud.",
     "website": "https://www.paloaltonetworks.com/prisma/cloud",
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Sqrrl",
@@ -1603,7 +1757,8 @@
     "description": "Threat-hunting and link-analysis platform acquired by Amazon Web Services.",
     "website": null,
     "company_size": null,
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "StackPath",
@@ -1614,7 +1769,8 @@
     "description": "Edge computing platform offering CDN, WAF, and DDoS protection.",
     "website": "https://www.stackpath.com/",
     "company_size": "201-500",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "TwoSense",
@@ -1625,7 +1781,8 @@
     "description": "Continuous behavioral-biometric authentication for enterprise and government identity assurance.",
     "website": "https://twosense.ai/",
     "company_size": "11-50",
-    "source": "cb-insights"
+    "source": "cb-insights",
+    "wiki_logo_url": null
   },
   {
     "name": "Wiz",
@@ -1635,7 +1792,8 @@
     "description": "Cloud security platform providing agentless vulnerability and misconfiguration visibility across cloud environments.",
     "website": "https://www.wiz.io/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "CyberArk",
@@ -1645,7 +1803,8 @@
     "description": "Identity security vendor specializing in privileged access management, acquired by Palo Alto Networks.",
     "website": "https://www.cyberark.com/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Cyberark-logo-dark.svg"
   },
   {
     "name": "IDnow",
@@ -1655,7 +1814,8 @@
     "description": "European identity verification platform for KYC and digital onboarding.",
     "website": "https://www.idnow.io/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Zilla Security",
@@ -1666,7 +1826,8 @@
     "description": "Identity governance and access-review automation platform, acquired by CyberArk.",
     "website": null,
     "company_size": null,
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "JumpCloud",
@@ -1676,7 +1837,8 @@
     "description": "Cloud directory platform providing unified identity, device, and access management.",
     "website": "https://jumpcloud.com/",
     "company_size": "501-1000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Stack Identity",
@@ -1687,7 +1849,8 @@
     "description": "Cloud identity and access risk detection platform, acquired by JumpCloud.",
     "website": null,
     "company_size": null,
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Radiant Logic",
@@ -1697,7 +1860,8 @@
     "description": "Identity data unification and identity security posture management platform.",
     "website": "https://www.radiantlogic.com/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Radiant_Logic_Corporate_Logo.png"
   },
   {
     "name": "Otorio",
@@ -1707,7 +1871,8 @@
     "description": "Industrial OT cybersecurity platform for operational risk management.",
     "website": "https://otorio.com/",
     "company_size": "51-200",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Armis",
@@ -1717,7 +1882,8 @@
     "description": "Asset visibility and security platform covering IT, IoT, OT, and medical devices.",
     "website": "https://www.armis.com/",
     "company_size": "501-1000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Armis-security-squarelogo-1559138564602.png"
   },
   {
     "name": "Veza",
@@ -1728,7 +1894,8 @@
     "description": "Data access governance platform mapping permissions across cloud systems, acquired by ServiceNow.",
     "website": "https://veza.com/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Cyral",
@@ -1738,7 +1905,8 @@
     "description": "Data access monitoring and control platform for databases and data warehouses, acquired by Varonis.",
     "website": null,
     "company_size": null,
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Securiti",
@@ -1749,7 +1917,8 @@
     "description": "Data security, privacy, and AI governance platform (the PrivacyOps/DSPM company).",
     "website": "https://securiti.ai/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Zivver",
@@ -1760,7 +1929,8 @@
     "description": "Secure email and data-sharing platform, acquired by Kiteworks.",
     "website": null,
     "company_size": null,
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Glasswall",
@@ -1771,7 +1941,8 @@
     "description": "Content disarm and reconstruction (CDR) technology that removes hidden threats from files.",
     "website": "https://www.glasswall.com/",
     "company_size": "51-200",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Jamf",
@@ -1782,7 +1953,8 @@
     "description": "Apple device management platform with integrated endpoint security for Mac, iPhone, and iPad.",
     "website": "https://www.jamf.com/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Protect AI",
@@ -1793,7 +1965,8 @@
     "description": "Security platform for AI/ML systems, protecting models and pipelines from attacks, acquired by Palo Alto Networks.",
     "website": null,
     "company_size": null,
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Red Canary",
@@ -1803,7 +1976,8 @@
     "description": "Managed detection and response provider, acquired by Zscaler.",
     "website": "https://redcanary.com/",
     "company_size": "501-1000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Orca Security",
@@ -1813,7 +1987,8 @@
     "description": "Agentless cloud security platform for vulnerability and posture management, acquired by Palo Alto Networks.",
     "website": "https://orca.security/",
     "company_size": "501-1000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Snyk",
@@ -1824,7 +1999,8 @@
     "description": "Developer-first application security platform for finding and fixing vulnerabilities in code and open source.",
     "website": "https://snyk.io/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Snyk_Logo.svg"
   },
   {
     "name": "Zscaler",
@@ -1835,7 +2011,8 @@
     "description": "Cloud-native security service edge platform delivering zero trust network access and web security.",
     "website": "https://www.zscaler.com/",
     "company_size": "5001-10000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Zscaler_logo.png"
   },
   {
     "name": "Vulcan Cyber",
@@ -1845,7 +2022,8 @@
     "description": "Risk-based vulnerability remediation orchestration platform, acquired by Tenable.",
     "website": null,
     "company_size": null,
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Drata",
@@ -1855,7 +2033,8 @@
     "description": "Continuous compliance automation platform for SOC 2, ISO 27001, and other frameworks.",
     "website": "https://drata.com/",
     "company_size": "501-1000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Vanta",
@@ -1866,7 +2045,8 @@
     "description": "Automates security compliance monitoring and vendor risk management for audits.",
     "website": "https://www.vanta.com/",
     "company_size": "501-1000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Proofpoint",
@@ -1876,7 +2056,8 @@
     "description": "Enterprise email security and human-risk platform protecting against phishing and BEC.",
     "website": "https://www.proofpoint.com/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Proofpoint-vector-logo.svg"
   },
   {
     "name": "Hornetsecurity",
@@ -1886,7 +2067,8 @@
     "description": "European email security, backup, and compliance provider, acquired by Proofpoint.",
     "website": "https://www.hornetsecurity.com/",
     "company_size": "501-1000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Napier AI",
@@ -1897,7 +2079,8 @@
     "description": "AI-powered anti-money-laundering and financial crime compliance platform.",
     "website": "https://www.napier.ai/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Cloudflare",
@@ -1908,7 +2091,8 @@
     "description": "Global network platform offering CDN, DDoS protection, WAF, and zero-trust security services.",
     "website": "https://www.cloudflare.com/",
     "company_size": "5001-10000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Cloudflare_Logo.svg"
   },
   {
     "name": "SailPoint",
@@ -1918,7 +2102,8 @@
     "description": "Identity governance and administration platform for enterprise access management.",
     "website": "https://www.sailpoint.com/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Palo Alto Networks",
@@ -1929,7 +2114,8 @@
     "description": "Diversified cybersecurity platform vendor spanning network security, cloud security, and SOC operations.",
     "website": "https://www.paloaltonetworks.com/",
     "company_size": "10000+",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/PaloAltoNetworks_2020_Logo.svg"
   },
   {
     "name": "Rapid7",
@@ -1940,7 +2126,8 @@
     "description": "Vulnerability management and detection-and-response platform (InsightVM, InsightIDR).",
     "website": "https://www.rapid7.com/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Rapid7_logo.jpg"
   },
   {
     "name": "Okta",
@@ -1950,7 +2137,8 @@
     "description": "Independent identity and access management platform for workforce and customer identity.",
     "website": "https://www.okta.com/",
     "company_size": "5001-10000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Okta_logo.svg"
   },
   {
     "name": "Cohesity",
@@ -1960,7 +2148,8 @@
     "description": "Data management platform providing backup, recovery, and ransomware resilience.",
     "website": "https://www.cohesity.com/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Cohesity_logo.svg"
   },
   {
     "name": "Arctic Wolf",
@@ -1970,7 +2159,8 @@
     "description": "Security operations platform delivering managed detection and response as a concierge service.",
     "website": "https://arcticwolf.com/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Cato Networks",
@@ -1980,7 +2170,8 @@
     "description": "SASE platform converging network and security into a single cloud-native service.",
     "website": "https://www.catonetworks.com/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Chainalysis",
@@ -1991,7 +2182,8 @@
     "description": "Blockchain data platform used for crypto compliance, fraud investigation, and AML.",
     "website": "https://www.chainalysis.com/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "CHEQ",
@@ -2002,7 +2194,8 @@
     "description": "Go-to-market security platform blocking bots, ad fraud, and fake form-fills.",
     "website": "https://cheq.ai/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/CHEQ_logo_-_Pink.png"
   },
   {
     "name": "DNSFilter",
@@ -2012,7 +2205,8 @@
     "description": "Cloud-delivered DNS security and web content filtering service.",
     "website": "https://www.dnsfilter.com/",
     "company_size": "51-200",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Veracode",
@@ -2022,7 +2216,8 @@
     "description": "Application security testing platform providing SAST, DAST, and software composition analysis.",
     "website": "https://www.veracode.com/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Veracode-logo.PNG"
   },
   {
     "name": "Traceable AI",
@@ -2032,7 +2227,8 @@
     "description": "API security platform providing discovery, testing, and threat protection for APIs.",
     "website": "https://www.traceable.ai/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "A10 Networks",
@@ -2042,7 +2238,8 @@
     "description": "Provides application and network security including DDoS protection and secure application delivery.",
     "website": "https://www.a10networks.com/",
     "company_size": "501-1000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/A10Networkslogo2020.jpg"
   },
   {
     "name": "ThreatX",
@@ -2053,7 +2250,8 @@
     "description": "Runtime API and application protection (WAAP) platform for detecting and blocking attacks.",
     "website": "https://www.threatx.com/",
     "company_size": "51-200",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "WatchGuard Technologies",
@@ -2064,7 +2262,8 @@
     "description": "Provides unified threat management appliances and MFA for small and midsize businesses, sold via MSPs.",
     "website": "https://www.watchguard.com/",
     "company_size": "501-1000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/WatchGuard_Technologies_LOgo.svg"
   },
   {
     "name": "Integrity360",
@@ -2074,7 +2273,8 @@
     "description": "European managed security services provider offering MDR, consulting, and testing services.",
     "website": "https://www.integrity360.com/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Quorum Cyber",
@@ -2084,7 +2284,8 @@
     "description": "UK-based managed detection and response and cyber consulting provider.",
     "website": "https://www.quorumcyber.com/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "CyberMaxx",
@@ -2094,7 +2295,8 @@
     "description": "Managed detection and response provider serving healthcare and mid-market enterprises.",
     "website": "https://www.cybermaxx.com/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Searchlight Cyber",
@@ -2104,7 +2306,8 @@
     "description": "Dark web threat intelligence platform for investigating and monitoring criminal marketplaces.",
     "website": "https://slcyber.io/",
     "company_size": "51-200",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "TAC Security",
@@ -2114,7 +2317,8 @@
     "description": "Vulnerability and risk management platform (ESOF) used by enterprises in India and globally.",
     "website": "https://tacsecurity.com/",
     "company_size": "51-200",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "I-Tracing",
@@ -2124,7 +2328,8 @@
     "description": "French cybersecurity consultancy and managed security services provider.",
     "website": "https://www.i-tracing.com/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "TrustedSec",
@@ -2135,7 +2340,8 @@
     "description": "Offensive security consultancy providing penetration testing and incident response services.",
     "website": "https://www.trustedsec.com/",
     "company_size": "51-200",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Nightwing",
@@ -2146,7 +2352,8 @@
     "description": "National-security-focused cyber and intelligence services company spun out of Raytheon/RTX.",
     "website": "https://www.nightwing.com/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Cyber Advisors",
@@ -2156,7 +2363,8 @@
     "description": "US-based managed IT and security services provider.",
     "website": "https://www.cyberadvisors.com/",
     "company_size": "51-200",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Blackpoint Cyber",
@@ -2166,7 +2374,8 @@
     "description": "MDR platform and services built for managed service providers.",
     "website": "https://blackpointcyber.com/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "AttackIQ",
@@ -2176,7 +2385,8 @@
     "description": "Breach and attack simulation platform for continuously validating security controls.",
     "website": "https://www.attackiq.com/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "CYE",
@@ -2187,7 +2397,8 @@
     "description": "Cyber risk quantification and optimization platform combining assessment data with financial risk modeling.",
     "website": "https://cyesec.com/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Tufin",
@@ -2198,7 +2409,8 @@
     "description": "Network security policy management and firewall change automation platform.",
     "website": "https://www.tufin.com/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Tufin_logo.svg"
   },
   {
     "name": "Skybox Security",
@@ -2209,7 +2421,8 @@
     "description": "Security posture and vulnerability management platform using network modeling.",
     "website": "https://www.skyboxsecurity.com/",
     "company_size": "501-1000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Validated ID",
@@ -2220,7 +2433,8 @@
     "description": "Digital identity and electronic signature platform based in Spain.",
     "website": "https://validatedid.com/",
     "company_size": "11-50",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "MajorKey Technologies",
@@ -2231,7 +2445,8 @@
     "description": "Identity and access management consulting and managed services provider.",
     "website": "https://www.majorkey.com/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Varonis",
@@ -2241,7 +2456,8 @@
     "description": "Data security platform focused on classifying and protecting sensitive data and detecting insider threats.",
     "website": "https://www.varonis.com/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Kiteworks",
@@ -2252,7 +2468,8 @@
     "description": "Secure content communication platform for managing sensitive file and email transfers.",
     "website": "https://www.kiteworks.com/",
     "company_size": "501-1000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Kiteworks_logo.svg"
   },
   {
     "name": "Forcepoint",
@@ -2263,7 +2480,8 @@
     "description": "Provides data loss prevention, insider risk, and network security (SASE) solutions.",
     "website": "https://www.forcepoint.com/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Forcepoint_Logo.svg"
   },
   {
     "name": "Menlo Security",
@@ -2274,7 +2492,8 @@
     "description": "Browser isolation and secure access platform that neutralizes web and email-based threats.",
     "website": "https://www.menlosecurity.com/",
     "company_size": "501-1000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Deepwatch",
@@ -2284,7 +2503,8 @@
     "description": "Managed detection and response provider combining a SOC platform with analyst services.",
     "website": "https://www.deepwatch.com/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Lumu Technologies",
@@ -2295,7 +2515,8 @@
     "description": "Continuous compromise assessment platform correlating network metadata to detect threats.",
     "website": "https://lumu.io/",
     "company_size": "51-200",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "MOXFIVE",
@@ -2305,7 +2526,8 @@
     "description": "Technical advisory firm specializing in ransomware and incident response coordination.",
     "website": "https://www.moxfive.com/",
     "company_size": "51-200",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Thirdfort",
@@ -2316,7 +2538,8 @@
     "description": "Identity verification and anti-money-laundering compliance platform for legal and property transactions.",
     "website": "https://www.thirdfort.com/",
     "company_size": "51-200",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Signaturit Solutions",
@@ -2326,7 +2549,8 @@
     "description": "European e-signature and digital identity verification platform.",
     "website": "https://www.signaturit.com/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Globesecure Technologies",
@@ -2336,7 +2560,8 @@
     "description": "Middle East-based cybersecurity solutions and managed services provider.",
     "website": "https://www.globesecure.com/",
     "company_size": "11-50",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Magellan S\u00e9curit\u00e9",
@@ -2346,7 +2571,8 @@
     "description": "French physical and cyber security services provider.",
     "website": "https://www.magellan-securite.fr/",
     "company_size": "51-200",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Consortium Networks",
@@ -2356,7 +2582,8 @@
     "description": "Managed security and identity operations provider for enterprises.",
     "website": "https://www.consortiumnetworks.com/",
     "company_size": "51-200",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "HWG Sababa",
@@ -2366,7 +2593,8 @@
     "description": "Italian cybersecurity services group offering managed security and consulting.",
     "website": "https://www.hwgsababa.com/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Minsait Payments",
@@ -2376,7 +2604,8 @@
     "description": "Payments and fraud-risk technology unit of Indra's Minsait division.",
     "website": "https://www.minsait.com/",
     "company_size": null,
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Heliaq",
@@ -2386,7 +2615,8 @@
     "description": "Managed security services provider offering SOC and consulting services.",
     "website": null,
     "company_size": null,
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Eyeonid",
@@ -2396,7 +2626,8 @@
     "description": "Identity theft protection and monitoring service for consumers, offered via telecom partners.",
     "website": "https://eyeonid.com/",
     "company_size": "1-10",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Communicate Technology",
@@ -2406,7 +2637,8 @@
     "description": "UK managed service provider offering cybersecurity and IT support services.",
     "website": "https://www.communicatetechnology.co.uk/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Henninger Corporation",
@@ -2416,7 +2648,8 @@
     "description": "Provides security consulting and managed services to enterprises.",
     "website": null,
     "company_size": null,
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Brennan",
@@ -2426,7 +2659,8 @@
     "description": "Australian managed IT and cybersecurity services provider.",
     "website": "https://www.brennanit.com.au/",
     "company_size": "201-500",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "AC System Consulting",
@@ -2436,7 +2670,8 @@
     "description": "IT and security consulting/managed services provider.",
     "website": null,
     "company_size": null,
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Fenix24",
@@ -2447,7 +2682,8 @@
     "description": "Specializes in emergency infrastructure restoration after ransomware attacks.",
     "website": "https://fenix24.com/",
     "company_size": "51-200",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Northern Block",
@@ -2457,7 +2693,8 @@
     "description": "Decentralized/verifiable digital identity consulting and technology provider.",
     "website": "https://northernblock.io/",
     "company_size": "1-10",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Simulint",
@@ -2468,7 +2705,8 @@
     "description": "Provides cyber range and attack simulation training for security teams.",
     "website": null,
     "company_size": null,
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Orient Technologies",
@@ -2478,7 +2716,8 @@
     "description": "Indian IT infrastructure and managed security services provider.",
     "website": "https://www.orientindia.com/",
     "company_size": "501-1000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Perfios",
@@ -2489,7 +2728,8 @@
     "description": "Fintech risk analytics platform supporting fraud detection and lending decisioning.",
     "website": "https://www.perfios.com/",
     "company_size": "1001-5000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   },
   {
     "name": "Atruvia",
@@ -2499,6 +2739,7 @@
     "description": "German cooperative banking IT provider with a dedicated banking-security services arm.",
     "website": "https://atruvia.de/",
     "company_size": "5001-10000",
-    "source": "momentum-cyber"
+    "source": "momentum-cyber",
+    "wiki_logo_url": null
   }
 ]

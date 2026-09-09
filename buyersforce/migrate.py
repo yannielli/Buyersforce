@@ -38,6 +38,8 @@ def run_migrations():
             _migrate_legacy_timezones(cur)
             _add_vendor_directory_columns(cur)
             _seed_vendor_directory(cur)
+            _add_vendor_wiki_logo_column(cur)
+            _backfill_vendor_wiki_logos(cur)
     finally:
         con.close()
 
@@ -449,6 +451,39 @@ def _seed_vendor_directory(cur):
                     "INSERT INTO vendor_segments (vendor_id, segment) VALUES (%s, %s)",
                     (vendor_id, segment),
                 )
+
+
+def _add_vendor_wiki_logo_column(cur):
+    cur.execute("ALTER TABLE vendors ADD COLUMN IF NOT EXISTS wiki_logo_url TEXT")
+
+
+def _backfill_vendor_wiki_logos(cur):
+    # A follow-up enrichment pass on the vendor directory seed data: for
+    # admin-seeded ("unclaimed") vendors where a real, verified Wikipedia/
+    # Wikimedia Commons logo image was found (see the "wiki_logo_url" field
+    # in seed_data/vendor_seed_list.json), prefer that over the generic
+    # website-favicon guess. Only ~72 of the 241 seeded vendors have one --
+    # WebSearch quota ran out partway through checking the rest, so many
+    # "no wiki_logo_url" entries are genuinely unchecked rather than
+    # confirmed absent; a future pass can fill in more over time. Safe to
+    # re-run: only fills a row's wiki_logo_url when it's still empty, so it
+    # never clobbers a value this (or a future) pass already set.
+    seed_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seed_data", "vendor_seed_list.json")
+    if not os.path.exists(seed_path):
+        return
+    with open(seed_path) as f:
+        seed_vendors = json.load(f)
+    for entry in seed_vendors:
+        name = (entry.get("name") or "").strip()
+        wiki_logo_url = entry.get("wiki_logo_url")
+        if not name or not wiki_logo_url:
+            continue
+        cur.execute(
+            "UPDATE vendors SET wiki_logo_url = %s "
+            "WHERE company_name = %s AND seller_user_id IS NULL "
+            "AND (wiki_logo_url IS NULL OR wiki_logo_url = '')",
+            (wiki_logo_url, name),
+        )
 
 
 if __name__ == "__main__":

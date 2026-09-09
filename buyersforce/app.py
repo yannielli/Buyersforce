@@ -1526,7 +1526,7 @@ def buyer_discover():
             **dict(v),
             "tags": vendor_tags(v["id"]),
             "segments": vendor_segments(v["id"]),
-            "logo_url": vendor_favicon_url(v["website"]),
+            "logo_url": v["wiki_logo_url"] or vendor_favicon_url(v["website"]),
             "status": shortlist_status(g.user["id"], v["id"]),
         })
     return render_template(
@@ -1549,7 +1549,7 @@ def buyer_vendor(vendor_id):
     listings = vendor_listings(vendor_id)
     tags = vendor_tags(vendor_id)
     segments = vendor_segments(vendor_id)
-    logo_url = vendor_favicon_url(vendor["website"])
+    logo_url = vendor["wiki_logo_url"] or vendor_favicon_url(vendor["website"])
     is_claimed = vendor["seller_user_id"] is not None
     status = shortlist_status(g.user["id"], vendor_id)
     templates_ = dbm.query(
