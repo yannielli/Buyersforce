@@ -9,9 +9,26 @@
   </div>
 </div>
 
+<div class="tabs">
+  <a href="{{ url_for('account', tab='profile') }}" class="{{ 'active' if tab == 'profile' }}">Profile</a>
+  <a href="{{ url_for('account', tab='password') }}" class="{{ 'active' if tab == 'password' }}">Password</a>
+  {% if g.user.role == 'buyer' %}
+  <a href="{{ url_for('account', tab='blocked') }}" class="{{ 'active' if tab == 'blocked' }}">Blocked Vendors</a>
+  {% endif %}
+</div>
+
+{% if tab == 'profile' %}
+<div class="card" style="max-width:640px;">
+  <form method="post" action="{{ url_for('account_profile') }}" enctype="multipart/form-data">
+    {% include "_profile_form.html" %}
+    <button class="btn btn-primary" type="submit" style="margin-top:8px;">Save profile</button>
+  </form>
+</div>
+
+{% elif tab == 'password' %}
 <div class="card" style="max-width:480px;">
   <h3 style="font-size:15px;">Change password</h3>
-  <form method="post">
+  <form method="post" action="{{ url_for('account_password') }}">
     <div class="field">
       <label for="current_password">Current password</label>
       <input type="password" id="current_password" name="current_password" required>
@@ -27,4 +44,52 @@
     <button class="btn btn-primary" type="submit">Update password</button>
   </form>
 </div>
+
+{% elif tab == 'blocked' %}
+<div class="grid grid-2" style="grid-template-columns:1fr 1.3fr; align-items:start;">
+  <div class="card">
+    <h3 style="font-size:15px;">Block a vendor</h3>
+    <p class="hint" style="margin-bottom:12px;">
+      Block by email or company name. They won't be able to message you, and any messages
+      already sent stay in your inbox as a record.
+    </p>
+    <form method="post" action="{{ url_for('block_vendor') }}">
+      <div class="field">
+        <label for="blocked_email">Email</label>
+        <input type="email" id="blocked_email" name="blocked_email" placeholder="rep@vendor.com">
+      </div>
+      <div class="field">
+        <label for="blocked_company">Or a whole company</label>
+        <input type="text" id="blocked_company" name="blocked_company" placeholder="Vendor company name">
+      </div>
+      <button class="btn btn-primary btn-sm" type="submit">Block</button>
+    </form>
+  </div>
+
+  <div>
+    <div class="section-title"><h2>Currently blocked</h2></div>
+    {% if blocked %}
+    <div class="card" style="padding:8px 22px;">
+      {% for b in blocked %}
+      <div class="mock-row">
+        <span>
+          <strong style="font-size:14px;">
+            {% if b.blocked_name %}{{ b.blocked_name }} ({{ b.blocked_user_company }})
+            {% elif b.blocked_company %}Everyone at {{ b.blocked_company }}
+            {% else %}{{ b.blocked_email }}{% endif %}
+          </strong>
+          <div class="hint">Blocked {{ b.created_at|fmt_time }}</div>
+        </span>
+        <form method="post" action="{{ url_for('unblock_vendor', block_id=b.id) }}">
+          <button class="btn btn-ghost btn-sm" type="submit">Unblock</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="card empty-state"><div class="icon">🚫</div>Nobody's blocked.</div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 {% endblock %}

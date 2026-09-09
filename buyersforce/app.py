@@ -18,6 +18,43 @@ dbm.init_app(app)
 
 
 # ---------------------------------------------------------------------------
+# Profile fields
+# ---------------------------------------------------------------------------
+
+US_STATES = [
+    ("AL", "Alabama"), ("AK", "Alaska"), ("AZ", "Arizona"), ("AR", "Arkansas"),
+    ("CA", "California"), ("CO", "Colorado"), ("CT", "Connecticut"), ("DE", "Delaware"),
+    ("DC", "District of Columbia"), ("FL", "Florida"), ("GA", "Georgia"), ("HI", "Hawaii"),
+    ("ID", "Idaho"), ("IL", "Illinois"), ("IN", "Indiana"), ("IA", "Iowa"),
+    ("KS", "Kansas"), ("KY", "Kentucky"), ("LA", "Louisiana"), ("ME", "Maine"),
+    ("MD", "Maryland"), ("MA", "Massachusetts"), ("MI", "Michigan"), ("MN", "Minnesota"),
+    ("MS", "Mississippi"), ("MO", "Missouri"), ("MT", "Montana"), ("NE", "Nebraska"),
+    ("NV", "Nevada"), ("NH", "New Hampshire"), ("NJ", "New Jersey"), ("NM", "New Mexico"),
+    ("NY", "New York"), ("NC", "North Carolina"), ("ND", "North Dakota"), ("OH", "Ohio"),
+    ("OK", "Oklahoma"), ("OR", "Oregon"), ("PA", "Pennsylvania"), ("RI", "Rhode Island"),
+    ("SC", "South Carolina"), ("SD", "South Dakota"), ("TN", "Tennessee"), ("TX", "Texas"),
+    ("UT", "Utah"), ("VT", "Vermont"), ("VA", "Virginia"), ("WA", "Washington"),
+    ("WV", "West Virginia"), ("WI", "Wisconsin"), ("WY", "Wyoming"),
+]
+US_STATE_CODES = {code for code, _ in US_STATES}
+
+# Checked dynamically against the user row rather than tracked with a
+# stored flag, so there's nothing that can drift out of sync. role,
+# company, and email are guaranteed non-blank by the users table itself
+# (set by an admin at invite time), so they aren't re-checked here.
+PROFILE_REQUIRED_FIELDS = ("first_name", "last_name", "personal_email", "phone", "state", "title")
+
+# Endpoints reachable even with an incomplete profile: auth/public pages
+# and the completion screen itself. Everything else redirects a buyer or
+# seller with a missing required field to complete_profile.
+PROFILE_EXEMPT_ENDPOINTS = {"static", "landing", "login", "logout", "signup", "accept_invite", "complete_profile"}
+
+
+def profile_is_complete(user):
+    return all((user.get(f) or "").strip() for f in PROFILE_REQUIRED_FIELDS)
+
+
+# ---------------------------------------------------------------------------
 # Auth helpers
 # ---------------------------------------------------------------------------
 
@@ -34,6 +71,23 @@ def load_logged_in_user():
     # works, unchanged) and impersonator_id remembers who to snap back to.
     g.impersonating = session.get("impersonator_id") is not None
     g.unread_count = unread_count_for(g.user) if g.user and g.user["role"] in ("buyer", "seller") else 0
+
+
+@app.before_request
+def enforce_profile_completion():
+    # Forces buyers/sellers -- including accounts that existed before this
+    # feature shipped -- through a mandatory profile screen the first time
+    # they hit any real page with a required field still missing. Admins
+    # and "view as" sessions are exempt: an admin looking through a buyer's
+    # eyes shouldn't get stuck filling out that buyer's profile for them.
+    if not g.user or g.user["role"] not in ("buyer", "seller"):
+        return
+    if g.impersonating:
+        return
+    if request.endpoint in PROFILE_EXEMPT_ENDPOINTS:
+        return
+    if not profile_is_complete(g.user):
+        return redirect(url_for("complete_profile"))
 
 
 def login_required(view):
@@ -113,14 +167,73 @@ def landing():
     return render_template("landing.html")
 
 
-@app.route("/signup")
+@app.route("/signup", methods=("GET", "POST"))
 def signup():
-    # Public self-signup is disabled -- BuyersForce is invite-only. An admin
-    # grants access from the admin panel, which emails... well, hands them a
-    # link (see /accept-invite/<token>) tied to their email address.
+    # Self-signup: anyone can request an account, but it starts 'pending'
+    # and can't log in until a BuyersForce admin approves it (see
+    # admin_approve_signup / admin_deny_signup) -- Kj reviews each one,
+    # including the required LinkedIn link, before granting access.
     if g.user:
         return redirect(home_for_role(g.user["role"]))
-    return render_template("signup_disabled.html")
+    if request.method == "POST":
+        role = request.form.get("role", "").strip()
+        first_name = request.form.get("first_name", "").strip()
+        last_name = request.form.get("last_name", "").strip()
+        company = request.form.get("company", "").strip()
+        title = request.form.get("title", "").strip()
+        work_email = request.form.get("email", "").strip().lower()
+        personal_email = request.form.get("personal_email", "").strip().lower()
+        phone = request.form.get("phone", "").strip()
+        state = request.form.get("state", "").strip().upper()
+        linkedin_url = request.form.get("linkedin_url", "").strip()
+        no_linkedin = request.form.get("no_linkedin") == "on"
+        password = request.form.get("password", "")
+
+        if no_linkedin:
+            # Some people genuinely don't have a LinkedIn account. We still
+            # want to know that explicitly (rather than a blank field that
+            # could just be someone skipping a required field), so it's
+            # stored as its own flag and linkedin_url is cleared regardless
+            # of what was submitted for it.
+            linkedin_url = ""
+
+        error = None
+        if role not in ("buyer", "seller"):
+            error = "Choose whether you're a buyer or a seller."
+        elif not all((first_name, last_name, company, title, work_email, personal_email,
+                      phone, state, password)):
+            error = "All fields are required."
+        elif "@" not in work_email:
+            error = "Work email doesn't look like a valid email address."
+        elif "@" not in personal_email:
+            error = "Personal email doesn't look like a valid email address."
+        elif state not in US_STATE_CODES:
+            error = "Choose a valid US state."
+        elif not no_linkedin and not linkedin_url:
+            error = "LinkedIn is required, or check \"I don't have a LinkedIn account.\""
+        elif not no_linkedin and "linkedin.com" not in linkedin_url.lower():
+            error = "That doesn't look like a LinkedIn URL -- we need it to verify your request."
+        elif len(password) < 8:
+            error = "Password must be at least 8 characters."
+        elif dbm.query("SELECT id FROM users WHERE email = ?", (work_email,), one=True):
+            error = "An account already exists (or is pending review) for that email."
+
+        if error:
+            flash(error, "error")
+            form_data = request.form.to_dict()
+            form_data["no_linkedin"] = no_linkedin
+            return render_template("signup.html", us_states=US_STATES, form_data=form_data)
+
+        dbm.execute(
+            "INSERT INTO users (role, name, first_name, last_name, email, password_hash, company, "
+            "title, personal_email, phone, state, linkedin_url, no_linkedin, account_status) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')",
+            (role, f"{first_name} {last_name}", first_name, last_name, work_email,
+             generate_password_hash(password), company, title, personal_email, phone, state,
+             linkedin_url, int(no_linkedin)),
+        )
+        return render_template("signup_pending.html")
+    return render_template("signup.html", us_states=US_STATES, form_data={})
 
 
 @app.route("/login", methods=("GET", "POST"))
@@ -133,6 +246,13 @@ def login():
         user = dbm.query("SELECT * FROM users WHERE email = ?", (email,), one=True)
         if user is None or not check_password_hash(user["password_hash"], password):
             flash("Incorrect email or password.", "error")
+        elif user["account_status"] == "pending":
+            flash(
+                "Your account request is still pending BuyersForce approval. "
+                "We'll email you once it's been reviewed.", "error",
+            )
+        elif user["account_status"] == "denied":
+            flash("This account request wasn't approved. Contact BuyersForce if you believe this is an error.", "error")
         else:
             session.clear()
             session["user_id"] = user["id"]
@@ -207,29 +327,227 @@ def accept_invite(token):
     return render_template("accept_invite.html", invite=invite, is_reset=existing_user is not None)
 
 
-@app.route("/app/account", methods=("GET", "POST"))
+def _safe_redirect_target(value, fallback):
+    """Only follow an internal, same-app relative path -- never an
+    absolute URL or protocol-relative "//host/..." one -- so a form's
+    "next" field can't be turned into an open redirect."""
+    if value and value.startswith("/") and not value.startswith("//"):
+        return value
+    return fallback
+
+
+MAX_PHOTO_BYTES = 2 * 1024 * 1024  # 2MB -- stored inline in the database (see _add_account_status_and_photo)
+
+
+def _read_uploaded_photo(files):
+    """Validates and base64-encodes an uploaded profile photo. Returns
+    (data_url, error) -- data_url is None if no file was chosen (leave
+    the existing photo alone) and error is None on success."""
+    photo = files.get("photo")
+    if not photo or not photo.filename:
+        return None, None
+    raw = photo.read(MAX_PHOTO_BYTES + 1)
+    if len(raw) > MAX_PHOTO_BYTES:
+        return None, "Profile photo must be 2MB or smaller."
+    mimetype = photo.mimetype or ""
+    if not mimetype.startswith("image/"):
+        return None, "Profile photo must be an image file."
+    import base64
+    return f"data:{mimetype};base64,{base64.b64encode(raw).decode('ascii')}", None
+
+
+def _apply_profile_form(user, form, files=None):
+    """Validates and saves the shared profile fields (used by both the
+    mandatory first-completion screen and later edits from Account >
+    Profile). Returns None on success, or an error message to flash.
+    role is never handled here -- it's permanent, admin-only. Company
+    and work email ARE user-editable (Kj: people do change companies),
+    but changing company requires an explicit confirmation checkbox,
+    since it's a shared teammate-grouping key -- changing it drops
+    access to the old company's team threads and shared evaluation
+    templates (not a data loss, just no longer visible to this account)."""
+    files = files or {}
+    first_name = form.get("first_name", "").strip()
+    last_name = form.get("last_name", "").strip()
+    work_email = form.get("email", "").strip().lower()
+    personal_email = form.get("personal_email", "").strip().lower()
+    phone = form.get("phone", "").strip()
+    state = form.get("state", "").strip().upper()
+    title = form.get("title", "").strip()
+    company = form.get("company", "").strip()
+
+    if not all((first_name, last_name, work_email, personal_email, phone, state, title, company)):
+        return "First name, last name, company, work email, personal email, phone, job title, and state are all required."
+    if "@" not in work_email:
+        return "Work email doesn't look like a valid email address."
+    if "@" not in personal_email:
+        return "Personal email doesn't look like a valid email address."
+    if state not in US_STATE_CODES:
+        return "Choose a valid US state."
+    if work_email != user["email"]:
+        taken = dbm.query("SELECT id FROM users WHERE email = ? AND id != ?", (work_email, user["id"]), one=True)
+        if taken:
+            return "Another account already uses that work email."
+
+    company_changed = company != user["company"]
+    if company_changed and form.get("confirm_company_change") != "on":
+        return (
+            "Changing your company means you'll lose access to your current team's message "
+            "threads and shared evaluation templates (your own shortlist and evaluations stay "
+            "yours). Check the confirmation box below to continue."
+        )
+
+    linkedin_url = form.get("linkedin_url", "").strip()
+    if linkedin_url and "linkedin.com" not in linkedin_url.lower():
+        return "That doesn't look like a LinkedIn URL."
+
+    photo_data_url, photo_error = _read_uploaded_photo(files)
+    if photo_error:
+        return photo_error
+    remove_photo = form.get("remove_photo") == "on"
+
+    address_line1 = form.get("address_line1", "").strip()
+    address_line2 = form.get("address_line2", "").strip()
+    city = form.get("city", "").strip()
+    zip_code = form.get("zip", "").strip()
+    secondary_phone = form.get("secondary_phone", "").strip()
+    timezone = form.get("timezone", "").strip()
+    open_to_buy = 1 if (user["role"] == "buyer" and form.get("open_to_buy") == "on") else 0
+
+    dbm.execute(
+        "UPDATE users SET first_name=?, last_name=?, name=?, email=?, company=?, personal_email=?, "
+        "phone=?, state=?, title=?, address_line1=?, address_line2=?, city=?, zip=?, "
+        "secondary_phone=?, linkedin_url=?, timezone=?, open_to_buy=? WHERE id=?",
+        (first_name, last_name, f"{first_name} {last_name}", work_email, company, personal_email,
+         phone, state, title, address_line1, address_line2, city, zip_code, secondary_phone,
+         linkedin_url, timezone, open_to_buy, user["id"]),
+    )
+    if photo_data_url:
+        dbm.execute("UPDATE users SET photo_data_url=? WHERE id=?", (photo_data_url, user["id"]))
+    elif remove_photo:
+        dbm.execute("UPDATE users SET photo_data_url=NULL WHERE id=?", (user["id"],))
+
+    if company_changed and user["role"] == "seller":
+        # A seller's vendor listing is 1:1 with them, so this is safe --
+        # unlike team threads, nobody else's data is affected.
+        vendor = dbm.query("SELECT * FROM vendors WHERE seller_user_id = ?", (user["id"],), one=True)
+        if vendor:
+            dbm.execute("UPDATE vendors SET company_name=? WHERE id=?", (company, vendor["id"]))
+    if company_changed:
+        log_activity(user["id"], f"changed their own company from {user['company']} to {company}")
+    return None
+
+
+@app.route("/app/complete-profile", methods=("GET", "POST"))
+@login_required
+def complete_profile():
+    if g.user["role"] not in ("buyer", "seller"):
+        return redirect(home_for_role(g.user["role"]))
+    if profile_is_complete(g.user):
+        return redirect(home_for_role(g.user["role"]))
+    if request.method == "POST":
+        error = _apply_profile_form(g.user, request.form, request.files)
+        if error:
+            flash(error, "error")
+        else:
+            flash("Profile complete -- welcome to BuyersForce.", "success")
+            return redirect(home_for_role(g.user["role"]))
+        # Re-fetch so the form reflects whatever partial edits are valid,
+        # and so we're not rendering a stale g.user from before the (failed) update.
+        g.user = dbm.query("SELECT * FROM users WHERE id=?", (g.user["id"],), one=True)
+    return render_template("complete_profile.html", us_states=US_STATES, user=g.user)
+
+
+@app.route("/app/account")
 @login_required
 def account():
-    if request.method == "POST":
-        current = request.form.get("current_password", "")
-        new_password = request.form.get("new_password", "")
-        confirm = request.form.get("confirm", "")
-        error = None
-        if not check_password_hash(g.user["password_hash"], current):
-            error = "Current password is incorrect."
-        elif len(new_password) < 8:
-            error = "New password must be at least 8 characters."
-        elif new_password != confirm:
-            error = "New passwords don't match."
-        if error is None:
-            dbm.execute(
-                "UPDATE users SET password_hash = ? WHERE id = ?",
-                (generate_password_hash(new_password), g.user["id"]),
-            )
-            flash("Password updated.", "success")
-            return redirect(url_for("account"))
+    tab = request.args.get("tab", "profile")
+    if tab not in ("profile", "password", "blocked") or (tab == "blocked" and g.user["role"] != "buyer"):
+        tab = "profile"
+    blocked = []
+    if g.user["role"] == "buyer":
+        blocked = dbm.query(
+            "SELECT b.*, u.name blocked_name, u.company blocked_user_company FROM blocked_vendors b "
+            "LEFT JOIN users u ON u.id = b.blocked_user_id WHERE b.buyer_user_id=? ORDER BY b.created_at DESC",
+            (g.user["id"],),
+        )
+    return render_template("account.html", tab=tab, us_states=US_STATES, blocked=blocked, user=g.user)
+
+
+@app.route("/app/account/profile", methods=("POST",))
+@login_required
+def account_profile():
+    error = _apply_profile_form(g.user, request.form, request.files)
+    if error:
         flash(error, "error")
-    return render_template("account.html")
+    else:
+        flash("Profile updated.", "success")
+    return redirect(url_for("account", tab="profile"))
+
+
+@app.route("/app/account/password", methods=("POST",))
+@login_required
+def account_password():
+    current = request.form.get("current_password", "")
+    new_password = request.form.get("new_password", "")
+    confirm = request.form.get("confirm", "")
+    error = None
+    if not check_password_hash(g.user["password_hash"], current):
+        error = "Current password is incorrect."
+    elif len(new_password) < 8:
+        error = "New password must be at least 8 characters."
+    elif new_password != confirm:
+        error = "New passwords don't match."
+    if error is None:
+        dbm.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (generate_password_hash(new_password), g.user["id"]),
+        )
+        flash("Password updated.", "success")
+    else:
+        flash(error, "error")
+    return redirect(url_for("account", tab="password"))
+
+
+@app.route("/app/account/blocked/add", methods=("POST",))
+@role_required("buyer")
+def block_vendor():
+    blocked_user_id = request.form.get("blocked_user_id", type=int)
+    blocked_email = request.form.get("blocked_email", "").strip().lower()
+    blocked_company = request.form.get("blocked_company", "").strip()
+    next_url = _safe_redirect_target(request.form.get("next"), url_for("account", tab="blocked"))
+
+    if not blocked_user_id and not blocked_email and not blocked_company:
+        flash("Enter an email or company name, or block someone from one of your conversations.", "error")
+        return redirect(next_url)
+
+    if blocked_user_id:
+        existing = dbm.query(
+            "SELECT 1 FROM blocked_vendors WHERE buyer_user_id=? AND blocked_user_id=?",
+            (g.user["id"], blocked_user_id), one=True,
+        )
+        if existing:
+            flash("Already blocked.", "error")
+            return redirect(next_url)
+
+    dbm.execute(
+        "INSERT INTO blocked_vendors (buyer_user_id, blocked_user_id, blocked_email, blocked_company) "
+        "VALUES (?, ?, ?, ?)",
+        (g.user["id"], blocked_user_id or None, blocked_email or None, blocked_company or None),
+    )
+    flash("Blocked -- they won't be able to message you anymore.", "success")
+    return redirect(next_url)
+
+
+@app.route("/app/account/blocked/<int:block_id>/remove", methods=("POST",))
+@role_required("buyer")
+def unblock_vendor(block_id):
+    dbm.execute(
+        "DELETE FROM blocked_vendors WHERE id=? AND buyer_user_id=?",
+        (block_id, g.user["id"]),
+    )
+    flash("Unblocked.", "success")
+    return redirect(url_for("account", tab="blocked"))
 
 
 # ---------------------------------------------------------------------------
@@ -240,11 +558,14 @@ def account():
 @admin_required
 def admin_dashboard():
     users = dbm.query(
-        "SELECT * FROM users WHERE is_admin = 0 ORDER BY company, role, name"
+        "SELECT * FROM users WHERE is_admin = 0 AND account_status = 'active' ORDER BY company, role, name"
     )
     pending_invites = dbm.query(
         "SELECT i.*, u.name invited_by_name FROM invites i JOIN users u ON u.id = i.invited_by "
         "WHERE i.used_at IS NULL ORDER BY i.created_at DESC"
+    )
+    pending_signups = dbm.query(
+        "SELECT * FROM users WHERE account_status = 'pending' ORDER BY created_at DESC"
     )
     new_invite_link = None
     new_invite_id = request.args.get("new_invite", type=int)
@@ -254,8 +575,41 @@ def admin_dashboard():
             new_invite_link = url_for("accept_invite", token=inv["token"], _external=True)
     return render_template(
         "admin/dashboard.html", users=users, pending_invites=pending_invites,
-        new_invite_link=new_invite_link,
+        pending_signups=pending_signups, new_invite_link=new_invite_link,
     )
+
+
+@app.route("/app/admin/signups/<int:user_id>/approve", methods=("POST",))
+@admin_required
+def admin_approve_signup(user_id):
+    user = dbm.query("SELECT * FROM users WHERE id=? AND account_status='pending'", (user_id,), one=True)
+    if not user:
+        abort(404)
+    dbm.execute("UPDATE users SET account_status='active' WHERE id=?", (user_id,))
+    if user["role"] == "seller":
+        dbm.execute(
+            "INSERT INTO vendors (seller_user_id, company_name, category, tagline, description, "
+            "website, accent, initials) VALUES (?, ?, 'Uncategorized', '', '', '', '#3b82f6', ?)",
+            (user_id, user["company"],
+             "".join([w[0] for w in user["company"].split()[:2]]).upper() or "VN"),
+        )
+    log_activity(user_id, "account approved by admin")
+    emailer.send_signup_decision(user["email"], approved=True, login_url=url_for("login", _external=True))
+    flash(f"{user['name']} approved.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/app/admin/signups/<int:user_id>/deny", methods=("POST",))
+@admin_required
+def admin_deny_signup(user_id):
+    user = dbm.query("SELECT * FROM users WHERE id=? AND account_status='pending'", (user_id,), one=True)
+    if not user:
+        abort(404)
+    dbm.execute("UPDATE users SET account_status='denied' WHERE id=?", (user_id,))
+    log_activity(user_id, "account denied by admin")
+    emailer.send_signup_decision(user["email"], approved=False)
+    flash(f"{user['name']}'s request denied.", "success")
+    return redirect(url_for("admin_dashboard"))
 
 
 def _create_invite(email, role, company, name, invited_by):
@@ -314,6 +668,37 @@ def admin_revoke_invite(invite_id):
     return redirect(url_for("admin_dashboard"))
 
 
+@app.route("/app/admin/users/<int:user_id>/company", methods=("POST",))
+@admin_required
+def admin_change_company(user_id):
+    # Company is admin-only (not user-editable) because it's a shared
+    # teammate-grouping key, not a personal field -- see the note on
+    # _apply_profile_form. A seller's own vendor listing is 1:1 with
+    # them, so updating its company_name here is safe. Team-thread
+    # subjects are deliberately left alone: they embed the OLD company
+    # name, so this user will naturally lose access to their old team's
+    # threads (correct -- they've left) without disturbing teammates who
+    # are still there and haven't been moved.
+    user = dbm.query("SELECT * FROM users WHERE id = ? AND is_admin = 0", (user_id,), one=True)
+    if not user:
+        abort(404)
+    new_company = request.form.get("company", "").strip()
+    if not new_company:
+        flash("Company name can't be blank.", "error")
+        return redirect(url_for("admin_dashboard"))
+    if new_company == user["company"]:
+        return redirect(url_for("admin_dashboard"))
+
+    dbm.execute("UPDATE users SET company = ? WHERE id = ?", (new_company, user_id))
+    if user["role"] == "seller":
+        vendor = dbm.query("SELECT * FROM vendors WHERE seller_user_id = ?", (user_id,), one=True)
+        if vendor:
+            dbm.execute("UPDATE vendors SET company_name = ? WHERE id = ?", (new_company, vendor["id"]))
+    log_activity(user_id, f"company changed from {user['company']} to {new_company} by admin")
+    flash(f"{user['name']}'s company changed to {new_company}.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
 @app.route("/app/admin/view-as/<int:user_id>", methods=("POST",))
 @admin_required
 def admin_view_as(user_id):
@@ -364,6 +749,19 @@ def teammates_of(user):
 # messaging someone who isn't a BuyersForce member yet)
 # ---------------------------------------------------------------------------
 
+def is_message_blocked(buyer_id, seller):
+    """True if the buyer identified by buyer_id has blocked this seller
+    specifically, or has blocked every seller at the seller's company."""
+    row = dbm.query(
+        "SELECT 1 FROM blocked_vendors WHERE buyer_user_id = ? AND "
+        "(blocked_user_id = ? OR LOWER(blocked_email) = LOWER(?) OR LOWER(blocked_company) = LOWER(?)) "
+        "LIMIT 1",
+        (buyer_id, seller["id"], seller["email"], seller["company"]),
+        one=True,
+    )
+    return row is not None
+
+
 def _can_message(user, candidate):
     """Buyers and sellers can message their own teammates and anyone on
     the other side of the marketplace. Buyers can additionally message
@@ -372,11 +770,14 @@ def _can_message(user, candidate):
     company boundary here. Sellers still can't reach competing sellers
     at another company. Admin accounts are never reachable this way
     (their role is neither 'buyer' nor 'seller', so every check below
-    simply fails for them)."""
+    simply fails for them). A seller can never reach a buyer who has
+    blocked them (or their whole company) via Account > Blocked Vendors."""
     if candidate["id"] == user["id"]:
         return False
     opposite = "seller" if user["role"] == "buyer" else "buyer"
     if candidate["role"] == opposite:
+        if user["role"] == "seller" and is_message_blocked(candidate["id"], user):
+            return False
         return True
     if user["role"] == "buyer" and candidate["role"] == "buyer":
         return True
@@ -436,6 +837,16 @@ def search_recipients(user, q):
                 "source": "directory", "user_id": r["id"], "name": r["name"],
                 "company": r["company"], "role": r["role"], "email": r["email"],
             })
+
+    if user["role"] == "seller":
+        # Don't surface a buyer who's blocked this seller (or their whole
+        # company) -- mirrors the enforcement in _can_message, so a
+        # blocked buyer just quietly doesn't show up in search rather
+        # than showing up and then failing when messaged.
+        results = [
+            r for r in results
+            if not (r["role"] == "buyer" and r["user_id"] and is_message_blocked(r["user_id"], user))
+        ]
     return results
 
 
@@ -1332,7 +1743,8 @@ def seller_listing_delete(listing_id):
 def seller_leads():
     vendor = seller_vendor(g.user)
     leads = dbm.query(
-        "SELECT s.*, u.name buyer_name, u.company buyer_company, u.title buyer_title "
+        "SELECT s.*, u.name buyer_name, u.company buyer_company, u.title buyer_title, "
+        "u.open_to_buy buyer_open_to_buy "
         "FROM shortlist s JOIN users u ON u.id=s.buyer_user_id "
         "WHERE s.vendor_id=? ORDER BY s.created_at DESC",
         (vendor["id"],),
@@ -1369,9 +1781,13 @@ def seller_messages():
 @role_required("seller")
 def seller_thread(thread_id):
     thread = _load_thread_for_user(thread_id, g.user)
+    info = thread_display_info(thread, g.user)
+    buyer = info.get("buyer") or info.get("other_user")
     if request.method == "POST":
         body = request.form.get("body", "").strip()
-        if body:
+        if buyer and is_message_blocked(buyer["id"], g.user):
+            flash("This buyer isn't available to message right now.", "error")
+        elif body:
             dbm.execute(
                 "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
                 (thread_id, g.user["id"], body),
@@ -1383,7 +1799,6 @@ def seller_thread(thread_id):
         (thread_id,),
     )
     mark_thread_read(g.user["id"], thread_id)
-    info = thread_display_info(thread, g.user)
     return render_template("seller/thread.html", thread=thread, messages=messages, info=info)
 
 

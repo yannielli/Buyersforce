@@ -5,11 +5,11 @@
 <div class="card" style="max-width:760px; margin:0 auto;">
   <div class="thread-header">
     {% if info.kind == 'vendor' %}
-    <span class="vendor-logo" style="background:var(--brand);">{{ info.buyer.name[0] }}</span>
-    <div><h2 style="font-size:17px; margin:0;">{{ info.buyer.name }}</h2><span class="hint">{{ info.buyer.title }} · {{ info.buyer.company }}</span></div>
+    {% if info.buyer.photo_data_url %}<img src="{{ info.buyer.photo_data_url }}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">{% else %}<span class="vendor-logo" style="background:var(--brand);">{{ info.buyer.name[0] }}</span>{% endif %}
+    <div><h2 style="font-size:17px; margin:0;">{{ info.buyer.name }} {% if info.buyer.open_to_buy %}<span class="badge badge-brand">Open to Buy</span>{% endif %}</h2><span class="hint">{{ info.buyer.title }} · {{ info.buyer.company }}</span></div>
     {% elif info.kind == 'direct' %}
-    <span class="vendor-logo" style="background:var(--brand);">{{ info.other_user.name[0] }}</span>
-    <div><h2 style="font-size:17px; margin:0;">{{ info.other_user.name }}</h2><span class="hint">{{ info.other_user.role|capitalize }} · {{ info.other_user.company }}</span></div>
+    {% if info.other_user.photo_data_url %}<img src="{{ info.other_user.photo_data_url }}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">{% else %}<span class="vendor-logo" style="background:var(--brand);">{{ info.other_user.name[0] }}</span>{% endif %}
+    <div><h2 style="font-size:17px; margin:0;">{{ info.other_user.name }} {% if info.other_user.role == 'buyer' and info.other_user.open_to_buy %}<span class="badge badge-brand">Open to Buy</span>{% endif %}</h2><span class="hint">{{ info.other_user.role|capitalize }} · {{ info.other_user.company }}</span></div>
     {% elif info.kind == 'pending_email' %}
     <span class="vendor-logo" style="background:var(--brand-mcm-mustard);">@</span>
     <div>

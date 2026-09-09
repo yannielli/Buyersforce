@@ -1,0 +1,143 @@
+{# Shared profile fields, included inside a multipart <form> by both
+   complete_profile.html (mandatory first-completion) and account.html's
+   Profile tab (later edits). `user` is the user row to populate from;
+   `us_states` is the (code, name) list. #}
+<div class="field" style="display:flex; align-items:center; gap:14px;">
+  {% if user.photo_data_url %}
+  <img src="{{ user.photo_data_url }}" alt="" style="width:56px; height:56px; border-radius:50%; object-fit:cover;">
+  {% else %}
+  <span class="vendor-logo" style="width:56px; height:56px; font-size:18px; background:var(--brand);">{{ (user.first_name or user.name)[0]|upper }}</span>
+  {% endif %}
+  <div style="flex:1;">
+    <label for="photo" style="display:block;">Profile photo</label>
+    <input type="file" id="photo" name="photo" accept="image/*">
+    <p class="hint" style="margin-top:4px;">Optional. Shows your initials if you skip this. Max 2MB.</p>
+    {% if user.photo_data_url %}
+    <label style="font-size:13px; font-weight:400; display:flex; align-items:center; gap:6px; margin-top:6px;">
+      <input type="checkbox" name="remove_photo"> Remove current photo
+    </label>
+    {% endif %}
+  </div>
+</div>
+
+<div class="form-row">
+  <div class="field">
+    <label>Account type</label>
+    <input type="text" value="{{ user.role|capitalize }}" disabled>
+    <p class="hint" style="margin-top:4px;">Only a BuyersForce admin can change this.</p>
+  </div>
+  <div class="field">
+    <label for="company">Company *</label>
+    <input type="text" id="company" name="company" value="{{ user.company }}" required>
+  </div>
+</div>
+
+<div class="card" style="background:var(--warning-tint); border-color:#e0b84a; margin-bottom:18px; padding:12px 16px;">
+  <p style="font-size:13px; margin:0;">
+    <strong>Changing companies?</strong> Your own shortlist and evaluations stay with you, but
+    you'll lose access to your current team's message threads and shared evaluation templates
+    under the old company name.
+  </p>
+  <label style="font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px; margin-top:8px; margin-bottom:0;">
+    <input type="checkbox" name="confirm_company_change"> I understand, if I'm changing my company above
+  </label>
+</div>
+
+<div class="form-row">
+  <div class="field">
+    <label for="first_name">First name *</label>
+    <input type="text" id="first_name" name="first_name" value="{{ user.first_name or '' }}" required>
+  </div>
+  <div class="field">
+    <label for="last_name">Last name *</label>
+    <input type="text" id="last_name" name="last_name" value="{{ user.last_name or '' }}" required>
+  </div>
+</div>
+
+<div class="field">
+  <label for="title">Job title *</label>
+  <input type="text" id="title" name="title" value="{{ user.title or '' }}" required placeholder="e.g. Director of Security Engineering">
+</div>
+
+<div class="form-row">
+  <div class="field">
+    <label for="email">Work email *</label>
+    <input type="email" id="email" name="email" value="{{ user.email }}" required>
+  </div>
+  <div class="field">
+    <label for="personal_email">Personal email *</label>
+    <input type="email" id="personal_email" name="personal_email" value="{{ user.personal_email or '' }}" required>
+    <p class="hint" style="margin-top:4px;">A backup in case your work email ever changes.</p>
+  </div>
+</div>
+
+<div class="form-row">
+  <div class="field">
+    <label for="phone">Phone *</label>
+    <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" required placeholder="(555) 555-5555">
+  </div>
+  <div class="field">
+    <label for="state">State *</label>
+    <select id="state" name="state" required>
+      <option value="">Select a state…</option>
+      {% for code, label in us_states %}
+      <option value="{{ code }}" {% if user.state == code %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+{% if user.role == 'buyer' %}
+<div class="card" style="background:var(--brand-tint); border-color:var(--brand); margin:18px 0;">
+  <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; margin:0;">
+    <input type="checkbox" name="open_to_buy" style="margin-top:3px;" {% if user.open_to_buy %}checked{% endif %}>
+    <span>
+      <strong style="font-size:14px;">Open to Buy</strong>
+      <div class="hint" style="margin-top:2px;">
+        Signals to sellers you're actively interested in vendor solicitations. Shown on your
+        conversations and on a seller's leads dashboard when it's on — think of it like LinkedIn's
+        "Open to Work" badge, but for buyers.
+      </div>
+    </span>
+  </label>
+</div>
+{% endif %}
+
+<div class="section-title" style="margin-top:24px;"><h2>Optional</h2></div>
+
+<div class="field">
+  <label for="address_line1">Address</label>
+  <input type="text" id="address_line1" name="address_line1" value="{{ user.address_line1 or '' }}" placeholder="Street address">
+</div>
+<div class="field">
+  <input type="text" name="address_line2" value="{{ user.address_line2 or '' }}" placeholder="Apt, suite, etc. (optional)">
+</div>
+<div class="form-row">
+  <div class="field">
+    <input type="text" name="city" value="{{ user.city or '' }}" placeholder="City">
+  </div>
+  <div class="field">
+    <input type="text" name="zip" value="{{ user.zip or '' }}" placeholder="ZIP code">
+  </div>
+</div>
+
+<div class="form-row">
+  <div class="field">
+    <label for="secondary_phone">Additional phone</label>
+    <input type="tel" id="secondary_phone" name="secondary_phone" value="{{ user.secondary_phone or '' }}">
+  </div>
+  <div class="field">
+    <label for="timezone">Time zone</label>
+    <select id="timezone" name="timezone">
+      <option value="">Not set</option>
+      {% for tz in ["Eastern", "Central", "Mountain", "Pacific", "Alaska", "Hawaii"] %}
+      <option value="{{ tz }}" {% if user.timezone == tz %}selected{% endif %}>{{ tz }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+<div class="field">
+  <label for="linkedin_url">LinkedIn</label>
+  <input type="url" id="linkedin_url" name="linkedin_url" value="{{ user.linkedin_url or '' }}" placeholder="https://linkedin.com/in/…">
+</div>

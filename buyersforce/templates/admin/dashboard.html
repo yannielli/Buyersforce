@@ -10,6 +10,36 @@
   </div>
 </div>
 
+{% if pending_signups %}
+<div class="card" style="border-color:#e0b84a; background:var(--warning-tint); margin-bottom:24px;">
+  <h3 style="font-size:14.5px;">Pending self-signup requests ({{ pending_signups|length }})</h3>
+  <p style="font-size:13px; margin-bottom:12px;">Check their LinkedIn link against the company and
+    role they claim before approving.</p>
+  {% for u in pending_signups %}
+  <div class="mock-row">
+    <span>
+      <strong style="font-size:14px;">{{ u.name }}</strong>
+      <span class="badge badge-neutral" style="margin-left:6px;">{{ u.role|capitalize }}</span>
+      <div class="hint">{{ u.title }} · {{ u.company }} · {{ u.email }} · {{ u.phone }} · {{ u.state }}</div>
+      {% if u.no_linkedin %}
+      <div class="hint" style="color:#a15c00; font-weight:600;">No LinkedIn account — verify identity another way</div>
+      {% else %}
+      <div class="hint"><a href="{{ u.linkedin_url }}" target="_blank" rel="noopener">{{ u.linkedin_url }}</a></div>
+      {% endif %}
+    </span>
+    <span style="display:flex; gap:6px;">
+      <form method="post" action="{{ url_for('admin_approve_signup', user_id=u.id) }}">
+        <button class="btn btn-primary btn-sm" type="submit">Approve</button>
+      </form>
+      <form method="post" action="{{ url_for('admin_deny_signup', user_id=u.id) }}">
+        <button class="btn btn-ghost btn-sm" type="submit">Deny</button>
+      </form>
+    </span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 {% if new_invite_link %}
 <div class="card" style="border-color:var(--brand); background:var(--brand-tint); margin-bottom:24px;">
   <h3 style="font-size:14.5px; color:var(--brand-dark);">Access link ready — send this to them yourself</h3>
@@ -83,7 +113,12 @@
         <td>{{ u.name }}</td>
         <td>{{ u.email }}</td>
         <td><span class="badge badge-neutral">{{ u.role|capitalize }}</span></td>
-        <td>{{ u.company }}</td>
+        <td>
+          <form method="post" action="{{ url_for('admin_change_company', user_id=u.id) }}" style="display:flex; gap:4px;">
+            <input type="text" name="company" value="{{ u.company }}" style="width:130px; padding:4px 6px; font-size:13px;">
+            <button class="btn btn-ghost btn-sm" type="submit">Save</button>
+          </form>
+        </td>
         <td>
           <span style="display:flex; gap:6px; justify-content:flex-end;">
             <form method="post" action="{{ url_for('admin_view_as', user_id=u.id) }}">

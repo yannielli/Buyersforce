@@ -11,13 +11,14 @@
 
 {% if leads %}
 <table class="table">
-  <tr><th>Buyer</th><th>Company</th><th>Title</th><th>Status</th><th>Engaged</th><th></th></tr>
+  <tr><th>Buyer</th><th>Company</th><th>Title</th><th>Status</th><th></th><th>Engaged</th><th></th></tr>
   {% for l in leads %}
   <tr>
     <td>{{ l.buyer_name }}</td>
     <td>{{ l.buyer_company }}</td>
     <td>{{ l.buyer_title }}</td>
     <td><span class="badge {{ 'badge-good' if l.status in ['shortlisted','selected'] else ('badge-brand' if l.status == 'evaluating' else 'badge-neutral') }}">{{ l.status|capitalize }}</span></td>
+    <td>{% if l.buyer_open_to_buy %}<span class="badge badge-brand">Open to Buy</span>{% endif %}</td>
     <td>{{ l.created_at|fmt_time }}</td>
     <td>
       <form method="post" action="{{ url_for('seller_leads_sync', lead_user_id=l.buyer_user_id) }}">

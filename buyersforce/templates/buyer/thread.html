@@ -6,10 +6,22 @@
   <div class="thread-header">
     {% if info.kind == 'vendor' %}
     <span class="vendor-logo" style="background:{{ info.vendor.accent }};">{{ info.vendor.initials }}</span>
-    <div><h2 style="font-size:17px; margin:0;">{{ info.vendor.company_name }}</h2><span class="hint">{{ info.vendor.category }}</span></div>
+    <div style="flex:1;"><h2 style="font-size:17px; margin:0;">{{ info.vendor.company_name }}</h2><span class="hint">{{ info.vendor.category }}</span></div>
+    <form method="post" action="{{ url_for('block_vendor') }}" style="margin-left:auto;">
+      <input type="hidden" name="blocked_user_id" value="{{ info.vendor.seller_user_id }}">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <button class="btn btn-ghost btn-sm" type="submit">Block this vendor</button>
+    </form>
     {% elif info.kind == 'direct' %}
-    <span class="vendor-logo" style="background:var(--brand);">{{ info.other_user.name[0] }}</span>
-    <div><h2 style="font-size:17px; margin:0;">{{ info.other_user.name }}</h2><span class="hint">{{ info.other_user.role|capitalize }} · {{ info.other_user.company }}</span></div>
+    {% if info.other_user.photo_data_url %}<img src="{{ info.other_user.photo_data_url }}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">{% else %}<span class="vendor-logo" style="background:var(--brand);">{{ info.other_user.name[0] }}</span>{% endif %}
+    <div style="flex:1;"><h2 style="font-size:17px; margin:0;">{{ info.other_user.name }}</h2><span class="hint">{{ info.other_user.role|capitalize }} · {{ info.other_user.company }}</span></div>
+    {% if info.other_user.role == 'seller' %}
+    <form method="post" action="{{ url_for('block_vendor') }}" style="margin-left:auto;">
+      <input type="hidden" name="blocked_user_id" value="{{ info.other_user.id }}">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <button class="btn btn-ghost btn-sm" type="submit">Block this vendor</button>
+    </form>
+    {% endif %}
     {% elif info.kind == 'pending_email' %}
     <span class="vendor-logo" style="background:var(--brand-mcm-mustard);">@</span>
     <div>

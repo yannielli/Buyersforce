@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Complete your profile{% endblock %}
+{% block content %}
+<div class="card" style="max-width:640px; margin:0 auto;">
+  <span class="eyebrow">One more step</span>
+  <h2 style="font-size:19px; margin-top:4px;">Complete your profile</h2>
+  <p class="lede" style="margin-bottom:20px;">
+    Before you get started, fill in a few details -- fields marked with * are required.
+    You can update any of this later from Account.
+  </p>
+  <form method="post" enctype="multipart/form-data">
+    {% include "_profile_form.html" %}
+    <button class="btn btn-primary btn-block" type="submit" style="margin-top:8px;">Continue to BuyersForce</button>
+  </form>
+</div>
+{% endblock %}

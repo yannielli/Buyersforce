@@ -18,6 +18,7 @@ DROP TABLE IF EXISTS activity_log CASCADE;
 DROP TABLE IF EXISTS invites CASCADE;
 DROP TABLE IF EXISTS contacts CASCADE;
 DROP TABLE IF EXISTS thread_reads CASCADE;
+DROP TABLE IF EXISTS blocked_vendors CASCADE;
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -28,8 +29,44 @@ CREATE TABLE users (
     company TEXT NOT NULL,
     title TEXT DEFAULT '',
     is_admin INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+    -- Profile fields, filled in via the mandatory post-signup profile
+    -- screen (see profile_is_complete() in app.py) and editable later
+    -- from Account > Profile. See migrate.py's _add_profile_columns for
+    -- the equivalent migration on a pre-existing database.
+    first_name TEXT,
+    last_name TEXT,
+    personal_email TEXT,
+    phone TEXT,
+    state TEXT,
+    address_line1 TEXT,
+    address_line2 TEXT,
+    city TEXT,
+    zip TEXT,
+    secondary_phone TEXT,
+    linkedin_url TEXT,
+    no_linkedin INTEGER NOT NULL DEFAULT 0,
+    timezone TEXT,
+    open_to_buy INTEGER NOT NULL DEFAULT 0,
+    photo_data_url TEXT,
+    account_status TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('pending', 'active', 'denied'))
 );
+
+-- A buyer-owned blocklist so a buyer can stop a specific seller, or every
+-- seller at a vendor company, from messaging them. See migrate.py's
+-- _add_blocked_vendors_table for details.
+CREATE TABLE blocked_vendors (
+    id SERIAL PRIMARY KEY,
+    buyer_user_id INTEGER NOT NULL REFERENCES users(id),
+    blocked_user_id INTEGER REFERENCES users(id),
+    blocked_email TEXT,
+    blocked_company TEXT,
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+    CHECK (blocked_user_id IS NOT NULL OR blocked_email IS NOT NULL OR blocked_company IS NOT NULL)
+);
+CREATE UNIQUE INDEX blocked_vendors_buyer_user_uniq
+ON blocked_vendors (buyer_user_id, blocked_user_id)
+WHERE blocked_user_id IS NOT NULL;
 
 -- Invite-only access control. An admin creates an invite for an email address;
 -- the recipient uses the link to set their own password and activate the

@@ -116,3 +116,24 @@ def send_message_notification(to_email, sender, body, signup_url):
         f"access here</a>.</p>"
     )
     return send_email(to_email, subject, text, reply_to=sender["email"], html=html)
+
+
+def send_signup_decision(to_email, approved, login_url=None):
+    """Notifies someone who requested a BuyersForce account (self-signup,
+    pending admin review) of the outcome. Kept deliberately brief and
+    generic on denial -- no need to spell out exactly why."""
+    if approved:
+        subject = "Your BuyersForce account is approved"
+        text = f"Good news -- your BuyersForce account request has been approved.\n\nLog in here: {login_url}"
+        html = (
+            f"<p>Good news — your BuyersForce account request has been approved.</p>"
+            f"<p><a href=\"{html_lib.escape(login_url or '')}\">Log in to BuyersForce</a></p>"
+        )
+    else:
+        subject = "Your BuyersForce account request"
+        text = (
+            "Thanks for your interest in BuyersForce. After review, we're not able to "
+            "approve your account request at this time."
+        )
+        html = f"<p>{html_lib.escape(text)}</p>"
+    return send_email(to_email, subject, text, html=html)
