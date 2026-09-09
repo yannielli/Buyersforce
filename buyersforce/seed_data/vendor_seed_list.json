@@ -1,0 +1,2504 @@
+[
+  {
+    "name": "Exabeam",
+    "categories": [
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "Provides a security information and event management (SIEM) and behavioral analytics platform for threat detection.",
+    "website": "https://www.exabeam.com/",
+    "company_size": "501-1000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "IBM Security",
+    "categories": [
+      "SIEM/SOAR/XDR",
+      "GRC & Compliance"
+    ],
+    "description": "IBM's enterprise security division offering SIEM, identity, and data protection software and services.",
+    "website": "https://www.ibm.com/security",
+    "company_size": "10000+",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Recorded Future",
+    "categories": [
+      "Threat Intelligence"
+    ],
+    "description": "Delivers real-time threat intelligence built from web, dark web, and technical data sources.",
+    "website": "https://www.recordedfuture.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Webroot",
+    "categories": [
+      "Endpoint Security",
+      "Threat Intelligence"
+    ],
+    "description": "Offers cloud-based endpoint antivirus and threat intelligence feeds (BrightCloud) for consumers and businesses.",
+    "website": "https://www.webroot.com/",
+    "company_size": "501-1000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Check Point Software",
+    "categories": [
+      "Network Security",
+      "Threat Intelligence"
+    ],
+    "description": "Provides network security appliances and a threat intelligence service (ThreatCloud) for enterprises.",
+    "website": "https://www.checkpoint.com/",
+    "company_size": "5001-10000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "FireEye",
+    "categories": [
+      "Threat Intelligence",
+      "Endpoint Security"
+    ],
+    "description": "Cybersecurity firm known for threat intelligence and incident response, later rebranded as Mandiant/Trellix.",
+    "website": "https://www.trellix.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "CrowdStrike",
+    "categories": [
+      "Endpoint Security",
+      "Threat Intelligence"
+    ],
+    "description": "Cloud-native endpoint protection platform combining EDR, threat intelligence, and managed hunting.",
+    "website": "https://www.crowdstrike.com/",
+    "company_size": "5001-10000",
+    "source": "awesome-cybersecurity,momentum-cyber"
+  },
+  {
+    "name": "Clavister",
+    "categories": [
+      "Network Security"
+    ],
+    "description": "Swedish vendor of next-generation firewalls and network security appliances.",
+    "website": "https://www.clavister.com/",
+    "company_size": "51-200",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "root9B",
+    "categories": [
+      "Network Security",
+      "Incident Response & Forensics"
+    ],
+    "description": "Provided network defense and cyber threat response services to government and enterprise clients.",
+    "website": null,
+    "company_size": null,
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Endgame",
+    "categories": [
+      "Endpoint Security"
+    ],
+    "description": "Built an endpoint detection and response platform later acquired by Elastic.",
+    "website": null,
+    "company_size": null,
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Heimdal Security",
+    "categories": [
+      "Endpoint Security",
+      "Threat Intelligence"
+    ],
+    "description": "Danish vendor offering endpoint protection, patch management, and threat prevention software.",
+    "website": "https://heimdalsecurity.com/",
+    "company_size": "201-500",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Cybereason",
+    "categories": [
+      "Endpoint Security",
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "Provides an EDR/XDR platform focused on detecting multi-stage cyberattacks across endpoints.",
+    "website": "https://www.cybereason.com/",
+    "company_size": "501-1000",
+    "source": "awesome-cybersecurity,momentum-cyber"
+  },
+  {
+    "name": "Cylance",
+    "categories": [
+      "Endpoint Security"
+    ],
+    "description": "Pioneered AI-driven antivirus and endpoint protection, later part of BlackBerry.",
+    "website": null,
+    "company_size": null,
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Metapacket",
+    "categories": [
+      "Endpoint Security",
+      "Network Security"
+    ],
+    "description": "Developed lightweight network traffic control and malware protection technology for endpoints.",
+    "website": null,
+    "company_size": null,
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Avast",
+    "categories": [
+      "Endpoint Security"
+    ],
+    "description": "Consumer and small-business antivirus and internet security software provider.",
+    "website": "https://www.avast.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Symantec",
+    "categories": [
+      "Endpoint Security",
+      "Data Security & Privacy"
+    ],
+    "description": "Long-standing vendor of antivirus, endpoint, and data loss prevention software, now part of Broadcom.",
+    "website": "https://www.broadcom.com/products/cybersecurity",
+    "company_size": "10000+",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "F-Secure",
+    "categories": [
+      "Endpoint Security"
+    ],
+    "description": "Finnish cybersecurity company offering endpoint protection and threat detection, consumer business now WithSecure.",
+    "website": "https://www.f-secure.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Kaspersky",
+    "categories": [
+      "Endpoint Security",
+      "Threat Intelligence"
+    ],
+    "description": "Global antivirus and threat intelligence vendor headquartered in Russia.",
+    "website": "https://www.kaspersky.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "McAfee",
+    "categories": [
+      "Endpoint Security"
+    ],
+    "description": "Long-established antivirus and consumer/enterprise endpoint security vendor.",
+    "website": "https://www.mcafee.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Sophos",
+    "categories": [
+      "Endpoint Security",
+      "Network Security"
+    ],
+    "description": "Provides endpoint protection, firewalls, and managed detection and response services.",
+    "website": "https://www.sophos.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Bitdefender",
+    "categories": [
+      "Endpoint Security"
+    ],
+    "description": "Romanian vendor of antivirus and endpoint protection technology used by consumers and OEM partners.",
+    "website": "https://www.bitdefender.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Cyphort",
+    "categories": [
+      "Endpoint Security",
+      "Threat Intelligence"
+    ],
+    "description": "Developed advanced threat detection technology for malware analysis, later acquired by Juniper Networks.",
+    "website": null,
+    "company_size": null,
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "DefenseCode",
+    "categories": [
+      "Vulnerability Management"
+    ],
+    "description": "Provides automated web and source-code vulnerability scanning tools.",
+    "website": "https://www.defensecode.com/",
+    "company_size": "1-10",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Tenable",
+    "categories": [
+      "Vulnerability Management"
+    ],
+    "description": "Vulnerability management vendor known for the Nessus scanner and exposure management platform.",
+    "website": "https://www.tenable.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity,momentum-cyber"
+  },
+  {
+    "name": "Wallarm",
+    "categories": [
+      "Application Security",
+      "API Security"
+    ],
+    "description": "Provides API and web application security testing and runtime protection.",
+    "website": "https://www.wallarm.com/",
+    "company_size": "51-200",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Akamai",
+    "categories": [
+      "Network Security",
+      "Application Security"
+    ],
+    "description": "Content delivery network provider offering DDoS mitigation, WAF, and application security services.",
+    "website": "https://www.akamai.com/",
+    "company_size": "5001-10000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Alert Logic",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Delivers managed detection and response and web application firewall services.",
+    "website": "https://www.alertlogic.com/",
+    "company_size": "501-1000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Imperva",
+    "categories": [
+      "Application Security",
+      "Data Security & Privacy"
+    ],
+    "description": "Provides web application firewall, DDoS protection, and data security solutions (formerly Incapsula).",
+    "website": "https://www.imperva.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Arbor Networks",
+    "categories": [
+      "Network Security"
+    ],
+    "description": "NETSCOUT-owned provider of DDoS detection and mitigation appliances.",
+    "website": "https://www.netscout.com/arbor",
+    "company_size": null,
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "OVHcloud",
+    "categories": [
+      "Network Security"
+    ],
+    "description": "European cloud hosting provider with built-in DDoS protection for hosted infrastructure.",
+    "website": "https://www.ovhcloud.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Fortinet",
+    "categories": [
+      "Network Security",
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "Manufactures next-generation firewalls and a broad security fabric including SIEM (FortiSIEM).",
+    "website": "https://www.fortinet.com/",
+    "company_size": "10000+",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Radware",
+    "categories": [
+      "Network Security"
+    ],
+    "description": "Provides DDoS protection and application delivery security solutions.",
+    "website": "https://www.radware.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Juniper Networks",
+    "categories": [
+      "Network Security"
+    ],
+    "description": "Networking vendor offering firewalls and DDoS/network security products, acquired by HPE in 2024.",
+    "website": "https://www.juniper.net/",
+    "company_size": "5001-10000",
+    "source": "awesome-cybersecurity,momentum-cyber"
+  },
+  {
+    "name": "AWS Shield",
+    "categories": [
+      "Network Security",
+      "Cloud Security"
+    ],
+    "description": "Amazon Web Services' managed DDoS protection service for cloud workloads.",
+    "website": "https://aws.amazon.com/shield/",
+    "company_size": "10000+",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Trustwave",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)",
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "Provides managed security services, SIEM, and threat detection for enterprises.",
+    "website": "https://www.trustwave.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Fastly",
+    "categories": [
+      "Network Security",
+      "Application Security"
+    ],
+    "description": "Edge cloud platform offering CDN, DDoS protection, and web application firewall capabilities.",
+    "website": "https://www.fastly.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Splunk",
+    "categories": [
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "Data platform widely used for SIEM, security analytics, and operational monitoring, now part of Cisco.",
+    "website": "https://www.splunk.com/",
+    "company_size": "5001-10000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Hewlett Packard Enterprise",
+    "categories": [
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "Enterprise IT vendor offering security management and SIEM-adjacent software (ArcSight legacy line).",
+    "website": "https://www.hpe.com/",
+    "company_size": "10000+",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "LogRhythm",
+    "categories": [
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "Provides a SIEM and security analytics platform for threat detection and response.",
+    "website": "https://www.logrhythm.com/",
+    "company_size": "501-1000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "RSA Security",
+    "categories": [
+      "Identity & Access Management",
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "Longtime provider of identity, SIEM (NetWitness), and fraud detection technology, formerly part of EMC.",
+    "website": "https://www.rsa.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "OpenText (NetIQ)",
+    "categories": [
+      "Identity & Access Management",
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "Owns the former Micro Focus NetIQ identity and security management product line.",
+    "website": "https://www.opentext.com/",
+    "company_size": "10000+",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "SolarWinds",
+    "categories": [
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "IT management vendor offering network and security event monitoring tools.",
+    "website": "https://www.solarwinds.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "AT&T Cybersecurity (AlienVault)",
+    "categories": [
+      "SIEM/SOAR/XDR",
+      "Threat Intelligence"
+    ],
+    "description": "Offers the USM/AlienVault unified security management and open threat exchange platform.",
+    "website": "https://cybersecurity.att.com/",
+    "company_size": "10000+",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Netsurion (EventTracker)",
+    "categories": [
+      "SIEM/SOAR/XDR",
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Provides managed SIEM/XDR services under the EventTracker product line.",
+    "website": "https://www.netsurion.com/",
+    "company_size": "201-500",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "BlackStratus",
+    "categories": [
+      "SIEM/SOAR/XDR",
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Delivers SIEM and co-managed security services for MSSPs and mid-market enterprises.",
+    "website": "https://www.blackstratus.com/",
+    "company_size": "11-50",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "NTT Security",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "NTT's global managed security services and SOC arm.",
+    "website": "https://www.security.ntt/",
+    "company_size": "10000+",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Sentor",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Swedish managed detection and response and penetration testing provider.",
+    "website": "https://www.sentor.se/",
+    "company_size": "51-200",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Rejlers",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Nordic engineering and IT consultancy with an information and IT security practice.",
+    "website": "https://www.rejlers.com/",
+    "company_size": "1001-5000",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Apiiro",
+    "categories": [
+      "Application Security",
+      "Supply Chain/Third-Party Risk"
+    ],
+    "description": "Provides application risk and software supply chain security through deep code analysis.",
+    "website": "https://apiiro.com/",
+    "company_size": "201-500",
+    "source": "awesome-cybersecurity"
+  },
+  {
+    "name": "Pindrop",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Detects voice fraud and authenticates callers for call centers using voice biometrics.",
+    "website": "https://www.pindrop.com/",
+    "company_size": "501-1000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "ThreatMetrix",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "LexisNexis-owned digital identity and fraud risk scoring network for online transactions.",
+    "website": "https://risk.lexisnexis.com/",
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Verisys",
+    "categories": [
+      "Fraud & Identity Verification",
+      "GRC & Compliance"
+    ],
+    "description": "Provides credentialing and identity verification data for healthcare and workforce screening.",
+    "website": "https://www.verisys.com/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Guardian Analytics",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Behavioral analytics for detecting account takeover and payments fraud in banking, now part of NICE Actimize.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Sift",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Machine-learning fraud prevention platform protecting online businesses from account and payment fraud.",
+    "website": "https://sift.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Jumio",
+    "categories": [
+      "Fraud & Identity Verification",
+      "Mobile Security"
+    ],
+    "description": "Provides AI-based identity verification and document authentication for onboarding.",
+    "website": "https://www.jumio.com/",
+    "company_size": "501-1000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Agari",
+    "categories": [
+      "Email Security",
+      "Fraud & Identity Verification"
+    ],
+    "description": "Email security vendor specializing in anti-phishing and business email compromise protection, now part of Fortra.",
+    "website": "https://www.fortra.com/",
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Radar (ID Experts)",
+    "categories": [
+      "GRC & Compliance",
+      "Fraud & Identity Verification"
+    ],
+    "description": "Offers breach response and identity protection/credit monitoring software for incident management.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Trulioo",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Global identity verification network for KYC and AML compliance.",
+    "website": "https://www.trulioo.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Feedzai",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Machine-learning platform that detects financial fraud in real time for banks and payment providers.",
+    "website": "https://www.feedzai.com/",
+    "company_size": "501-1000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Socure",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Provides digital identity verification and fraud risk scoring for onboarding and KYC.",
+    "website": "https://www.socure.com/",
+    "company_size": "501-1000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Shift Technology",
+    "categories": [
+      "Fraud & Identity Verification",
+      "GRC & Compliance"
+    ],
+    "description": "AI-powered fraud detection and claims decisioning software for insurers.",
+    "website": "https://www.shift-technology.com/",
+    "company_size": "501-1000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Simility",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Adaptive machine-learning fraud detection platform, acquired by PayPal.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Elliptic",
+    "categories": [
+      "Fraud & Identity Verification",
+      "Threat Intelligence"
+    ],
+    "description": "Blockchain analytics company that traces cryptocurrency transactions for AML and fraud investigations.",
+    "website": "https://www.elliptic.co/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "SecuredTouch",
+    "categories": [
+      "Fraud & Identity Verification",
+      "Mobile Security"
+    ],
+    "description": "Behavioral biometrics platform for continuous fraud detection, acquired by Ping Identity.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Ravelin",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Machine-learning fraud and chargeback prevention for online retailers.",
+    "website": "https://www.ravelin.com/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Intensity Analytics",
+    "categories": [
+      "Fraud & Identity Verification",
+      "Identity & Access Management"
+    ],
+    "description": "Provides behavioral biometric authentication based on typing and interaction patterns.",
+    "website": "https://www.intensityanalytics.com/",
+    "company_size": "1-10",
+    "source": "cb-insights"
+  },
+  {
+    "name": "VU Security",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Latin American provider of digital identity and fraud prevention technology.",
+    "website": "https://vusecurity.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "GreatHorn",
+    "categories": [
+      "Email Security"
+    ],
+    "description": "Cloud email security platform that detects and stops phishing and spear-phishing attacks.",
+    "website": "https://www.greathorn.com/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Veridu",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Provided social and identity verification APIs for fraud prevention.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Fortscale",
+    "categories": [
+      "SIEM/SOAR/XDR",
+      "Fraud & Identity Verification"
+    ],
+    "description": "User and entity behavior analytics vendor for insider threat and fraud detection, acquired by CyberArk.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "VChain Technology",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Blockchain-based anti-counterfeiting and identity verification technology provider.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Dashlane",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Consumer and business password manager and digital identity security app.",
+    "website": "https://www.dashlane.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "ID.me",
+    "categories": [
+      "Identity & Access Management",
+      "Fraud & Identity Verification"
+    ],
+    "description": "Identity verification network letting individuals prove their identity once for government and commercial services.",
+    "website": "https://www.id.me/",
+    "company_size": "501-1000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "SecureAuth",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Adaptive authentication and identity access management platform for enterprises.",
+    "website": "https://www.secureauth.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Confident Technologies",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Developed image-based multi-factor authentication technology.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Trusona",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Provides passwordless, phishing-resistant authentication for enterprises.",
+    "website": "https://www.trusona.com/",
+    "company_size": "11-50",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Secret Double Octopus",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Passwordless multi-factor authentication platform for enterprise workforce identity.",
+    "website": "https://doubleoctopus.com/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Virgil Security",
+    "categories": [
+      "Data Security & Privacy",
+      "Identity & Access Management"
+    ],
+    "description": "Provided end-to-end encryption and PKI-as-a-service for developers.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "my1login",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Single sign-on and credential management platform for enterprises.",
+    "website": "https://www.my1login.com/",
+    "company_size": "11-50",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Seklarity",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Gave organizations visibility into privileged credential exposure across their networks.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Skeyecode",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Provided visual cryptographic authentication and key management technology.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Nymi",
+    "categories": [
+      "Identity & Access Management",
+      "Mobile Security"
+    ],
+    "description": "Makes wearable biometric bands for continuous workforce authentication.",
+    "website": "https://www.nymi.com/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "BIOWATCH",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Develops wrist vein biometric authentication technology.",
+    "website": "https://www.biowatch.ch/",
+    "company_size": "1-10",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Futurae",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Provides multi-factor authentication and fraud prevention for banks and enterprises.",
+    "website": "https://www.futurae.com/",
+    "company_size": "11-50",
+    "source": "cb-insights"
+  },
+  {
+    "name": "OneLogin",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Cloud-based single sign-on and identity management platform, now part of One Identity.",
+    "website": "https://www.onelogin.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Ping Identity",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Enterprise identity platform providing SSO, MFA, and API access security.",
+    "website": "https://www.pingidentity.com/",
+    "company_size": "1001-5000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Centrify",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Privileged access and identity security vendor, merged into Delinea.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Auth0",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Developer-focused identity platform for authentication and authorization, now part of Okta.",
+    "website": "https://auth0.com/",
+    "company_size": "1001-5000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "BioCatch",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Behavioral biometrics platform used by banks to detect fraud and account takeover.",
+    "website": "https://www.biocatch.com/",
+    "company_size": "501-1000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "MIRACL",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Provides single-step passwordless multi-factor authentication.",
+    "website": "https://miracl.com/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Civic Technologies",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Blockchain-based identity verification and reusable KYC platform.",
+    "website": "https://www.civic.com/",
+    "company_size": "11-50",
+    "source": "cb-insights"
+  },
+  {
+    "name": "HYPR",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Provides passwordless, FIDO-based authentication for enterprises and consumers.",
+    "website": "https://www.hypr.com/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Prove",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Phone-number based identity verification platform (formerly Payfone) used for onboarding and fraud prevention.",
+    "website": "https://www.prove.com/",
+    "company_size": "501-1000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Nok Nok Labs",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Provides FIDO-standards-based passwordless authentication infrastructure.",
+    "website": "https://noknok.com/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Duo Security",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Cisco-owned multi-factor authentication and device trust platform.",
+    "website": "https://duo.com/",
+    "company_size": "1001-5000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Transmit Security",
+    "categories": [
+      "Identity & Access Management",
+      "Fraud & Identity Verification"
+    ],
+    "description": "Provides passwordless customer identity and fraud prevention orchestration.",
+    "website": "https://transmitsecurity.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Keyfactor",
+    "categories": [
+      "Identity & Access Management",
+      "IoT/OT Security"
+    ],
+    "description": "Machine identity and PKI management platform, formerly Device Authority's category.",
+    "website": "https://www.keyfactor.com/",
+    "company_size": "501-1000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Uniken",
+    "categories": [
+      "Identity & Access Management",
+      "Fraud & Identity Verification"
+    ],
+    "description": "Provides device fingerprinting and continuous authentication for digital banking.",
+    "website": "https://www.uniken.com/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "MedCrypt",
+    "categories": [
+      "IoT/OT Security"
+    ],
+    "description": "Provides cybersecurity and cryptographic key management for connected medical devices.",
+    "website": "https://medcrypt.com/",
+    "company_size": "11-50",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Smile Identity",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Digital identity verification platform focused on African markets.",
+    "website": "https://www.smileidentity.com/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Netskope",
+    "categories": [
+      "Cloud Security",
+      "Zero Trust/SASE"
+    ],
+    "description": "Security service edge platform providing CASB, SWG, and zero-trust network access.",
+    "website": "https://www.netskope.com/",
+    "company_size": "1001-5000",
+    "source": "cb-insights,momentum-cyber"
+  },
+  {
+    "name": "Bitglass",
+    "categories": [
+      "Cloud Security"
+    ],
+    "description": "Cloud access security broker (CASB) platform, acquired by Forcepoint.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "BeyondTrust",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Privileged access management and remote support security vendor.",
+    "website": "https://www.beyondtrust.com/",
+    "company_size": "1001-5000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Avecto",
+    "categories": [
+      "Endpoint Security",
+      "Identity & Access Management"
+    ],
+    "description": "Endpoint privilege management vendor, acquired by BeyondTrust.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Dome9",
+    "categories": [
+      "Cloud Security"
+    ],
+    "description": "Cloud security posture management platform, acquired by Check Point (CloudGuard).",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Omada",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Identity governance and administration software for enterprises.",
+    "website": "https://omadaidentity.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Protenus",
+    "categories": [
+      "GRC & Compliance"
+    ],
+    "description": "Healthcare compliance analytics platform that detects inappropriate access to patient data.",
+    "website": "https://www.protenus.com/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Delinea (Thycotic)",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Privileged access management and secrets management vendor formed from Thycotic and Centrify.",
+    "website": "https://delinea.com/",
+    "company_size": "501-1000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "CensorNet",
+    "categories": [
+      "Identity & Access Management",
+      "Network Security"
+    ],
+    "description": "Provides multi-factor authentication and web/email security for mid-market organizations.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Castle",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Provides real-time account takeover and fraud detection for online applications.",
+    "website": "https://castle.io/",
+    "company_size": "11-50",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Cybertonica",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "AI-based fraud prevention and transaction risk decisioning platform.",
+    "website": "https://cybertonica.com/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "DataVisor",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Unsupervised machine-learning platform for detecting fraud rings and abuse.",
+    "website": "https://www.datavisor.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "IDwall",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Brazilian identity verification and background check automation platform.",
+    "website": "https://idwall.co/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Precognitive",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Behavioral and device intelligence platform for fraud detection.",
+    "website": "https://www.precognitive.com/",
+    "company_size": "11-50",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Rippleshot",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Payment card fraud detection analytics for banks and credit unions.",
+    "website": "https://www.rippleshot.com/",
+    "company_size": "11-50",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Shumei",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "China-based AI risk-control and content/fraud detection platform.",
+    "website": "https://www.ishumei.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Smyte",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Provided trust and safety/fraud prevention tools before being acquired by Twitter.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Authbase",
+    "categories": [
+      "Application Security"
+    ],
+    "description": "Provided blockchain-based application and code authentication technology.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Cryptosense",
+    "categories": [
+      "Application Security"
+    ],
+    "description": "Automated cryptography vulnerability discovery tools for applications and infrastructure.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Demisto",
+    "categories": [
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "Security orchestration, automation, and response (SOAR) platform, acquired by Palo Alto Networks as Cortex XSOAR.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Mimecast (EdgeWave)",
+    "categories": [
+      "Email Security"
+    ],
+    "description": "Email security and resilience platform providing anti-phishing and archiving, incorporating EdgeWave technology.",
+    "website": "https://www.mimecast.com/",
+    "company_size": "1001-5000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Javelin Networks",
+    "categories": [
+      "Endpoint Security",
+      "Network Security"
+    ],
+    "description": "Protected Active Directory environments from lateral-movement attacks.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "LogicHub",
+    "categories": [
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "Automated threat detection and investigation platform using decision automation.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Tanium",
+    "categories": [
+      "Endpoint Security"
+    ],
+    "description": "Endpoint management and security platform providing real-time visibility at scale.",
+    "website": "https://www.tanium.com/",
+    "company_size": "1001-5000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Zenedge",
+    "categories": [
+      "Network Security",
+      "Application Security"
+    ],
+    "description": "Provided cloud-based WAF and DDoS protection, acquired by Oracle.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Illusive Networks",
+    "categories": [
+      "Threat Intelligence",
+      "Network Security"
+    ],
+    "description": "Deception technology platform that plants decoys to detect lateral movement, acquired by Proofpoint.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Bastille Networks",
+    "categories": [
+      "IoT/OT Security"
+    ],
+    "description": "Detects and locates rogue wireless and IoT devices emitting radio signals.",
+    "website": "https://www.bastille.net/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "CUJO AI",
+    "categories": [
+      "IoT/OT Security"
+    ],
+    "description": "AI-driven network security and parental-control platform for connected/IoT home devices.",
+    "website": "https://cujo.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "SparkCognition",
+    "categories": [
+      "IoT/OT Security"
+    ],
+    "description": "Applies AI to industrial asset protection, safety, and cybersecurity monitoring.",
+    "website": "https://www.sparkcognition.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Appthority",
+    "categories": [
+      "Mobile Security"
+    ],
+    "description": "Mobile application risk and threat analysis platform, acquired by Symantec.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Sentegrity",
+    "categories": [
+      "Mobile Security"
+    ],
+    "description": "Provided behavioral risk scoring for mobile device security.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Skycure",
+    "categories": [
+      "Mobile Security"
+    ],
+    "description": "Mobile threat defense platform acquired by Symantec.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Zimperium",
+    "categories": [
+      "Mobile Security"
+    ],
+    "description": "Mobile threat defense platform protecting devices and apps from exploits and malware.",
+    "website": "https://www.zimperium.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Deep Instinct",
+    "categories": [
+      "Endpoint Security",
+      "Threat Intelligence"
+    ],
+    "description": "Uses deep learning to predict and prevent malware before it executes.",
+    "website": "https://www.deepinstinct.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "indeni",
+    "categories": [
+      "Network Security"
+    ],
+    "description": "Automated network security device health and configuration monitoring.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Innefu Labs",
+    "categories": [
+      "Threat Intelligence"
+    ],
+    "description": "India-based provider of AI-driven threat intelligence and facial recognition security tools.",
+    "website": "https://innefu.com/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "JASK",
+    "categories": [
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "Cloud-native SOC platform for automated alert triage, acquired by Sumo Logic.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "PatternEx",
+    "categories": [
+      "Threat Intelligence",
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "AI-driven platform for predicting and detecting cyberattacks from analyst feedback loops.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "SecBI",
+    "categories": [
+      "SIEM/SOAR/XDR",
+      "Network Security"
+    ],
+    "description": "Network detection and response platform using autonomous investigation of threats.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Seclytics",
+    "categories": [
+      "Threat Intelligence"
+    ],
+    "description": "Predictive threat intelligence platform that forecasts attacker infrastructure before attacks launch.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "SentinelOne",
+    "categories": [
+      "Endpoint Security",
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "Autonomous endpoint and XDR platform using AI to prevent, detect, and respond to threats.",
+    "website": "https://www.sentinelone.com/",
+    "company_size": "1001-5000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Anomali",
+    "categories": [
+      "Threat Intelligence"
+    ],
+    "description": "Threat intelligence platform that aggregates and operationalizes threat data for SOC teams.",
+    "website": "https://www.anomali.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "CyberSaint",
+    "categories": [
+      "GRC & Compliance"
+    ],
+    "description": "Cyber risk management and compliance automation platform (CyberStrong).",
+    "website": "https://www.cybersaint.io/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Cyence",
+    "categories": [
+      "GRC & Compliance"
+    ],
+    "description": "Cyber risk quantification analytics used by insurers, acquired by Guidewire.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Cytora",
+    "categories": [
+      "GRC & Compliance"
+    ],
+    "description": "Risk data platform helping commercial insurers underwrite risk, including cyber.",
+    "website": "https://www.cytora.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Haystax",
+    "categories": [
+      "Threat Intelligence",
+      "GRC & Compliance"
+    ],
+    "description": "Insider threat and risk analytics platform for security operations.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "MetaCert",
+    "categories": [
+      "Threat Intelligence",
+      "Mobile Security"
+    ],
+    "description": "URL threat-verification technology to block phishing links in messaging apps.",
+    "website": "https://metacert.com/",
+    "company_size": "1-10",
+    "source": "cb-insights"
+  },
+  {
+    "name": "BehavioSec",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Behavioral biometrics platform for continuous authentication, part of LexisNexis Risk Solutions.",
+    "website": "https://www.behaviosec.com/",
+    "company_size": "51-200",
+    "source": "cb-insights"
+  },
+  {
+    "name": "CyberX",
+    "categories": [
+      "IoT/OT Security"
+    ],
+    "description": "Industrial IoT/OT threat monitoring platform, now part of Microsoft Defender for IoT.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Darktrace",
+    "categories": [
+      "Network Security",
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "Uses AI/self-learning models to detect and autonomously respond to network anomalies.",
+    "website": "https://darktrace.com/",
+    "company_size": "1001-5000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "E8 Security",
+    "categories": [
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "User and entity behavior analytics platform, acquired by VMware Carbon Black.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Interset",
+    "categories": [
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "UEBA analytics platform for insider threat detection, owned by OpenText/Micro Focus.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "HUMAN Security (PerimeterX)",
+    "categories": [
+      "Application Security",
+      "Fraud & Identity Verification"
+    ],
+    "description": "Bot mitigation and application fraud protection platform formed from HUMAN and PerimeterX.",
+    "website": "https://www.humansecurity.com/",
+    "company_size": "501-1000",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Prisma Cloud (RedLock)",
+    "categories": [
+      "Cloud Security"
+    ],
+    "description": "Cloud security posture management technology acquired by Palo Alto Networks and folded into Prisma Cloud.",
+    "website": "https://www.paloaltonetworks.com/prisma/cloud",
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "Sqrrl",
+    "categories": [
+      "SIEM/SOAR/XDR",
+      "Threat Intelligence"
+    ],
+    "description": "Threat-hunting and link-analysis platform acquired by Amazon Web Services.",
+    "website": null,
+    "company_size": null,
+    "source": "cb-insights"
+  },
+  {
+    "name": "StackPath",
+    "categories": [
+      "Network Security",
+      "Cloud Security"
+    ],
+    "description": "Edge computing platform offering CDN, WAF, and DDoS protection.",
+    "website": "https://www.stackpath.com/",
+    "company_size": "201-500",
+    "source": "cb-insights"
+  },
+  {
+    "name": "TwoSense",
+    "categories": [
+      "Identity & Access Management",
+      "Fraud & Identity Verification"
+    ],
+    "description": "Continuous behavioral-biometric authentication for enterprise and government identity assurance.",
+    "website": "https://twosense.ai/",
+    "company_size": "11-50",
+    "source": "cb-insights"
+  },
+  {
+    "name": "Wiz",
+    "categories": [
+      "Cloud Security"
+    ],
+    "description": "Cloud security platform providing agentless vulnerability and misconfiguration visibility across cloud environments.",
+    "website": "https://www.wiz.io/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "CyberArk",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Identity security vendor specializing in privileged access management, acquired by Palo Alto Networks.",
+    "website": "https://www.cyberark.com/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "IDnow",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "European identity verification platform for KYC and digital onboarding.",
+    "website": "https://www.idnow.io/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Zilla Security",
+    "categories": [
+      "Identity & Access Management",
+      "GRC & Compliance"
+    ],
+    "description": "Identity governance and access-review automation platform, acquired by CyberArk.",
+    "website": null,
+    "company_size": null,
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "JumpCloud",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Cloud directory platform providing unified identity, device, and access management.",
+    "website": "https://jumpcloud.com/",
+    "company_size": "501-1000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Stack Identity",
+    "categories": [
+      "Cloud Security",
+      "Identity & Access Management"
+    ],
+    "description": "Cloud identity and access risk detection platform, acquired by JumpCloud.",
+    "website": null,
+    "company_size": null,
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Radiant Logic",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Identity data unification and identity security posture management platform.",
+    "website": "https://www.radiantlogic.com/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Otorio",
+    "categories": [
+      "IoT/OT Security"
+    ],
+    "description": "Industrial OT cybersecurity platform for operational risk management.",
+    "website": "https://otorio.com/",
+    "company_size": "51-200",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Armis",
+    "categories": [
+      "IoT/OT Security"
+    ],
+    "description": "Asset visibility and security platform covering IT, IoT, OT, and medical devices.",
+    "website": "https://www.armis.com/",
+    "company_size": "501-1000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Veza",
+    "categories": [
+      "Identity & Access Management",
+      "Data Security & Privacy"
+    ],
+    "description": "Data access governance platform mapping permissions across cloud systems, acquired by ServiceNow.",
+    "website": "https://veza.com/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Cyral",
+    "categories": [
+      "Data Security & Privacy"
+    ],
+    "description": "Data access monitoring and control platform for databases and data warehouses, acquired by Varonis.",
+    "website": null,
+    "company_size": null,
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Securiti",
+    "categories": [
+      "Data Security & Privacy",
+      "GRC & Compliance"
+    ],
+    "description": "Data security, privacy, and AI governance platform (the PrivacyOps/DSPM company).",
+    "website": "https://securiti.ai/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Zivver",
+    "categories": [
+      "Email Security",
+      "Data Security & Privacy"
+    ],
+    "description": "Secure email and data-sharing platform, acquired by Kiteworks.",
+    "website": null,
+    "company_size": null,
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Glasswall",
+    "categories": [
+      "Data Security & Privacy",
+      "Network Security"
+    ],
+    "description": "Content disarm and reconstruction (CDR) technology that removes hidden threats from files.",
+    "website": "https://www.glasswall.com/",
+    "company_size": "51-200",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Jamf",
+    "categories": [
+      "Endpoint Security",
+      "Mobile Security"
+    ],
+    "description": "Apple device management platform with integrated endpoint security for Mac, iPhone, and iPad.",
+    "website": "https://www.jamf.com/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Protect AI",
+    "categories": [
+      "Application Security",
+      "Supply Chain/Third-Party Risk"
+    ],
+    "description": "Security platform for AI/ML systems, protecting models and pipelines from attacks, acquired by Palo Alto Networks.",
+    "website": null,
+    "company_size": null,
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Red Canary",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Managed detection and response provider, acquired by Zscaler.",
+    "website": "https://redcanary.com/",
+    "company_size": "501-1000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Orca Security",
+    "categories": [
+      "Cloud Security"
+    ],
+    "description": "Agentless cloud security platform for vulnerability and posture management, acquired by Palo Alto Networks.",
+    "website": "https://orca.security/",
+    "company_size": "501-1000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Snyk",
+    "categories": [
+      "Application Security",
+      "Vulnerability Management"
+    ],
+    "description": "Developer-first application security platform for finding and fixing vulnerabilities in code and open source.",
+    "website": "https://snyk.io/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Zscaler",
+    "categories": [
+      "Zero Trust/SASE",
+      "Cloud Security"
+    ],
+    "description": "Cloud-native security service edge platform delivering zero trust network access and web security.",
+    "website": "https://www.zscaler.com/",
+    "company_size": "5001-10000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Vulcan Cyber",
+    "categories": [
+      "Vulnerability Management"
+    ],
+    "description": "Risk-based vulnerability remediation orchestration platform, acquired by Tenable.",
+    "website": null,
+    "company_size": null,
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Drata",
+    "categories": [
+      "GRC & Compliance"
+    ],
+    "description": "Continuous compliance automation platform for SOC 2, ISO 27001, and other frameworks.",
+    "website": "https://drata.com/",
+    "company_size": "501-1000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Vanta",
+    "categories": [
+      "GRC & Compliance",
+      "Supply Chain/Third-Party Risk"
+    ],
+    "description": "Automates security compliance monitoring and vendor risk management for audits.",
+    "website": "https://www.vanta.com/",
+    "company_size": "501-1000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Proofpoint",
+    "categories": [
+      "Email Security"
+    ],
+    "description": "Enterprise email security and human-risk platform protecting against phishing and BEC.",
+    "website": "https://www.proofpoint.com/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Hornetsecurity",
+    "categories": [
+      "Email Security"
+    ],
+    "description": "European email security, backup, and compliance provider, acquired by Proofpoint.",
+    "website": "https://www.hornetsecurity.com/",
+    "company_size": "501-1000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Napier AI",
+    "categories": [
+      "GRC & Compliance",
+      "Fraud & Identity Verification"
+    ],
+    "description": "AI-powered anti-money-laundering and financial crime compliance platform.",
+    "website": "https://www.napier.ai/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Cloudflare",
+    "categories": [
+      "Network Security",
+      "Zero Trust/SASE"
+    ],
+    "description": "Global network platform offering CDN, DDoS protection, WAF, and zero-trust security services.",
+    "website": "https://www.cloudflare.com/",
+    "company_size": "5001-10000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "SailPoint",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Identity governance and administration platform for enterprise access management.",
+    "website": "https://www.sailpoint.com/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Palo Alto Networks",
+    "categories": [
+      "Network Security",
+      "Cloud Security"
+    ],
+    "description": "Diversified cybersecurity platform vendor spanning network security, cloud security, and SOC operations.",
+    "website": "https://www.paloaltonetworks.com/",
+    "company_size": "10000+",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Rapid7",
+    "categories": [
+      "Vulnerability Management",
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "Vulnerability management and detection-and-response platform (InsightVM, InsightIDR).",
+    "website": "https://www.rapid7.com/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Okta",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Independent identity and access management platform for workforce and customer identity.",
+    "website": "https://www.okta.com/",
+    "company_size": "5001-10000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Cohesity",
+    "categories": [
+      "Backup & Ransomware Recovery"
+    ],
+    "description": "Data management platform providing backup, recovery, and ransomware resilience.",
+    "website": "https://www.cohesity.com/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Arctic Wolf",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Security operations platform delivering managed detection and response as a concierge service.",
+    "website": "https://arcticwolf.com/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Cato Networks",
+    "categories": [
+      "Zero Trust/SASE"
+    ],
+    "description": "SASE platform converging network and security into a single cloud-native service.",
+    "website": "https://www.catonetworks.com/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Chainalysis",
+    "categories": [
+      "Fraud & Identity Verification",
+      "Threat Intelligence"
+    ],
+    "description": "Blockchain data platform used for crypto compliance, fraud investigation, and AML.",
+    "website": "https://www.chainalysis.com/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "CHEQ",
+    "categories": [
+      "Fraud & Identity Verification",
+      "Application Security"
+    ],
+    "description": "Go-to-market security platform blocking bots, ad fraud, and fake form-fills.",
+    "website": "https://cheq.ai/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "DNSFilter",
+    "categories": [
+      "Network Security"
+    ],
+    "description": "Cloud-delivered DNS security and web content filtering service.",
+    "website": "https://www.dnsfilter.com/",
+    "company_size": "51-200",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Veracode",
+    "categories": [
+      "Application Security"
+    ],
+    "description": "Application security testing platform providing SAST, DAST, and software composition analysis.",
+    "website": "https://www.veracode.com/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Traceable AI",
+    "categories": [
+      "API Security"
+    ],
+    "description": "API security platform providing discovery, testing, and threat protection for APIs.",
+    "website": "https://www.traceable.ai/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "A10 Networks",
+    "categories": [
+      "Network Security"
+    ],
+    "description": "Provides application and network security including DDoS protection and secure application delivery.",
+    "website": "https://www.a10networks.com/",
+    "company_size": "501-1000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "ThreatX",
+    "categories": [
+      "API Security",
+      "Application Security"
+    ],
+    "description": "Runtime API and application protection (WAAP) platform for detecting and blocking attacks.",
+    "website": "https://www.threatx.com/",
+    "company_size": "51-200",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "WatchGuard Technologies",
+    "categories": [
+      "Network Security",
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Provides unified threat management appliances and MFA for small and midsize businesses, sold via MSPs.",
+    "website": "https://www.watchguard.com/",
+    "company_size": "501-1000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Integrity360",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "European managed security services provider offering MDR, consulting, and testing services.",
+    "website": "https://www.integrity360.com/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Quorum Cyber",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "UK-based managed detection and response and cyber consulting provider.",
+    "website": "https://www.quorumcyber.com/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "CyberMaxx",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Managed detection and response provider serving healthcare and mid-market enterprises.",
+    "website": "https://www.cybermaxx.com/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Searchlight Cyber",
+    "categories": [
+      "Threat Intelligence"
+    ],
+    "description": "Dark web threat intelligence platform for investigating and monitoring criminal marketplaces.",
+    "website": "https://slcyber.io/",
+    "company_size": "51-200",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "TAC Security",
+    "categories": [
+      "Vulnerability Management"
+    ],
+    "description": "Vulnerability and risk management platform (ESOF) used by enterprises in India and globally.",
+    "website": "https://tacsecurity.com/",
+    "company_size": "51-200",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "I-Tracing",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "French cybersecurity consultancy and managed security services provider.",
+    "website": "https://www.i-tracing.com/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "TrustedSec",
+    "categories": [
+      "Penetration Testing/Offensive Security",
+      "Incident Response & Forensics"
+    ],
+    "description": "Offensive security consultancy providing penetration testing and incident response services.",
+    "website": "https://www.trustedsec.com/",
+    "company_size": "51-200",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Nightwing",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)",
+      "Threat Intelligence"
+    ],
+    "description": "National-security-focused cyber and intelligence services company spun out of Raytheon/RTX.",
+    "website": "https://www.nightwing.com/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Cyber Advisors",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "US-based managed IT and security services provider.",
+    "website": "https://www.cyberadvisors.com/",
+    "company_size": "51-200",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Blackpoint Cyber",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "MDR platform and services built for managed service providers.",
+    "website": "https://blackpointcyber.com/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "AttackIQ",
+    "categories": [
+      "Penetration Testing/Offensive Security"
+    ],
+    "description": "Breach and attack simulation platform for continuously validating security controls.",
+    "website": "https://www.attackiq.com/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "CYE",
+    "categories": [
+      "GRC & Compliance",
+      "Penetration Testing/Offensive Security"
+    ],
+    "description": "Cyber risk quantification and optimization platform combining assessment data with financial risk modeling.",
+    "website": "https://cyesec.com/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Tufin",
+    "categories": [
+      "Network Security",
+      "GRC & Compliance"
+    ],
+    "description": "Network security policy management and firewall change automation platform.",
+    "website": "https://www.tufin.com/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Skybox Security",
+    "categories": [
+      "Vulnerability Management",
+      "GRC & Compliance"
+    ],
+    "description": "Security posture and vulnerability management platform using network modeling.",
+    "website": "https://www.skyboxsecurity.com/",
+    "company_size": "501-1000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Validated ID",
+    "categories": [
+      "Identity & Access Management",
+      "Fraud & Identity Verification"
+    ],
+    "description": "Digital identity and electronic signature platform based in Spain.",
+    "website": "https://validatedid.com/",
+    "company_size": "11-50",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "MajorKey Technologies",
+    "categories": [
+      "Identity & Access Management",
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Identity and access management consulting and managed services provider.",
+    "website": "https://www.majorkey.com/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Varonis",
+    "categories": [
+      "Data Security & Privacy"
+    ],
+    "description": "Data security platform focused on classifying and protecting sensitive data and detecting insider threats.",
+    "website": "https://www.varonis.com/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Kiteworks",
+    "categories": [
+      "Data Security & Privacy",
+      "Email Security"
+    ],
+    "description": "Secure content communication platform for managing sensitive file and email transfers.",
+    "website": "https://www.kiteworks.com/",
+    "company_size": "501-1000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Forcepoint",
+    "categories": [
+      "Data Security & Privacy",
+      "Network Security"
+    ],
+    "description": "Provides data loss prevention, insider risk, and network security (SASE) solutions.",
+    "website": "https://www.forcepoint.com/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Menlo Security",
+    "categories": [
+      "Zero Trust/SASE",
+      "Network Security"
+    ],
+    "description": "Browser isolation and secure access platform that neutralizes web and email-based threats.",
+    "website": "https://www.menlosecurity.com/",
+    "company_size": "501-1000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Deepwatch",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Managed detection and response provider combining a SOC platform with analyst services.",
+    "website": "https://www.deepwatch.com/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Lumu Technologies",
+    "categories": [
+      "Threat Intelligence",
+      "Network Security"
+    ],
+    "description": "Continuous compromise assessment platform correlating network metadata to detect threats.",
+    "website": "https://lumu.io/",
+    "company_size": "51-200",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "MOXFIVE",
+    "categories": [
+      "Incident Response & Forensics"
+    ],
+    "description": "Technical advisory firm specializing in ransomware and incident response coordination.",
+    "website": "https://www.moxfive.com/",
+    "company_size": "51-200",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Thirdfort",
+    "categories": [
+      "Fraud & Identity Verification",
+      "GRC & Compliance"
+    ],
+    "description": "Identity verification and anti-money-laundering compliance platform for legal and property transactions.",
+    "website": "https://www.thirdfort.com/",
+    "company_size": "51-200",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Signaturit Solutions",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "European e-signature and digital identity verification platform.",
+    "website": "https://www.signaturit.com/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Globesecure Technologies",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Middle East-based cybersecurity solutions and managed services provider.",
+    "website": "https://www.globesecure.com/",
+    "company_size": "11-50",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Magellan S\u00e9curit\u00e9",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "French physical and cyber security services provider.",
+    "website": "https://www.magellan-securite.fr/",
+    "company_size": "51-200",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Consortium Networks",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Managed security and identity operations provider for enterprises.",
+    "website": "https://www.consortiumnetworks.com/",
+    "company_size": "51-200",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "HWG Sababa",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Italian cybersecurity services group offering managed security and consulting.",
+    "website": "https://www.hwgsababa.com/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Minsait Payments",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Payments and fraud-risk technology unit of Indra's Minsait division.",
+    "website": "https://www.minsait.com/",
+    "company_size": null,
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Heliaq",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Managed security services provider offering SOC and consulting services.",
+    "website": null,
+    "company_size": null,
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Eyeonid",
+    "categories": [
+      "Fraud & Identity Verification"
+    ],
+    "description": "Identity theft protection and monitoring service for consumers, offered via telecom partners.",
+    "website": "https://eyeonid.com/",
+    "company_size": "1-10",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Communicate Technology",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "UK managed service provider offering cybersecurity and IT support services.",
+    "website": "https://www.communicatetechnology.co.uk/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Henninger Corporation",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Provides security consulting and managed services to enterprises.",
+    "website": null,
+    "company_size": null,
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Brennan",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Australian managed IT and cybersecurity services provider.",
+    "website": "https://www.brennanit.com.au/",
+    "company_size": "201-500",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "AC System Consulting",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "IT and security consulting/managed services provider.",
+    "website": null,
+    "company_size": null,
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Fenix24",
+    "categories": [
+      "Backup & Ransomware Recovery",
+      "Incident Response & Forensics"
+    ],
+    "description": "Specializes in emergency infrastructure restoration after ransomware attacks.",
+    "website": "https://fenix24.com/",
+    "company_size": "51-200",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Northern Block",
+    "categories": [
+      "Identity & Access Management"
+    ],
+    "description": "Decentralized/verifiable digital identity consulting and technology provider.",
+    "website": "https://northernblock.io/",
+    "company_size": "1-10",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Simulint",
+    "categories": [
+      "Security Awareness Training",
+      "Penetration Testing/Offensive Security"
+    ],
+    "description": "Provides cyber range and attack simulation training for security teams.",
+    "website": null,
+    "company_size": null,
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Orient Technologies",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "Indian IT infrastructure and managed security services provider.",
+    "website": "https://www.orientindia.com/",
+    "company_size": "501-1000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Perfios",
+    "categories": [
+      "Fraud & Identity Verification",
+      "GRC & Compliance"
+    ],
+    "description": "Fintech risk analytics platform supporting fraud detection and lending decisioning.",
+    "website": "https://www.perfios.com/",
+    "company_size": "1001-5000",
+    "source": "momentum-cyber"
+  },
+  {
+    "name": "Atruvia",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "description": "German cooperative banking IT provider with a dedicated banking-security services arm.",
+    "website": "https://atruvia.de/",
+    "company_size": "5001-10000",
+    "source": "momentum-cyber"
+  }
+]

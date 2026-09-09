@@ -354,6 +354,24 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .toolbar input[type=text] { flex: 1; min-width: 200px; }
 .toolbar select { width: auto; min-width: 180px; }
 
+.segment-filter {
+  border: 1px solid var(--gridline); border-radius: var(--radius-md); padding: 14px 16px;
+  margin-bottom: 22px; background: var(--surface-raised);
+}
+.segment-filter summary { cursor: pointer; font-weight: 700; font-size: 13.5px; list-style: none; }
+.segment-filter summary::-webkit-details-marker { display: none; }
+.segment-filter summary::before { content: "▸ "; }
+.segment-filter[open] summary::before { content: "▾ "; }
+.segment-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px 16px;
+  margin-top: 14px;
+}
+.segment-filter label, .segment-grid label {
+  display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-secondary);
+  font-weight: 400;
+}
+.segment-filter .filter-actions { margin-top: 14px; display: flex; gap: 8px; }
+
 .vendor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 @media (max-width: 900px) { .vendor-grid { grid-template-columns: 1fr; } }
 .vendor-card {
@@ -364,6 +382,14 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .vendor-logo {
   width: 46px; height: 46px; border-radius: 10px; color: #fff; font-weight: 800; font-size: 14px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  position: relative; overflow: hidden;
+}
+/* A real logo image (see app.py's vendor_favicon_url) sits on top of the
+   initials/accent badge underneath, so a broken or missing image just
+   reveals the fallback rather than leaving a blank box. */
+.vendor-logo img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
+  background: #fff; padding: 15%; box-sizing: border-box;
 }
 .vendor-card h3 { font-size: 17px; margin-bottom: 2px; }
 .vendor-card .cat { font-size: 12.5px; color: var(--ink-muted); font-weight: 600; }

@@ -25,6 +25,37 @@
         <div class="field"><label>Initials</label><input type="text" name="initials" value="{{ vendor.initials }}" maxlength="3"></div>
       </div>
       <div class="field"><label>Tags (comma-separated)</label><input type="text" name="tags" value="{{ tags }}" placeholder="e.g. CNAPP, Kubernetes, Threat Detection"></div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>Company size</label>
+          <select name="company_size">
+            <option value="">Not specified</option>
+            {% for size in company_sizes %}
+            <option value="{{ size }}" {{ 'selected' if size == vendor.company_size }}>{{ size }} employees</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field"><label>Founded year</label><input type="number" name="founded_year" value="{{ vendor.founded_year or '' }}" min="1900" max="2100"></div>
+        <div class="field"><label>HQ location</label><input type="text" name="hq_location" value="{{ vendor.hq_location or '' }}" placeholder="e.g. San Francisco, CA"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Contact email</label><input type="email" name="contact_email" value="{{ vendor.contact_email or '' }}"></div>
+        <div class="field"><label>Contact phone</label><input type="tel" name="contact_phone" value="{{ vendor.contact_phone or '' }}"></div>
+      </div>
+
+      <div class="field">
+        <label>Cybersecurity segments (buyers filter by these)</label>
+        <div class="segment-grid" style="margin-top:6px;">
+          {% for seg in all_segments %}
+          <label style="font-weight:400;">
+            <input type="checkbox" name="segments" value="{{ seg }}" {{ 'checked' if seg in selected_segments }}>
+            {{ seg }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
       <button class="btn btn-primary" type="submit">Save profile</button>
     </form>
   </div>
@@ -33,7 +64,11 @@
     <h3 style="font-size:14px;">Live preview</h3>
     <div class="vendor-card" style="border:1px solid var(--gridline);">
       <div class="vendor-card-top">
-        <span class="vendor-logo" style="background:{{ vendor.accent }};">{{ vendor.initials }}</span>
+        <span class="vendor-logo" style="background:{{ vendor.accent }};">
+          {% set preview_logo = vendor_favicon_url(vendor.website) %}
+          {% if preview_logo %}<img src="{{ preview_logo }}" alt="" onerror="this.remove();">{% endif %}
+          {{ vendor.initials }}
+        </span>
         <div><h3>{{ vendor.company_name }}</h3><span class="cat">{{ vendor.category }}</span></div>
       </div>
       <p class="tagline">{{ vendor.tagline or "Add a tagline to stand out." }}</p>

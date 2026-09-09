@@ -9,32 +9,55 @@
   </div>
 </div>
 
-<form class="toolbar" method="get">
-  <input type="text" name="q" value="{{ q }}" placeholder="Search by name, category, or keyword…">
-  <select name="category" onchange="this.form.submit()">
-    <option value="">All categories</option>
-    {% for c in categories %}
-    <option value="{{ c }}" {{ 'selected' if c == category }}>{{ c }}</option>
+<form class="toolbar" method="get" id="discover-form">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search by name, description, or location…">
+  <select name="company_size" onchange="this.form.submit()">
+    <option value="">Any company size</option>
+    {% for size in company_sizes %}
+    <option value="{{ size }}" {{ 'selected' if size == company_size }}>{{ size }} employees</option>
     {% endfor %}
   </select>
   <button class="btn btn-secondary" type="submit">Search</button>
 </form>
+
+<details class="segment-filter" {{ 'open' if selected_segments }}>
+  <summary>Filter by cybersecurity segment{% if selected_segments %} ({{ selected_segments|length }} selected){% endif %}</summary>
+  <div class="segment-grid">
+    {% for seg in all_segments %}
+    <label>
+      <input type="checkbox" name="segment" value="{{ seg }}" form="discover-form"
+        {{ 'checked' if seg in selected_segments }}>
+      {{ seg }}
+    </label>
+    {% endfor %}
+  </div>
+  <div class="filter-actions">
+    <button class="btn btn-primary btn-sm" type="submit" form="discover-form">Apply filters</button>
+    {% if selected_segments or company_size or q %}
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('buyer_discover') }}">Clear all</a>
+    {% endif %}
+  </div>
+</details>
 
 <form id="compare-form" action="{{ url_for('buyer_compare') }}" method="get">
   <div class="vendor-grid">
     {% for v in vendors %}
     <div class="vendor-card">
       <div class="vendor-card-top">
-        <span class="vendor-logo" style="background:{{ v.accent }};">{{ v.initials }}</span>
+        <span class="vendor-logo" style="background:{{ v.accent }};">
+          {% if v.logo_url %}<img src="{{ v.logo_url }}" alt="" onerror="this.remove();">{% endif %}
+          {{ v.initials }}
+        </span>
         <div>
           <h3><a href="{{ url_for('buyer_vendor', vendor_id=v.id) }}">{{ v.company_name }}</a></h3>
-          <span class="cat">{{ v.category }}</span>
+          <span class="cat">{{ v.category }}{% if v.company_size %} · {{ v.company_size }} employees{% endif %}</span>
         </div>
         {% if v.status %}<span class="badge {{ 'badge-good' if v.status in ['shortlisted','selected'] else ('badge-brand' if v.status == 'evaluating' else 'badge-neutral') }}" style="margin-left:auto;">{{ v.status|capitalize }}</span>{% endif %}
       </div>
-      <p class="tagline">{{ v.tagline }}</p>
+      <p class="tagline">{{ v.description or v.tagline }}</p>
       <div>
-        {% for t in v.tags[:4] %}<span class="tag">{{ t }}</span>{% endfor %}
+        {% for s in v.segments[:3] %}<span class="tag">{{ s }}</span>{% endfor %}
+        {% if v.segments|length > 3 %}<span class="tag">+{{ v.segments|length - 3 }} more</span>{% endif %}
       </div>
       <div class="actions">
         <a href="{{ url_for('buyer_vendor', vendor_id=v.id) }}" class="btn btn-secondary btn-sm">View profile</a>

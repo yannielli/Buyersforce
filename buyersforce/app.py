@@ -1,4 +1,5 @@
 import os
+import re
 import sqlite3
 import secrets
 from functools import wraps
@@ -120,6 +121,68 @@ LEGACY_TIMEZONE_MAP = {
     "Alaska": "America/Anchorage",
     "Hawaii": "Pacific/Honolulu",
 }
+
+# Canonical cybersecurity segment/category vocabulary -- powers the
+# multi-select "browse by segment" filter on the buyer vendor directory
+# (vendor_segments table) and the seller profile's own segment picker.
+# Matches the categories used when compiling seed_data/vendor_seed_list.json
+# from GitHub's awesome-cybersecurity list, CB Insights market maps, and
+# Momentum Cyber's Cybersecurity Almanac.
+CYBERSECURITY_SEGMENTS = [
+    "Endpoint Security",
+    "Network Security",
+    "Cloud Security",
+    "Identity & Access Management",
+    "Data Security & Privacy",
+    "Application Security",
+    "Email Security",
+    "SIEM/SOAR/XDR",
+    "Threat Intelligence",
+    "Vulnerability Management",
+    "GRC & Compliance",
+    "Managed Security Services (MSSP/MDR)",
+    "Fraud & Identity Verification",
+    "IoT/OT Security",
+    "Zero Trust/SASE",
+    "Backup & Ransomware Recovery",
+    "Security Awareness Training",
+    "API Security",
+    "Mobile Security",
+    "Incident Response & Forensics",
+    "Penetration Testing/Offensive Security",
+    "Supply Chain/Third-Party Risk",
+]
+
+# Company-size bands used for both the seed data (see the research agent's
+# bucketing) and the buyer directory's size filter -- ordered smallest to
+# largest rather than alphabetically (a plain DISTINCT+ORDER BY on the text
+# values would put "10000+" before "51-200").
+COMPANY_SIZE_BANDS = [
+    "1-10", "11-50", "51-200", "201-500", "501-1000",
+    "1001-5000", "5001-10000", "10000+",
+]
+
+
+def vendor_favicon_url(website):
+    """Best-effort logo image for a vendor card, derived from their
+    website via Google's public favicon service -- no API key or account
+    needed (Clearbit's old free logo API was shut down in Dec 2025, and
+    every modern replacement requires a signup). Quality varies -- some
+    domains only have a small/generic icon -- so callers always keep the
+    initials/accent badge as a fallback (see the vendor-logo-wrap markup)
+    for when this doesn't load or doesn't look right."""
+    if not website:
+        return None
+    domain = website.strip()
+    domain = re.sub(r"^https?://", "", domain, flags=re.IGNORECASE)
+    domain = domain.split("/")[0]
+    domain = re.sub(r"^www\.", "", domain, flags=re.IGNORECASE)
+    if not domain:
+        return None
+    return f"https://www.google.com/s2/favicons?domain={domain}&sz=128"
+
+
+app.jinja_env.globals["vendor_favicon_url"] = vendor_favicon_url
 
 # Checked dynamically against the user row rather than tracked with a
 # stored flag, so there's nothing that can drift out of sync. role,
@@ -1332,6 +1395,13 @@ def vendor_tags(vendor_id):
     return [r["tag"] for r in rows]
 
 
+def vendor_segments(vendor_id):
+    rows = dbm.query(
+        "SELECT segment FROM vendor_segments WHERE vendor_id = ? ORDER BY segment", (vendor_id,)
+    )
+    return [r["segment"] for r in rows]
+
+
 def vendor_listings(vendor_id):
     listings = dbm.query(
         "SELECT * FROM listings WHERE vendor_id = ? ORDER BY id", (vendor_id,)
@@ -1429,29 +1499,44 @@ def buyer_dashboard():
 @role_required("buyer")
 def buyer_discover():
     q = request.args.get("q", "").strip()
-    category = request.args.get("category", "")
+    segments = [s for s in request.args.getlist("segment") if s in CYBERSECURITY_SEGMENTS]
+    company_size = request.args.get("company_size", "")
     sql = "SELECT * FROM vendors WHERE 1=1"
     args = []
     if q:
-        sql += " AND (company_name LIKE ? OR tagline LIKE ? OR description LIKE ?)"
-        args += [f"%{q}%", f"%{q}%", f"%{q}%"]
-    if category:
-        sql += " AND category = ?"
-        args.append(category)
+        sql += (
+            " AND (company_name LIKE ? OR tagline LIKE ? OR description LIKE ? "
+            "OR hq_location LIKE ?)"
+        )
+        args += [f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%"]
+    if segments:
+        placeholders = ",".join(["?"] * len(segments))
+        sql += (
+            f" AND id IN (SELECT vendor_id FROM vendor_segments WHERE segment IN ({placeholders}))"
+        )
+        args += segments
+    if company_size:
+        sql += " AND company_size = ?"
+        args.append(company_size)
     sql += " ORDER BY company_name"
     vendors = dbm.query(sql, args)
-    categories = [r["category"] for r in dbm.query(
-        "SELECT DISTINCT category FROM vendors ORDER BY category"
-    )]
     vendor_data = []
     for v in vendors:
         vendor_data.append({
             **dict(v),
             "tags": vendor_tags(v["id"]),
+            "segments": vendor_segments(v["id"]),
+            "logo_url": vendor_favicon_url(v["website"]),
             "status": shortlist_status(g.user["id"], v["id"]),
         })
     return render_template(
-        "buyer/discover.html", vendors=vendor_data, categories=categories, q=q, category=category
+        "buyer/discover.html",
+        vendors=vendor_data,
+        all_segments=CYBERSECURITY_SEGMENTS,
+        selected_segments=segments,
+        company_sizes=COMPANY_SIZE_BANDS,
+        q=q,
+        company_size=company_size,
     )
 
 
@@ -1463,6 +1548,9 @@ def buyer_vendor(vendor_id):
         abort(404)
     listings = vendor_listings(vendor_id)
     tags = vendor_tags(vendor_id)
+    segments = vendor_segments(vendor_id)
+    logo_url = vendor_favicon_url(vendor["website"])
+    is_claimed = vendor["seller_user_id"] is not None
     status = shortlist_status(g.user["id"], vendor_id)
     templates_ = dbm.query(
         "SELECT * FROM eval_templates WHERE company=? OR is_shared=1 ORDER BY created_at DESC",
@@ -1473,7 +1561,8 @@ def buyer_vendor(vendor_id):
         (vendor_id, g.user["company"]), one=True
     )
     return render_template(
-        "buyer/vendor.html", vendor=vendor, listings=listings, tags=tags, status=status,
+        "buyer/vendor.html", vendor=vendor, listings=listings, tags=tags, segments=segments,
+        logo_url=logo_url, is_claimed=is_claimed, status=status,
         templates=templates_, existing_eval=existing_eval,
     )
 
@@ -1522,6 +1611,16 @@ def buyer_compare():
 @app.route("/app/buyer/vendor/<int:vendor_id>/message", methods=("POST",))
 @role_required("buyer")
 def buyer_message_vendor(vendor_id):
+    vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
+    if not vendor:
+        abort(404)
+    if vendor["seller_user_id"] is None:
+        flash(
+            f"{vendor['company_name']} hasn't claimed their BuyersForce listing yet, "
+            "so messaging isn't available for them.",
+            "error",
+        )
+        return redirect(url_for("buyer_vendor", vendor_id=vendor_id))
     thread = get_or_create_vendor_thread(g.user["id"], vendor_id)
     body = request.form.get("body", "").strip()
     if body:
@@ -1537,6 +1636,16 @@ def buyer_message_vendor(vendor_id):
 @app.route("/app/buyer/vendor/<int:vendor_id>/meeting", methods=("POST",))
 @role_required("buyer")
 def buyer_request_meeting(vendor_id):
+    vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
+    if not vendor:
+        abort(404)
+    if vendor["seller_user_id"] is None:
+        flash(
+            f"{vendor['company_name']} hasn't claimed their BuyersForce listing yet, "
+            "so meeting requests aren't available for them.",
+            "error",
+        )
+        return redirect(url_for("buyer_vendor", vendor_id=vendor_id))
     proposed_time = request.form.get("proposed_time", "").strip()
     note = request.form.get("note", "").strip()
     if proposed_time:
@@ -1894,13 +2003,21 @@ def seller_profile():
     vendor = seller_vendor(g.user)
     if request.method == "POST":
         form = request.form
+        founded_year = form.get("founded_year", "").strip()
+        founded_year = int(founded_year) if founded_year.isdigit() else None
+        company_size = form.get("company_size", "").strip()
+        if company_size not in COMPANY_SIZE_BANDS:
+            company_size = None
         dbm.execute(
             "UPDATE vendors SET company_name=?, category=?, tagline=?, description=?, "
-            "website=?, accent=?, initials=? WHERE id=?",
+            "website=?, accent=?, initials=?, company_size=?, founded_year=?, hq_location=?, "
+            "contact_email=?, contact_phone=? WHERE id=?",
             (
                 form["company_name"].strip(), form["category"].strip(), form["tagline"].strip(),
                 form["description"].strip(), form["website"].strip(), form["accent"].strip() or "#3b82f6",
-                (form["initials"].strip() or "VN")[:3].upper(), vendor["id"],
+                (form["initials"].strip() or "VN")[:3].upper(), company_size, founded_year,
+                form.get("hq_location", "").strip(), form.get("contact_email", "").strip(),
+                form.get("contact_phone", "").strip(), vendor["id"],
             ),
         )
         dbm.execute("DELETE FROM vendor_tags WHERE vendor_id=?", (vendor["id"],))
@@ -1910,11 +2027,23 @@ def seller_profile():
                 dbm.execute(
                     "INSERT INTO vendor_tags (vendor_id, tag) VALUES (?, ?)", (vendor["id"], tag)
                 )
+        dbm.execute("DELETE FROM vendor_segments WHERE vendor_id=?", (vendor["id"],))
+        for segment in form.getlist("segments"):
+            if segment in CYBERSECURITY_SEGMENTS:
+                dbm.execute(
+                    "INSERT INTO vendor_segments (vendor_id, segment) VALUES (?, ?)",
+                    (vendor["id"], segment),
+                )
         flash("Vendor profile updated — buyers will see the latest version.", "success")
         return redirect(url_for("seller_profile"))
     tags = ", ".join(vendor_tags(vendor["id"]))
+    selected_segments = vendor_segments(vendor["id"])
     listings = vendor_listings(vendor["id"])
-    return render_template("seller/profile.html", vendor=vendor, tags=tags, listings=listings)
+    return render_template(
+        "seller/profile.html", vendor=vendor, tags=tags, listings=listings,
+        all_segments=CYBERSECURITY_SEGMENTS, selected_segments=selected_segments,
+        company_sizes=COMPANY_SIZE_BANDS,
+    )
 
 
 @app.route("/app/seller/listings/new", methods=("POST",))

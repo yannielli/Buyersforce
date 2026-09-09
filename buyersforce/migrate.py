@@ -13,6 +13,9 @@ TABLE/INDEX IF NOT EXISTS, ADD COLUMN IF NOT EXISTS, and a constraint
 check that only touches the DB when the constraint actually needs
 widening.
 """
+import json
+import os
+
 import psycopg2
 
 from db import _database_url
@@ -33,6 +36,8 @@ def run_migrations():
             _backfill_demo_profiles(cur)
             _add_phone_country_and_role_requests(cur)
             _migrate_legacy_timezones(cur)
+            _add_vendor_directory_columns(cur)
+            _seed_vendor_directory(cur)
     finally:
         con.close()
 
@@ -331,6 +336,119 @@ def _migrate_legacy_timezones(cur):
         cur.execute(
             "UPDATE users SET timezone = %s WHERE timezone = %s", (new_value, old_value)
         )
+
+
+def _add_vendor_directory_columns(cur):
+    # Supports the admin-seeded cybersecurity vendor directory: a bigger
+    # LinkedIn-About-page-style set of demographic fields on vendors, plus
+    # a controlled multi-select segment/category system (vendor_segments)
+    # separate from the freeform vendor_tags a seller can already type.
+    # seller_user_id is relaxed to nullable so an admin-seeded ("unclaimed")
+    # vendor can exist with no real seller account behind it yet.
+    cur.execute("ALTER TABLE vendors ALTER COLUMN seller_user_id DROP NOT NULL")
+    cur.execute("ALTER TABLE vendors ADD COLUMN IF NOT EXISTS company_size TEXT")
+    cur.execute("ALTER TABLE vendors ADD COLUMN IF NOT EXISTS founded_year INTEGER")
+    cur.execute("ALTER TABLE vendors ADD COLUMN IF NOT EXISTS hq_location TEXT")
+    cur.execute("ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contact_email TEXT")
+    cur.execute("ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contact_phone TEXT")
+    cur.execute("ALTER TABLE vendors ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT ''")
+    cur.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS vendors_seeded_company_name_uniq
+        ON vendors (company_name)
+        WHERE seller_user_id IS NULL
+        """
+    )
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS vendor_segments (
+            id SERIAL PRIMARY KEY,
+            vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+            segment TEXT NOT NULL
+        )
+        """
+    )
+    cur.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS vendor_segments_vendor_segment_uniq
+        ON vendor_segments (vendor_id, segment)
+        """
+    )
+
+
+# Chart palette from static/css/style.css's --series-1..5 tokens, reused
+# here so admin-seeded vendor badges pick up the same brand colors instead
+# of defaulting to a single blue for all 241+ of them.
+_SEED_ACCENT_PALETTE = ["#3b82f6", "#eb6834", "#1baf7a", "#eda100", "#4a3aa7"]
+
+
+def _seed_vendor_directory(cur):
+    # One-time (idempotent) load of a curated, admin-editable cybersecurity
+    # vendor directory compiled from free public sources -- GitHub's
+    # awesome-cybersecurity list, CB Insights market-map articles, and
+    # Momentum Cyber's Cybersecurity Almanac (Gartner has no usable API at
+    # any price point, so it isn't a source here). See
+    # seed_data/vendor_seed_list.json for the compiled data and its
+    # per-entry "source" field for provenance.
+    #
+    # These rows are admin-curated "unclaimed" listings (seller_user_id IS
+    # NULL) meant to pre-populate the directory before real vendors sign
+    # up. A future "claim this listing" flow (tracked separately, not
+    # built yet) will let a verified rep from that company take over
+    # editing rights -- for now these are read-only to buyers and editable
+    # only by an admin.
+    seed_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seed_data", "vendor_seed_list.json")
+    if not os.path.exists(seed_path):
+        return
+    with open(seed_path) as f:
+        seed_vendors = json.load(f)
+
+    for i, entry in enumerate(seed_vendors):
+        name = (entry.get("name") or "").strip()
+        if not name:
+            continue
+        cur.execute(
+            "SELECT id FROM vendors WHERE company_name = %s AND seller_user_id IS NULL",
+            (name,),
+        )
+        row = cur.fetchone()
+        if row:
+            vendor_id = row[0]
+        else:
+            categories = entry.get("categories") or []
+            initials = "".join(w[0] for w in name.split()[:2]).upper()[:3] or "VN"
+            accent = _SEED_ACCENT_PALETTE[i % len(_SEED_ACCENT_PALETTE)]
+            cur.execute(
+                """
+                INSERT INTO vendors (
+                    seller_user_id, company_name, category, tagline, description,
+                    website, accent, initials, company_size, source
+                ) VALUES (NULL, %s, %s, '', %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (
+                    name,
+                    categories[0] if categories else "Uncategorized",
+                    entry.get("description") or "",
+                    entry.get("website") or "",
+                    accent,
+                    initials,
+                    entry.get("company_size"),
+                    entry.get("source") or "",
+                ),
+            )
+            vendor_id = cur.fetchone()[0]
+
+        for segment in entry.get("categories") or []:
+            cur.execute(
+                "SELECT 1 FROM vendor_segments WHERE vendor_id = %s AND segment = %s",
+                (vendor_id, segment),
+            )
+            if not cur.fetchone():
+                cur.execute(
+                    "INSERT INTO vendor_segments (vendor_id, segment) VALUES (%s, %s)",
+                    (vendor_id, segment),
+                )
 
 
 if __name__ == "__main__":

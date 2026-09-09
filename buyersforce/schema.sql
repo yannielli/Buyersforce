@@ -20,6 +20,7 @@ DROP TABLE IF EXISTS contacts CASCADE;
 DROP TABLE IF EXISTS thread_reads CASCADE;
 DROP TABLE IF EXISTS blocked_vendors CASCADE;
 DROP TABLE IF EXISTS role_change_requests CASCADE;
+DROP TABLE IF EXISTS vendor_segments CASCADE;
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -107,9 +108,15 @@ CREATE TABLE invites (
     used_at TEXT
 );
 
+-- seller_user_id is nullable: an admin-seeded vendor (pre-populated from
+-- public cybersecurity vendor lists -- see seed_data/vendor_seed_list.json
+-- and migrate.py's _seed_vendor_directory) has no real seller account yet.
+-- These "unclaimed" listings are admin-curated and read-only to buyers
+-- until a future "claim this listing" flow (not built yet) lets a
+-- verified rep from that company take over editing rights.
 CREATE TABLE vendors (
     id SERIAL PRIMARY KEY,
-    seller_user_id INTEGER NOT NULL REFERENCES users(id),
+    seller_user_id INTEGER REFERENCES users(id),
     company_name TEXT NOT NULL,
     category TEXT NOT NULL,
     tagline TEXT NOT NULL DEFAULT '',
@@ -117,8 +124,33 @@ CREATE TABLE vendors (
     website TEXT NOT NULL DEFAULT '',
     accent TEXT NOT NULL DEFAULT '#2a78d6',
     initials TEXT NOT NULL DEFAULT 'VN',
+    company_size TEXT,
+    founded_year INTEGER,
+    hq_location TEXT,
+    contact_email TEXT,
+    contact_phone TEXT,
+    source TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
 );
+
+-- Only enforced for admin-seeded ("unclaimed") vendors, so migrate.py's
+-- seed step is idempotent across repeated runs/deploys. Real sellers keep
+-- creating their own vendor row per account with no uniqueness constraint
+-- on the name.
+CREATE UNIQUE INDEX vendors_seeded_company_name_uniq
+ON vendors (company_name)
+WHERE seller_user_id IS NULL;
+
+-- Controlled cybersecurity segment/category tags (see app.py's
+-- CYBERSECURITY_SEGMENTS), distinct from the freeform vendor_tags below --
+-- this is what powers the buyer-facing multi-select directory filter.
+CREATE TABLE vendor_segments (
+    id SERIAL PRIMARY KEY,
+    vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+    segment TEXT NOT NULL
+);
+CREATE UNIQUE INDEX vendor_segments_vendor_segment_uniq
+ON vendor_segments (vendor_id, segment);
 
 CREATE TABLE listings (
     id SERIAL PRIMARY KEY,
