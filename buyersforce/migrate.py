@@ -32,6 +32,7 @@ def run_migrations():
             _add_account_status_and_photo(cur)
             _backfill_demo_profiles(cur)
             _add_phone_country_and_role_requests(cur)
+            _migrate_legacy_timezones(cur)
     finally:
         con.close()
 
@@ -308,6 +309,28 @@ def _add_phone_country_and_role_requests(cur):
         WHERE status = 'pending'
         """
     )
+
+
+def _migrate_legacy_timezones(cur):
+    # The time zone field started out as six US-only labels
+    # ("Eastern".."Hawaii") before the picker became worldwide (real IANA
+    # zone names like "America/New_York"). Translate any rows still
+    # holding an old label to its IANA equivalent so existing users see
+    # their zone correctly selected instead of the field going blank.
+    # Idempotent: once migrated, a row's value no longer matches any of
+    # these old labels, so re-running this is a no-op for it.
+    legacy_map = {
+        "Eastern": "America/New_York",
+        "Central": "America/Chicago",
+        "Mountain": "America/Denver",
+        "Pacific": "America/Los_Angeles",
+        "Alaska": "America/Anchorage",
+        "Hawaii": "Pacific/Honolulu",
+    }
+    for old_value, new_value in legacy_map.items():
+        cur.execute(
+            "UPDATE users SET timezone = %s WHERE timezone = %s", (new_value, old_value)
+        )
 
 
 if __name__ == "__main__":

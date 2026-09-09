@@ -59,14 +59,14 @@
         <div class="field">
           <label for="phone">Phone *</label>
           <div style="display:flex; gap:8px;">
-            <select id="phone_country" name="phone_country" required style="flex:0 0 auto; max-width:150px;">
+            <select id="phone_country" name="phone_country" required style="flex:0 0 118px; min-width:0;">
               {% for code, name, dial in phone_countries %}
               <option value="{{ code }}" data-dial="{{ dial }}" {% if (form_data.phone_country or 'US') == code %}selected{% endif %}>
                 {{ code }}{% if dial %} +{{ dial }}{% endif %}
               </option>
               {% endfor %}
             </select>
-            <input type="tel" id="phone" name="phone" required value="{{ form_data.phone or '' }}" placeholder="(555) 555-5555" style="flex:1;">
+            <input type="tel" id="phone" name="phone" required value="{{ form_data.phone or '' }}" placeholder="(555) 555-5555" style="flex:1 1 auto; min-width:0;">
           </div>
         </div>
         <div class="field">
@@ -84,8 +84,12 @@
         <label for="timezone">Time zone *</label>
         <select id="timezone" name="timezone" required>
           <option value="">Select a time zone…</option>
-          {% for tz in ["Eastern", "Central", "Mountain", "Pacific", "Alaska", "Hawaii"] %}
-          <option value="{{ tz }}" {% if form_data.timezone == tz %}selected{% endif %}>{{ tz }}</option>
+          {% for region, zones in world_timezones %}
+          <optgroup label="{{ region }}">
+            {% for iana_name, label in zones %}
+            <option value="{{ iana_name }}" {% if form_data.timezone == iana_name %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </optgroup>
           {% endfor %}
         </select>
       </div>

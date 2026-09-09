@@ -6,22 +6,44 @@
    and `pending_role_request` are only passed from account.html -- see
    there for why the "request a role change" control only shows up there. #}
 <div class="field" style="display:flex; align-items:center; gap:14px;">
-  {% if user.photo_data_url %}
-  <img src="{{ user.photo_data_url }}" alt="" style="width:56px; height:56px; border-radius:50%; object-fit:cover;">
-  {% else %}
-  <span class="vendor-logo" style="width:56px; height:56px; font-size:18px; background:var(--brand);">{{ (user.first_name or user.name)[0]|upper }}</span>
-  {% endif %}
+  <span id="photo-initials" class="vendor-logo"
+        style="width:56px; height:56px; font-size:18px; background:var(--brand); {% if user.photo_data_url %}display:none;{% endif %}">{{ (user.first_name or user.name)[0]|upper }}</span>
+  <img id="photo-preview" alt=""
+       style="width:56px; height:56px; border-radius:50%; object-fit:cover; {% if not user.photo_data_url %}display:none;{% endif %}"
+       src="{{ user.photo_data_url or '' }}">
   <div style="flex:1;">
     <label for="photo" style="display:block;">Profile photo</label>
     <input type="file" id="photo" name="photo" accept="image/*">
     <p class="hint" style="margin-top:4px;">Optional. Shows your initials if you skip this. Max 2MB.</p>
-    {% if user.photo_data_url %}
-    <label style="font-size:13px; font-weight:400; display:flex; align-items:center; gap:6px; margin-top:6px;">
+    <label id="remove-photo-label" style="font-size:13px; font-weight:400; display:flex; align-items:center; gap:6px; margin-top:6px; {% if not user.photo_data_url %}display:none;{% endif %}">
       <input type="checkbox" name="remove_photo"> Remove current photo
     </label>
-    {% endif %}
   </div>
 </div>
+<script>
+  (function () {
+    var fileInput = document.getElementById("photo");
+    var preview = document.getElementById("photo-preview");
+    var initials = document.getElementById("photo-initials");
+    var removeLabel = document.getElementById("remove-photo-label");
+    fileInput.addEventListener("change", function () {
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        preview.src = e.target.result;
+        preview.style.display = "";
+        initials.style.display = "none";
+        if (removeLabel) {
+          removeLabel.style.display = "none";
+          var cb = removeLabel.querySelector("input[type=checkbox]");
+          if (cb) cb.checked = false;
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  })();
+</script>
 
 <div class="form-row">
   <div class="field">
@@ -90,14 +112,14 @@
   <div class="field">
     <label for="phone">Phone *</label>
     <div style="display:flex; gap:8px;">
-      <select id="phone_country" name="phone_country" required style="flex:0 0 auto; max-width:150px;">
+      <select id="phone_country" name="phone_country" required style="flex:0 0 118px; min-width:0;">
         {% for code, name, dial in phone_countries %}
         <option value="{{ code }}" data-dial="{{ dial }}" {% if (user.phone_country or 'US') == code %}selected{% endif %}>
           {{ code }}{% if dial %} +{{ dial }}{% endif %}
         </option>
         {% endfor %}
       </select>
-      <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" required placeholder="(555) 555-5555" style="flex:1;">
+      <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" required placeholder="(555) 555-5555" style="flex:1 1 auto; min-width:0;">
     </div>
   </div>
   <div class="field">
@@ -116,8 +138,12 @@
     <label for="timezone">Time zone *</label>
     <select id="timezone" name="timezone" required>
       <option value="">Select a time zone…</option>
-      {% for tz in ["Eastern", "Central", "Mountain", "Pacific", "Alaska", "Hawaii"] %}
-      <option value="{{ tz }}" {% if user.timezone == tz %}selected{% endif %}>{{ tz }}</option>
+      {% for region, zones in world_timezones %}
+      <optgroup label="{{ region }}">
+        {% for iana_name, label in zones %}
+        <option value="{{ iana_name }}" {% if user.timezone == iana_name %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </optgroup>
       {% endfor %}
     </select>
   </div>
@@ -192,13 +218,13 @@
 <div class="field">
   <label for="secondary_phone">Additional phone</label>
   <div style="display:flex; gap:8px;">
-    <select id="secondary_phone_country" name="secondary_phone_country" style="flex:0 0 auto; max-width:150px;">
+    <select id="secondary_phone_country" name="secondary_phone_country" style="flex:0 0 118px; min-width:0;">
       {% for code, name, dial in phone_countries %}
       <option value="{{ code }}" data-dial="{{ dial }}" {% if (user.secondary_phone_country or 'US') == code %}selected{% endif %}>
         {{ code }}{% if dial %} +{{ dial }}{% endif %}
       </option>
       {% endfor %}
     </select>
-    <input type="tel" id="secondary_phone" name="secondary_phone" value="{{ user.secondary_phone or '' }}" style="flex:1;">
+    <input type="tel" id="secondary_phone" name="secondary_phone" value="{{ user.secondary_phone or '' }}" style="flex:1 1 auto; min-width:0;">
   </div>
 </div>

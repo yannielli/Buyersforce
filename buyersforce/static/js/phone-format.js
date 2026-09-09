@@ -5,6 +5,16 @@
  * file only needs to know how to *format* the digits, not what the dial
  * codes are.
  *
+ * The field always displays as "+<dial> <national>". To pull out just the
+ * national digits as the user types, we strip the literal "+<dial>" text
+ * prefix from the current value first, THEN extract digits from what's
+ * left -- rather than extracting digits from the whole string and trying
+ * to guess how many belong to the dial code. That guessing is what broke
+ * this the first time: a short number like "415..." combined with a "+1 "
+ * prefix produced garbage like "(111) 415-..." because a same-length
+ * heuristic mis-split the digits. Stripping the actual prefix text first
+ * sidesteps the ambiguity entirely.
+ *
  * US/Canada (shared NANP numbering) get the exact "(555) 555-5555" mask.
  * A handful of other common countries get a reasonable grouped format.
  * Anything else (including "Other / not listed") just gets digits grouped
@@ -68,22 +78,20 @@
       return (opt && opt.getAttribute("data-dial")) || "";
     }
 
-    function extractNational(rawValue) {
-      var digits = digitsOnly(rawValue);
-      var dial = currentDial();
-      if (dial && digits.indexOf(dial) === 0 && digits.length > dial.length) {
-        var rest = digits.slice(dial.length);
-        if (rest.length >= 7) digits = rest;
-      }
-      return digits;
-    }
-
     function reformat() {
-      var digits = extractNational(input.value);
+      var dial = currentDial();
+      var raw = input.value;
+      var prefix = dial ? ("+" + dial) : "";
+      // If the field currently shows our own "+<dial> ..." prefix, only
+      // look at what comes after it for the national digits. If it
+      // doesn't (country was just switched, or the user backspaced into
+      // the prefix), fall back to reading the whole field -- imperfect,
+      // but only affects the rare case of switching country mid-entry.
+      var nationalSource = (prefix && raw.indexOf(prefix) === 0) ? raw.slice(prefix.length) : raw;
+      var digits = digitsOnly(nationalSource);
       var fmt = FORMATTERS[select.value] || groupGeneric;
       var national = fmt(digits);
-      var dial = currentDial();
-      input.value = dial ? "+" + dial + " " + national : national;
+      input.value = dial ? ("+" + dial + " " + national) : national;
     }
 
     input.addEventListener("input", reformat);

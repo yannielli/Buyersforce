@@ -4,6 +4,7 @@ import secrets
 from functools import wraps
 from datetime import datetime, timedelta
 
+import pytz
 from flask import (
     Flask, g, render_template, request, redirect, url_for, session, flash, abort
 )
@@ -71,6 +72,54 @@ PHONE_COUNTRIES = [
     ("PE", "Peru", "51"), ("UY", "Uruguay", "598"),
     ("XX", "Other / not listed", ""),
 ]
+
+
+def _build_world_timezones():
+    """Groups pytz's curated ~430-zone "common_timezones" list by region
+    (the part before the first "/") for a worldwide, DST-safe time zone
+    picker -- using real IANA identifiers (e.g. "America/New_York") rather
+    than the old US-only "Eastern"/"Central"/... labels, which don't mean
+    anything outside the US and had no room to grow as BuyersForce expands.
+    Returns [(region, [(iana_name, display_label), ...]), ...]."""
+    # pytz.common_timezones also includes a few old-style aliases
+    # ("US/Eastern", "Canada/Atlantic", ...) for the same cities that
+    # already appear under "America/..." -- skip those groups so each
+    # zone shows up exactly once instead of twice under different names.
+    alias_regions = {"US", "Canada"}
+    groups = {}
+    standalone = []
+    for tz in sorted(pytz.common_timezones):
+        label = tz.split("/")[-1].replace("_", " ")
+        if "/" in tz:
+            region = tz.split("/", 1)[0]
+            if region in alias_regions:
+                continue
+            groups.setdefault(region, []).append((tz, label))
+        else:
+            standalone.append((tz, label))
+    grouped = [(region, groups[region]) for region in sorted(groups)]
+    if standalone:
+        grouped.append(("Other", standalone))
+    return grouped
+
+
+# [(region, [(iana_name, display_label), ...]), ...] -- see
+# _build_world_timezones. Computed once at import time; pytz's zone data
+# doesn't change without a deploy anyway.
+WORLD_TIMEZONES = _build_world_timezones()
+WORLD_TIMEZONE_CODES = set(pytz.common_timezones)
+
+# Old pre-worldwide values, migrated to real IANA zones by migrate.py's
+# _migrate_legacy_timezones -- kept here only so nothing else has to guess
+# at the mapping if it's ever needed again.
+LEGACY_TIMEZONE_MAP = {
+    "Eastern": "America/New_York",
+    "Central": "America/Chicago",
+    "Mountain": "America/Denver",
+    "Pacific": "America/Los_Angeles",
+    "Alaska": "America/Anchorage",
+    "Hawaii": "Pacific/Honolulu",
+}
 
 # Checked dynamically against the user row rather than tracked with a
 # stored flag, so there's nothing that can drift out of sync. role,
@@ -253,6 +302,8 @@ def signup():
             error = "Personal email doesn't look like a valid email address."
         elif state not in US_STATE_CODES:
             error = "Choose a valid US state."
+        elif timezone not in WORLD_TIMEZONE_CODES:
+            error = "Choose a valid time zone."
         elif not no_linkedin and not linkedin_url:
             error = "LinkedIn is required, or check \"I don't have a LinkedIn account.\""
         elif not no_linkedin and "linkedin.com" not in linkedin_url.lower():
@@ -267,7 +318,7 @@ def signup():
             form_data = request.form.to_dict()
             form_data["no_linkedin"] = no_linkedin
             return render_template(
-                "signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, form_data=form_data,
+                "signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=WORLD_TIMEZONES, form_data=form_data,
             )
 
         dbm.execute(
@@ -280,7 +331,7 @@ def signup():
              state, timezone, linkedin_url, int(no_linkedin)),
         )
         return render_template("signup_pending.html")
-    return render_template("signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, form_data={})
+    return render_template("signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=WORLD_TIMEZONES, form_data={})
 
 
 @app.route("/login", methods=("GET", "POST"))
@@ -434,6 +485,8 @@ def _apply_profile_form(user, form, files=None):
         return "Personal email doesn't look like a valid email address."
     if state not in US_STATE_CODES:
         return "Choose a valid US state."
+    if timezone not in WORLD_TIMEZONE_CODES:
+        return "Choose a valid time zone."
     if work_email != user["email"]:
         taken = dbm.query("SELECT id FROM users WHERE email = ? AND id != ?", (work_email, user["id"]), one=True)
         if taken:
@@ -513,7 +566,7 @@ def complete_profile():
         # and so we're not rendering a stale g.user from before the (failed) update.
         g.user = dbm.query("SELECT * FROM users WHERE id=?", (g.user["id"],), one=True)
     return render_template(
-        "complete_profile.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, user=g.user,
+        "complete_profile.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=WORLD_TIMEZONES, user=g.user,
     )
 
 
@@ -537,7 +590,7 @@ def account():
             (g.user["id"],), one=True,
         )
     return render_template(
-        "account.html", tab=tab, us_states=US_STATES, phone_countries=PHONE_COUNTRIES,
+        "account.html", tab=tab, us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=WORLD_TIMEZONES,
         blocked=blocked, user=g.user, pending_role_request=pending_role_request, show_role_change=True,
     )
 
