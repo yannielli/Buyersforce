@@ -38,11 +38,47 @@ US_STATES = [
 ]
 US_STATE_CODES = {code for code, _ in US_STATES}
 
+# (ISO 3166-1 alpha-2, name, calling code) for the phone-number country
+# picker. Not exhaustive -- covers the countries a B2B tech buyer/seller
+# audience is realistically based in. "XX" is a catch-all for anyone else:
+# no dial code is prefixed and digits are just lightly grouped, so nobody
+# is stuck if their country isn't listed.
+PHONE_COUNTRIES = [
+    ("US", "United States", "1"), ("CA", "Canada", "1"),
+    ("GB", "United Kingdom", "44"), ("IE", "Ireland", "353"),
+    ("AU", "Australia", "61"), ("NZ", "New Zealand", "64"),
+    ("DE", "Germany", "49"), ("FR", "France", "33"), ("IT", "Italy", "39"),
+    ("ES", "Spain", "34"), ("PT", "Portugal", "351"), ("NL", "Netherlands", "31"),
+    ("BE", "Belgium", "32"), ("LU", "Luxembourg", "352"), ("CH", "Switzerland", "41"),
+    ("AT", "Austria", "43"), ("SE", "Sweden", "46"), ("NO", "Norway", "47"),
+    ("DK", "Denmark", "45"), ("FI", "Finland", "358"), ("IS", "Iceland", "354"),
+    ("PL", "Poland", "48"), ("CZ", "Czech Republic", "420"), ("SK", "Slovakia", "421"),
+    ("HU", "Hungary", "36"), ("RO", "Romania", "40"), ("BG", "Bulgaria", "359"),
+    ("GR", "Greece", "30"), ("HR", "Croatia", "385"), ("SI", "Slovenia", "386"),
+    ("EE", "Estonia", "372"), ("LV", "Latvia", "371"), ("LT", "Lithuania", "370"),
+    ("UA", "Ukraine", "380"), ("RU", "Russia", "7"), ("TR", "Turkey", "90"),
+    ("IL", "Israel", "972"), ("AE", "United Arab Emirates", "971"),
+    ("SA", "Saudi Arabia", "966"), ("QA", "Qatar", "974"), ("KW", "Kuwait", "965"),
+    ("BH", "Bahrain", "973"), ("OM", "Oman", "968"), ("EG", "Egypt", "20"),
+    ("ZA", "South Africa", "27"), ("NG", "Nigeria", "234"), ("KE", "Kenya", "254"),
+    ("GH", "Ghana", "233"), ("IN", "India", "91"), ("PK", "Pakistan", "92"),
+    ("BD", "Bangladesh", "880"), ("LK", "Sri Lanka", "94"), ("CN", "China", "86"),
+    ("HK", "Hong Kong", "852"), ("TW", "Taiwan", "886"), ("JP", "Japan", "81"),
+    ("KR", "South Korea", "82"), ("SG", "Singapore", "65"), ("MY", "Malaysia", "60"),
+    ("TH", "Thailand", "66"), ("ID", "Indonesia", "62"), ("PH", "Philippines", "63"),
+    ("VN", "Vietnam", "84"), ("BR", "Brazil", "55"), ("MX", "Mexico", "52"),
+    ("AR", "Argentina", "54"), ("CL", "Chile", "56"), ("CO", "Colombia", "57"),
+    ("PE", "Peru", "51"), ("UY", "Uruguay", "598"),
+    ("XX", "Other / not listed", ""),
+]
+
 # Checked dynamically against the user row rather than tracked with a
 # stored flag, so there's nothing that can drift out of sync. role,
 # company, and email are guaranteed non-blank by the users table itself
 # (set by an admin at invite time), so they aren't re-checked here.
-PROFILE_REQUIRED_FIELDS = ("first_name", "last_name", "personal_email", "phone", "state", "title")
+PROFILE_REQUIRED_FIELDS = (
+    "first_name", "last_name", "personal_email", "phone", "state", "title", "timezone",
+)
 
 # Endpoints reachable even with an incomplete profile: auth/public pages
 # and the completion screen itself. Everything else redirects a buyer or
@@ -51,7 +87,13 @@ PROFILE_EXEMPT_ENDPOINTS = {"static", "landing", "login", "logout", "signup", "a
 
 
 def profile_is_complete(user):
-    return all((user.get(f) or "").strip() for f in PROFILE_REQUIRED_FIELDS)
+    if not all((user.get(f) or "").strip() for f in PROFILE_REQUIRED_FIELDS):
+        return False
+    # LinkedIn is required too, unless they've told us they don't have one --
+    # see the no_linkedin checkbox in _profile_form.html / signup.html.
+    if not user.get("no_linkedin") and not (user.get("linkedin_url") or "").strip():
+        return False
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -184,7 +226,9 @@ def signup():
         work_email = request.form.get("email", "").strip().lower()
         personal_email = request.form.get("personal_email", "").strip().lower()
         phone = request.form.get("phone", "").strip()
+        phone_country = (request.form.get("phone_country", "US").strip().upper() or "US")[:2]
         state = request.form.get("state", "").strip().upper()
+        timezone = request.form.get("timezone", "").strip()
         linkedin_url = request.form.get("linkedin_url", "").strip()
         no_linkedin = request.form.get("no_linkedin") == "on"
         password = request.form.get("password", "")
@@ -201,7 +245,7 @@ def signup():
         if role not in ("buyer", "seller"):
             error = "Choose whether you're a buyer or a seller."
         elif not all((first_name, last_name, company, title, work_email, personal_email,
-                      phone, state, password)):
+                      phone, state, timezone, password)):
             error = "All fields are required."
         elif "@" not in work_email:
             error = "Work email doesn't look like a valid email address."
@@ -222,18 +266,21 @@ def signup():
             flash(error, "error")
             form_data = request.form.to_dict()
             form_data["no_linkedin"] = no_linkedin
-            return render_template("signup.html", us_states=US_STATES, form_data=form_data)
+            return render_template(
+                "signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, form_data=form_data,
+            )
 
         dbm.execute(
             "INSERT INTO users (role, name, first_name, last_name, email, password_hash, company, "
-            "title, personal_email, phone, state, linkedin_url, no_linkedin, account_status) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')",
+            "title, personal_email, phone, phone_country, state, timezone, linkedin_url, no_linkedin, "
+            "account_status) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')",
             (role, f"{first_name} {last_name}", first_name, last_name, work_email,
-             generate_password_hash(password), company, title, personal_email, phone, state,
-             linkedin_url, int(no_linkedin)),
+             generate_password_hash(password), company, title, personal_email, phone, phone_country,
+             state, timezone, linkedin_url, int(no_linkedin)),
         )
         return render_template("signup_pending.html")
-    return render_template("signup.html", us_states=US_STATES, form_data={})
+    return render_template("signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, form_data={})
 
 
 @app.route("/login", methods=("GET", "POST"))
@@ -372,12 +419,15 @@ def _apply_profile_form(user, form, files=None):
     work_email = form.get("email", "").strip().lower()
     personal_email = form.get("personal_email", "").strip().lower()
     phone = form.get("phone", "").strip()
+    phone_country = (form.get("phone_country", "US").strip().upper() or "US")[:2]
     state = form.get("state", "").strip().upper()
     title = form.get("title", "").strip()
     company = form.get("company", "").strip()
+    timezone = form.get("timezone", "").strip()
 
-    if not all((first_name, last_name, work_email, personal_email, phone, state, title, company)):
-        return "First name, last name, company, work email, personal email, phone, job title, and state are all required."
+    if not all((first_name, last_name, work_email, personal_email, phone, state, title, company, timezone)):
+        return ("First name, last name, company, work email, personal email, phone, job title, "
+                "state, and time zone are all required.")
     if "@" not in work_email:
         return "Work email doesn't look like a valid email address."
     if "@" not in personal_email:
@@ -397,8 +447,13 @@ def _apply_profile_form(user, form, files=None):
             "yours). Check the confirmation box below to continue."
         )
 
+    no_linkedin = form.get("no_linkedin") == "on"
     linkedin_url = form.get("linkedin_url", "").strip()
-    if linkedin_url and "linkedin.com" not in linkedin_url.lower():
+    if no_linkedin:
+        linkedin_url = ""
+    elif not linkedin_url:
+        return "LinkedIn is required, or check \"I don't have a LinkedIn account.\""
+    elif "linkedin.com" not in linkedin_url.lower():
         return "That doesn't look like a LinkedIn URL."
 
     photo_data_url, photo_error = _read_uploaded_photo(files)
@@ -411,16 +466,18 @@ def _apply_profile_form(user, form, files=None):
     city = form.get("city", "").strip()
     zip_code = form.get("zip", "").strip()
     secondary_phone = form.get("secondary_phone", "").strip()
-    timezone = form.get("timezone", "").strip()
+    secondary_phone_country = (form.get("secondary_phone_country", "US").strip().upper() or "US")[:2]
     open_to_buy = 1 if (user["role"] == "buyer" and form.get("open_to_buy") == "on") else 0
 
     dbm.execute(
         "UPDATE users SET first_name=?, last_name=?, name=?, email=?, company=?, personal_email=?, "
-        "phone=?, state=?, title=?, address_line1=?, address_line2=?, city=?, zip=?, "
-        "secondary_phone=?, linkedin_url=?, timezone=?, open_to_buy=? WHERE id=?",
+        "phone=?, phone_country=?, state=?, title=?, address_line1=?, address_line2=?, city=?, zip=?, "
+        "secondary_phone=?, secondary_phone_country=?, linkedin_url=?, no_linkedin=?, timezone=?, "
+        "open_to_buy=? WHERE id=?",
         (first_name, last_name, f"{first_name} {last_name}", work_email, company, personal_email,
-         phone, state, title, address_line1, address_line2, city, zip_code, secondary_phone,
-         linkedin_url, timezone, open_to_buy, user["id"]),
+         phone, phone_country, state, title, address_line1, address_line2, city, zip_code,
+         secondary_phone, secondary_phone_country, linkedin_url, int(no_linkedin), timezone,
+         open_to_buy, user["id"]),
     )
     if photo_data_url:
         dbm.execute("UPDATE users SET photo_data_url=? WHERE id=?", (photo_data_url, user["id"]))
@@ -455,7 +512,9 @@ def complete_profile():
         # Re-fetch so the form reflects whatever partial edits are valid,
         # and so we're not rendering a stale g.user from before the (failed) update.
         g.user = dbm.query("SELECT * FROM users WHERE id=?", (g.user["id"],), one=True)
-    return render_template("complete_profile.html", us_states=US_STATES, user=g.user)
+    return render_template(
+        "complete_profile.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, user=g.user,
+    )
 
 
 @app.route("/app/account")
@@ -471,7 +530,16 @@ def account():
             "LEFT JOIN users u ON u.id = b.blocked_user_id WHERE b.buyer_user_id=? ORDER BY b.created_at DESC",
             (g.user["id"],),
         )
-    return render_template("account.html", tab=tab, us_states=US_STATES, blocked=blocked, user=g.user)
+    pending_role_request = None
+    if g.user["role"] in ("buyer", "seller"):
+        pending_role_request = dbm.query(
+            "SELECT * FROM role_change_requests WHERE user_id=? AND status='pending'",
+            (g.user["id"],), one=True,
+        )
+    return render_template(
+        "account.html", tab=tab, us_states=US_STATES, phone_countries=PHONE_COUNTRIES,
+        blocked=blocked, user=g.user, pending_role_request=pending_role_request, show_role_change=True,
+    )
 
 
 @app.route("/app/account/profile", methods=("POST",))
@@ -507,6 +575,29 @@ def account_password():
     else:
         flash(error, "error")
     return redirect(url_for("account", tab="password"))
+
+
+@app.route("/app/account/role-change-request", methods=("POST",))
+@login_required
+def request_role_change():
+    if g.user["role"] not in ("buyer", "seller"):
+        flash("Only buyer and seller accounts can request a role change.", "error")
+        return redirect(url_for("account", tab="profile"))
+    existing = dbm.query(
+        "SELECT id FROM role_change_requests WHERE user_id=? AND status='pending'",
+        (g.user["id"],), one=True,
+    )
+    if existing:
+        flash("You already have a role-change request pending review.", "error")
+        return redirect(url_for("account", tab="profile"))
+    other_role = "seller" if g.user["role"] == "buyer" else "buyer"
+    dbm.execute(
+        "INSERT INTO role_change_requests (user_id, previous_role, requested_role) VALUES (?, ?, ?)",
+        (g.user["id"], g.user["role"], other_role),
+    )
+    log_activity(g.user["id"], f"requested a role change from {g.user['role']} to {other_role}")
+    flash("Request sent -- a BuyersForce admin will review it.", "success")
+    return redirect(url_for("account", tab="profile"))
 
 
 @app.route("/app/account/blocked/add", methods=("POST",))
@@ -567,6 +658,10 @@ def admin_dashboard():
     pending_signups = dbm.query(
         "SELECT * FROM users WHERE account_status = 'pending' ORDER BY created_at DESC"
     )
+    pending_role_changes = dbm.query(
+        "SELECT rcr.*, u.name, u.email, u.title, u.company FROM role_change_requests rcr "
+        "JOIN users u ON u.id = rcr.user_id WHERE rcr.status = 'pending' ORDER BY rcr.created_at DESC"
+    )
     new_invite_link = None
     new_invite_id = request.args.get("new_invite", type=int)
     if new_invite_id:
@@ -575,7 +670,8 @@ def admin_dashboard():
             new_invite_link = url_for("accept_invite", token=inv["token"], _external=True)
     return render_template(
         "admin/dashboard.html", users=users, pending_invites=pending_invites,
-        pending_signups=pending_signups, new_invite_link=new_invite_link,
+        pending_signups=pending_signups, pending_role_changes=pending_role_changes,
+        new_invite_link=new_invite_link,
     )
 
 
@@ -696,6 +792,68 @@ def admin_change_company(user_id):
             dbm.execute("UPDATE vendors SET company_name = ? WHERE id = ?", (new_company, vendor["id"]))
     log_activity(user_id, f"company changed from {user['company']} to {new_company} by admin")
     flash(f"{user['name']}'s company changed to {new_company}.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/app/admin/role-changes/<int:request_id>/approve", methods=("POST",))
+@admin_required
+def admin_approve_role_change(request_id):
+    req = dbm.query(
+        "SELECT * FROM role_change_requests WHERE id=? AND status='pending'", (request_id,), one=True
+    )
+    if not req:
+        abort(404)
+    user = dbm.query("SELECT * FROM users WHERE id=?", (req["user_id"],), one=True)
+    if not user:
+        abort(404)
+
+    dbm.execute("UPDATE users SET role=? WHERE id=?", (req["requested_role"], user["id"]))
+    if req["requested_role"] == "seller":
+        vendor = dbm.query("SELECT id FROM vendors WHERE seller_user_id=?", (user["id"],), one=True)
+        if not vendor:
+            dbm.execute(
+                "INSERT INTO vendors (seller_user_id, company_name, category, tagline, description, "
+                "website, accent, initials) VALUES (?, ?, 'Uncategorized', '', '', '', '#3b82f6', ?)",
+                (user["id"], user["company"],
+                 "".join([w[0] for w in user["company"].split()[:2]]).upper() or "VN"),
+            )
+    # Moving FROM seller deliberately doesn't touch their existing vendor
+    # listing -- deleting it would take its listings/evaluations with it.
+    # It's just no longer reachable from a buyer-role account; clean it up
+    # by hand if it should actually go away.
+
+    resolved_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    dbm.execute(
+        "UPDATE role_change_requests SET status='approved', resolved_at=?, resolved_by=? WHERE id=?",
+        (resolved_at, g.user["id"], request_id),
+    )
+    log_activity(user["id"], f"role changed from {req['previous_role']} to {req['requested_role']} by admin")
+    emailer.send_role_change_decision(
+        user["email"], approved=True, new_role=req["requested_role"],
+        login_url=url_for("login", _external=True),
+    )
+    flash(f"{user['name']}'s account type changed to {req['requested_role']}.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/app/admin/role-changes/<int:request_id>/deny", methods=("POST",))
+@admin_required
+def admin_deny_role_change(request_id):
+    req = dbm.query(
+        "SELECT * FROM role_change_requests WHERE id=? AND status='pending'", (request_id,), one=True
+    )
+    if not req:
+        abort(404)
+    resolved_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    dbm.execute(
+        "UPDATE role_change_requests SET status='denied', resolved_at=?, resolved_by=? WHERE id=?",
+        (resolved_at, g.user["id"], request_id),
+    )
+    log_activity(req["user_id"], "role change request denied by admin")
+    user = dbm.query("SELECT * FROM users WHERE id=?", (req["user_id"],), one=True)
+    if user:
+        emailer.send_role_change_decision(user["email"], approved=False)
+    flash("Request denied.", "success")
     return redirect(url_for("admin_dashboard"))
 
 

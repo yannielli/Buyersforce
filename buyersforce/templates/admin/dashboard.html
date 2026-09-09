@@ -40,6 +40,32 @@
 </div>
 {% endif %}
 
+{% if pending_role_changes %}
+<div class="card" style="border-color:#e0b84a; background:var(--warning-tint); margin-bottom:24px;">
+  <h3 style="font-size:14.5px;">Pending role-change requests ({{ pending_role_changes|length }})</h3>
+  <p style="font-size:13px; margin-bottom:12px;">Someone thinks their account type is wrong and
+    wants a BuyersForce admin to fix it.</p>
+  {% for r in pending_role_changes %}
+  <div class="mock-row">
+    <span>
+      <strong style="font-size:14px;">{{ r.name }}</strong>
+      <span class="badge badge-neutral" style="margin-left:6px;">{{ r.previous_role|capitalize }} → {{ r.requested_role|capitalize }}</span>
+      <div class="hint">{{ r.title }} · {{ r.company }} · {{ r.email }}</div>
+      {% if r.note %}<div class="hint">"{{ r.note }}"</div>{% endif %}
+    </span>
+    <span style="display:flex; gap:6px;">
+      <form method="post" action="{{ url_for('admin_approve_role_change', request_id=r.id) }}">
+        <button class="btn btn-primary btn-sm" type="submit">Approve</button>
+      </form>
+      <form method="post" action="{{ url_for('admin_deny_role_change', request_id=r.id) }}">
+        <button class="btn btn-ghost btn-sm" type="submit">Deny</button>
+      </form>
+    </span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 {% if new_invite_link %}
 <div class="card" style="border-color:var(--brand); background:var(--brand-tint); margin-bottom:24px;">
   <h3 style="font-size:14.5px; color:var(--brand-dark);">Access link ready — send this to them yourself</h3>

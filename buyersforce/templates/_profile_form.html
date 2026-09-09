@@ -1,7 +1,10 @@
 {# Shared profile fields, included inside a multipart <form> by both
    complete_profile.html (mandatory first-completion) and account.html's
    Profile tab (later edits). `user` is the user row to populate from;
-   `us_states` is the (code, name) list. #}
+   `us_states` is the (code, name) list; `phone_countries` is the
+   (iso2, name, dial) list for the phone country pickers. `show_role_change`
+   and `pending_role_request` are only passed from account.html -- see
+   there for why the "request a role change" control only shows up there. #}
 <div class="field" style="display:flex; align-items:center; gap:14px;">
   {% if user.photo_data_url %}
   <img src="{{ user.photo_data_url }}" alt="" style="width:56px; height:56px; border-radius:50%; object-fit:cover;">
@@ -25,6 +28,18 @@
     <label>Account type</label>
     <input type="text" value="{{ user.role|capitalize }}" disabled>
     <p class="hint" style="margin-top:4px;">Only a BuyersForce admin can change this.</p>
+    {% if show_role_change and user.role in ('buyer', 'seller') %}
+      {% if pending_role_request %}
+      <span class="badge badge-warning" style="margin-top:6px; display:inline-block;">
+        Change to {{ pending_role_request.requested_role|capitalize }} requested — pending admin review
+      </span>
+      {% else %}
+      <button type="submit" formaction="{{ url_for('request_role_change') }}" formnovalidate
+              class="btn btn-ghost btn-sm" style="margin-top:6px;">
+        Think this is wrong? Request a change
+      </button>
+      {% endif %}
+    {% endif %}
   </div>
   <div class="field">
     <label for="company">Company *</label>
@@ -74,7 +89,16 @@
 <div class="form-row">
   <div class="field">
     <label for="phone">Phone *</label>
-    <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" required placeholder="(555) 555-5555">
+    <div style="display:flex; gap:8px;">
+      <select id="phone_country" name="phone_country" required style="flex:0 0 auto; max-width:150px;">
+        {% for code, name, dial in phone_countries %}
+        <option value="{{ code }}" data-dial="{{ dial }}" {% if (user.phone_country or 'US') == code %}selected{% endif %}>
+          {{ code }}{% if dial %} +{{ dial }}{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+      <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" required placeholder="(555) 555-5555" style="flex:1;">
+    </div>
   </div>
   <div class="field">
     <label for="state">State *</label>
@@ -86,6 +110,50 @@
     </select>
   </div>
 </div>
+
+<div class="form-row">
+  <div class="field">
+    <label for="timezone">Time zone *</label>
+    <select id="timezone" name="timezone" required>
+      <option value="">Select a time zone…</option>
+      {% for tz in ["Eastern", "Central", "Mountain", "Pacific", "Alaska", "Hawaii"] %}
+      <option value="{{ tz }}" {% if user.timezone == tz %}selected{% endif %}>{{ tz }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="linkedin_url">LinkedIn *</label>
+    <input type="url" id="linkedin_url" name="linkedin_url" value="{{ user.linkedin_url or '' }}"
+           {{ 'required' if not user.no_linkedin }} {{ 'disabled' if user.no_linkedin }}
+           placeholder="https://linkedin.com/in/…">
+    <label style="display:flex; align-items:center; gap:8px; margin-top:6px; font-weight:400; font-size:13px;">
+      <input type="checkbox" id="no_linkedin" name="no_linkedin" {% if user.no_linkedin %}checked{% endif %}>
+      I don't have a LinkedIn account
+    </label>
+  </div>
+</div>
+<script>
+  (function () {
+    var checkbox = document.getElementById("no_linkedin");
+    var field = document.getElementById("linkedin_url");
+    function sync() {
+      if (checkbox.checked) {
+        field.removeAttribute("required");
+        field.setAttribute("disabled", "disabled");
+        field.value = "";
+      } else {
+        field.removeAttribute("disabled");
+        field.setAttribute("required", "required");
+      }
+    }
+    checkbox.addEventListener("change", sync);
+    sync();
+  })();
+  document.addEventListener("DOMContentLoaded", function () {
+    BFPhone.wire("phone", "phone_country");
+    BFPhone.wire("secondary_phone", "secondary_phone_country");
+  });
+</script>
 
 {% if user.role == 'buyer' %}
 <div class="card" style="background:var(--brand-tint); border-color:var(--brand); margin:18px 0;">
@@ -121,23 +189,16 @@
   </div>
 </div>
 
-<div class="form-row">
-  <div class="field">
-    <label for="secondary_phone">Additional phone</label>
-    <input type="tel" id="secondary_phone" name="secondary_phone" value="{{ user.secondary_phone or '' }}">
-  </div>
-  <div class="field">
-    <label for="timezone">Time zone</label>
-    <select id="timezone" name="timezone">
-      <option value="">Not set</option>
-      {% for tz in ["Eastern", "Central", "Mountain", "Pacific", "Alaska", "Hawaii"] %}
-      <option value="{{ tz }}" {% if user.timezone == tz %}selected{% endif %}>{{ tz }}</option>
+<div class="field">
+  <label for="secondary_phone">Additional phone</label>
+  <div style="display:flex; gap:8px;">
+    <select id="secondary_phone_country" name="secondary_phone_country" style="flex:0 0 auto; max-width:150px;">
+      {% for code, name, dial in phone_countries %}
+      <option value="{{ code }}" data-dial="{{ dial }}" {% if (user.secondary_phone_country or 'US') == code %}selected{% endif %}>
+        {{ code }}{% if dial %} +{{ dial }}{% endif %}
+      </option>
       {% endfor %}
     </select>
+    <input type="tel" id="secondary_phone" name="secondary_phone" value="{{ user.secondary_phone or '' }}" style="flex:1;">
   </div>
-</div>
-
-<div class="field">
-  <label for="linkedin_url">LinkedIn</label>
-  <input type="url" id="linkedin_url" name="linkedin_url" value="{{ user.linkedin_url or '' }}" placeholder="https://linkedin.com/in/…">
 </div>

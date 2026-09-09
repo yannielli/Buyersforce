@@ -137,3 +137,25 @@ def send_signup_decision(to_email, approved, login_url=None):
         )
         html = f"<p>{html_lib.escape(text)}</p>"
     return send_email(to_email, subject, text, html=html)
+
+
+def send_role_change_decision(to_email, approved, new_role=None, login_url=None):
+    """Notifies someone who asked to switch between buyer and seller (via
+    the "Request a change" button on Account > Profile) of the outcome,
+    mirroring send_signup_decision."""
+    if approved:
+        subject = "Your BuyersForce account type has been updated"
+        text = f"Your BuyersForce account is now set up as a {new_role}.\n\nLog in here: {login_url}"
+        html = (
+            f"<p>Your BuyersForce account is now set up as a "
+            f"<strong>{html_lib.escape(new_role or '')}</strong>.</p>"
+            f"<p><a href=\"{html_lib.escape(login_url or '')}\">Log in to BuyersForce</a></p>"
+        )
+    else:
+        subject = "Your BuyersForce account type request"
+        text = (
+            "Thanks for letting us know. After review, we're leaving your BuyersForce account "
+            "type as-is for now -- reach out if you'd like to discuss."
+        )
+        html = f"<p>{html_lib.escape(text)}</p>"
+    return send_email(to_email, subject, text, html=html)

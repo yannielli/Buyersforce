@@ -19,6 +19,7 @@ DROP TABLE IF EXISTS invites CASCADE;
 DROP TABLE IF EXISTS contacts CASCADE;
 DROP TABLE IF EXISTS thread_reads CASCADE;
 DROP TABLE IF EXISTS blocked_vendors CASCADE;
+DROP TABLE IF EXISTS role_change_requests CASCADE;
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -38,12 +39,14 @@ CREATE TABLE users (
     last_name TEXT,
     personal_email TEXT,
     phone TEXT,
+    phone_country TEXT NOT NULL DEFAULT 'US',
     state TEXT,
     address_line1 TEXT,
     address_line2 TEXT,
     city TEXT,
     zip TEXT,
     secondary_phone TEXT,
+    secondary_phone_country TEXT,
     linkedin_url TEXT,
     no_linkedin INTEGER NOT NULL DEFAULT 0,
     timezone TEXT,
@@ -67,6 +70,25 @@ CREATE TABLE blocked_vendors (
 CREATE UNIQUE INDEX blocked_vendors_buyer_user_uniq
 ON blocked_vendors (buyer_user_id, blocked_user_id)
 WHERE blocked_user_id IS NOT NULL;
+
+-- A buyer or seller who thinks their account type is wrong (e.g. picked
+-- the wrong option at signup) can ask a BF admin to flip it, rather than
+-- being able to change it themselves -- role stays admin-controlled. See
+-- migrate.py's _add_phone_country_and_role_requests for details.
+CREATE TABLE role_change_requests (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    previous_role TEXT NOT NULL,
+    requested_role TEXT NOT NULL,
+    note TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'denied')),
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+    resolved_at TEXT,
+    resolved_by INTEGER REFERENCES users(id)
+);
+CREATE UNIQUE INDEX role_change_requests_one_pending_uniq
+ON role_change_requests (user_id)
+WHERE status = 'pending';
 
 -- Invite-only access control. An admin creates an invite for an email address;
 -- the recipient uses the link to set their own password and activate the

@@ -31,6 +31,7 @@ def run_migrations():
             _add_blocked_vendors_table(cur)
             _add_account_status_and_photo(cur)
             _backfill_demo_profiles(cur)
+            _add_phone_country_and_role_requests(cur)
     finally:
         con.close()
 
@@ -271,6 +272,42 @@ def _backfill_demo_profiles(cur):
             """,
             (personal_email, phone, state, timezone, email),
         )
+
+
+def _add_phone_country_and_role_requests(cur):
+    # Phone numbers now carry which country's dial code/format they use
+    # (defaults to 'US' since that's been the only shape phone numbers have
+    # taken so far -- existing rows are all US, correctly left alone by
+    # this default). Also adds a lightweight approval queue for a buyer or
+    # seller who thinks their account type is wrong and wants a BF admin to
+    # fix it -- role itself stays admin-only to change directly.
+    for ddl in (
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_country TEXT NOT NULL DEFAULT 'US'",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS secondary_phone_country TEXT",
+    ):
+        cur.execute(ddl)
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS role_change_requests (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            previous_role TEXT NOT NULL,
+            requested_role TEXT NOT NULL,
+            note TEXT,
+            status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'denied')),
+            created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+            resolved_at TEXT,
+            resolved_by INTEGER REFERENCES users(id)
+        )
+        """
+    )
+    cur.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS role_change_requests_one_pending_uniq
+        ON role_change_requests (user_id)
+        WHERE status = 'pending'
+        """
+    )
 
 
 if __name__ == "__main__":

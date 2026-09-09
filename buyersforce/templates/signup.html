@@ -58,7 +58,16 @@
       <div class="form-row">
         <div class="field">
           <label for="phone">Phone *</label>
-          <input type="tel" id="phone" name="phone" required value="{{ form_data.phone or '' }}" placeholder="(555) 555-5555">
+          <div style="display:flex; gap:8px;">
+            <select id="phone_country" name="phone_country" required style="flex:0 0 auto; max-width:150px;">
+              {% for code, name, dial in phone_countries %}
+              <option value="{{ code }}" data-dial="{{ dial }}" {% if (form_data.phone_country or 'US') == code %}selected{% endif %}>
+                {{ code }}{% if dial %} +{{ dial }}{% endif %}
+              </option>
+              {% endfor %}
+            </select>
+            <input type="tel" id="phone" name="phone" required value="{{ form_data.phone or '' }}" placeholder="(555) 555-5555" style="flex:1;">
+          </div>
         </div>
         <div class="field">
           <label for="state">State *</label>
@@ -70,6 +79,22 @@
           </select>
         </div>
       </div>
+
+      <div class="field">
+        <label for="timezone">Time zone *</label>
+        <select id="timezone" name="timezone" required>
+          <option value="">Select a time zone…</option>
+          {% for tz in ["Eastern", "Central", "Mountain", "Pacific", "Alaska", "Hawaii"] %}
+          <option value="{{ tz }}" {% if form_data.timezone == tz %}selected{% endif %}>{{ tz }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <script>
+        document.addEventListener("DOMContentLoaded", function () {
+          BFPhone.wire("phone", "phone_country");
+        });
+      </script>
 
       <div class="field">
         <label for="linkedin_url">LinkedIn profile *</label>
