@@ -2741,5 +2741,16 @@
     "company_size": "5001-10000",
     "source": "momentum-cyber",
     "wiki_logo_url": null
+  },
+  {
+    "name": "Tines",
+    "categories": [
+      "SIEM/SOAR/XDR"
+    ],
+    "description": "A no-code security workflow automation (SOAR) platform that lets security and IT teams build automated response and remediation workflows across their existing tools, with built-in AI guardrails.",
+    "website": "https://www.tines.com/",
+    "company_size": "201-500",
+    "source": "manual (Kevin, Sept 2026)",
+    "wiki_logo_url": null
   }
 ]
