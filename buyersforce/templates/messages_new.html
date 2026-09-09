@@ -10,7 +10,11 @@
   {% if selected %}
     <div class="recipient-chip">
       {% if selected.kind == 'user' %}
+        {% if selected.user.photo_data_url %}
+        <img src="{{ selected.user.photo_data_url }}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
+        {% else %}
         <span class="vendor-logo" style="background:var(--brand); width:34px;height:34px;font-size:13px;">{{ selected.user.name[0] }}</span>
+        {% endif %}
         <div>
           <strong>{{ selected.user.name }}</strong>
           <div class="hint">{{ selected.user.role|capitalize }} · {{ selected.user.company }}</div>
@@ -51,7 +55,11 @@
       <div class="thread-list" style="margin-top:16px;">
         {% for r in results %}
         <a class="thread-row" href="{{ url_for('messages_new', to=r.user_id) if r.user_id else url_for('messages_new', email=r.email) }}">
+          {% if r.photo %}
+          <img src="{{ r.photo }}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
+          {% else %}
           <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:13px;">{{ (r.name or '?')[0]|upper }}</span>
+          {% endif %}
           <div style="flex:1; min-width:0;">
             <strong style="font-size:14px;">{{ r.name }}</strong>
             <div class="snippet">

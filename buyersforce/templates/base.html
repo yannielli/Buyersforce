@@ -42,7 +42,11 @@
             <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">Admin</a>
           {% endif %}
           <span class="user-chip">
-            <span class="user-avatar">{{ g.user.name[0] }}</span>
+            {% if g.user.photo_data_url %}
+          <img src="{{ g.user.photo_data_url }}" alt="" class="user-avatar" style="object-fit:cover;">
+          {% else %}
+          <span class="user-avatar">{{ g.user.name[0] }}</span>
+          {% endif %}
             <span class="user-meta">
               <span class="user-name">{{ g.user.name }}</span>
               <span class="user-company">{{ g.user.company }}</span>

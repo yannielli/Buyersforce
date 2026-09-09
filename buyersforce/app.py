@@ -1003,7 +1003,8 @@ def search_recipients(user, q):
     seen_user_ids = set()
 
     contact_rows = dbm.query(
-        "SELECT c.*, u.name u_name, u.company u_company, u.role u_role, u.email u_email "
+        "SELECT c.*, u.name u_name, u.company u_company, u.role u_role, u.email u_email, "
+        "u.photo_data_url u_photo "
         "FROM contacts c LEFT JOIN users u ON u.id = c.contact_user_id "
         "WHERE c.owner_user_id = ? ORDER BY COALESCE(u.name, c.external_name)",
         (user["id"],),
@@ -1011,15 +1012,17 @@ def search_recipients(user, q):
     needle = q.lower().strip()
     for c in contact_rows:
         if c["contact_user_id"]:
-            name, company, role, email = c["u_name"], c["u_company"], c["u_role"], c["u_email"]
+            name, company, role, email, photo = c["u_name"], c["u_company"], c["u_role"], c["u_email"], c["u_photo"]
         else:
-            name, company, role, email = c["external_name"] or c["external_email"], "", None, c["external_email"]
+            name, company, role, email, photo = (
+                c["external_name"] or c["external_email"], "", None, c["external_email"], None,
+            )
         if needle and needle not in (name or "").lower() and needle not in (company or "").lower() \
                 and needle not in (email or "").lower():
             continue
         results.append({
             "source": "contact", "user_id": c["contact_user_id"], "name": name,
-            "company": company, "role": role, "email": email,
+            "company": company, "role": role, "email": email, "photo": photo,
         })
         if c["contact_user_id"]:
             seen_user_ids.add(c["contact_user_id"])
@@ -1047,6 +1050,7 @@ def search_recipients(user, q):
             results.append({
                 "source": "directory", "user_id": r["id"], "name": r["name"],
                 "company": r["company"], "role": r["role"], "email": r["email"],
+                "photo": r["photo_data_url"],
             })
 
     if user["role"] == "seller":
@@ -1975,7 +1979,7 @@ def seller_leads_sync(lead_user_id):
 def seller_messages():
     vendor = seller_vendor(g.user)
     threads = dbm.query(
-        "SELECT t.*, u.name buyer_name, u.company buyer_company, "
+        "SELECT t.*, u.name buyer_name, u.company buyer_company, u.photo_data_url buyer_photo, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC LIMIT 1) last_at "
         "FROM threads t JOIN users u ON u.id = t.buyer_user_id "

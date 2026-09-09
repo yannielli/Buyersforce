@@ -15,7 +15,11 @@
   {% for t in direct_threads %}
   <a class="thread-row" href="{{ url_for('seller_thread', thread_id=t.id) }}">
     {% if t.kind == 'direct' %}
+    {% if t.other_user.photo_data_url %}
+    <img src="{{ t.other_user.photo_data_url }}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
+    {% else %}
     <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:13px;">{{ t.other_user.name[0] }}</span>
+    {% endif %}
     <div style="flex:1; min-width:0;">
       <strong style="font-size:14px;">{{ t.other_user.name }}</strong> <span class="hint">· {{ t.other_user.company }}</span>
       <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
@@ -39,7 +43,11 @@
 <div class="thread-list">
   {% for t in threads %}
   <a class="thread-row" href="{{ url_for('seller_thread', thread_id=t.id) }}">
+    {% if t.buyer_photo %}
+    <img src="{{ t.buyer_photo }}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
+    {% else %}
     <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:13px;">{{ t.buyer_name[0] }}</span>
+    {% endif %}
     <div style="flex:1; min-width:0;">
       <strong style="font-size:14px;">{{ t.buyer_name }}</strong> <span class="hint">· {{ t.buyer_company }}</span>
       <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
