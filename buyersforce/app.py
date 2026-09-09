@@ -2086,8 +2086,20 @@ def buyer_shortlist_toggle(vendor_id):
 @app.route("/app/buyer/compare")
 @role_required("buyer")
 def buyer_compare():
-    ids = [int(i) for i in request.args.get("ids", "").split(",") if i.strip().isdigit()]
-    ids = ids[:3]
+    # Discover's checkboxes are all named "ids" and a GET form submits
+    # repeated same-name checkboxes as separate query params (?ids=5&ids=12),
+    # NOT a single comma-joined value -- request.args.get("ids") would silently
+    # grab only the first one. getlist() picks up every checked vendor; the
+    # inner split(",") also keeps this page's own "Back to discover" style
+    # comma-joined reload link (?ids=5,12) working.
+    raw_ids = request.args.getlist("ids")
+    ids = []
+    for raw in raw_ids:
+        for part in raw.split(","):
+            part = part.strip()
+            if part.isdigit():
+                ids.append(int(part))
+    ids = list(dict.fromkeys(ids))[:3]
     vendors = []
     for vid in ids:
         v = dbm.query("SELECT * FROM vendors WHERE id=?", (vid,), one=True)
