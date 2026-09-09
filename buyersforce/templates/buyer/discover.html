@@ -17,6 +17,7 @@
 </div>
 
 <form class="toolbar" method="get" id="discover-form">
+  <input type="hidden" name="letter" id="letterInput" value="{{ letter }}">
   <input type="text" name="q" value="{{ q }}" placeholder="Search by name, description, or location…">
   <select name="company_size" onchange="this.form.submit()">
     <option value="">Any company size</option>
@@ -57,11 +58,18 @@
   </div>
   <div class="filter-actions">
     <button class="btn btn-primary btn-sm" type="submit" form="discover-form">Apply filters</button>
-    {% if selected_segments or company_size or q %}
+    {% if selected_segments or company_size or q or letter %}
     <a class="btn btn-secondary btn-sm" href="{{ url_for('buyer_discover') }}">Clear all</a>
     {% endif %}
   </div>
 </details>
+
+<div class="letter-jump" role="group" aria-label="Jump to vendors by first letter">
+  <button type="button" class="jump-letter-btn{{ ' active' if not letter }}" data-letter="">All</button>
+  {% for l in jump_letters %}
+  <button type="button" class="jump-letter-btn{{ ' active' if l == letter }}" data-letter="{{ l }}">{{ l }}</button>
+  {% endfor %}
+</div>
 
 <form id="compare-form" action="{{ url_for('buyer_compare') }}" method="get">
   <div class="vendor-grid">
@@ -100,4 +108,32 @@
   </div>
   {% endif %}
 </form>
+
+<button id="backToTop" class="back-to-top" type="button" aria-label="Back to top" title="Back to top">&uarr;</button>
+
+<script>
+(function () {
+  var letterInput = document.getElementById('letterInput');
+  var discoverForm = document.getElementById('discover-form');
+  document.querySelectorAll('.jump-letter-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var val = btn.getAttribute('data-letter') || '';
+      if (val && val === letterInput.value) { val = ''; } // click active letter again to clear
+      letterInput.value = val;
+      discoverForm.submit();
+    });
+  });
+
+  var backToTop = document.getElementById('backToTop');
+  function onScroll() {
+    if (window.scrollY > 400) backToTop.classList.add('visible');
+    else backToTop.classList.remove('visible');
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  backToTop.addEventListener('click', function () {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  onScroll();
+})();
+</script>
 {% endblock %}

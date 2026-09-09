@@ -374,6 +374,35 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 
 .vendor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 @media (max-width: 900px) { .vendor-grid { grid-template-columns: 1fr; } }
+
+/* Jump-to-letter strip above the vendor grid on Discover -- lets a buyer
+   snap straight to companies starting with a given letter instead of
+   scrolling/searching, especially as the directory grows. */
+.letter-jump { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 18px; }
+.letter-jump button {
+  min-width: 28px; height: 28px; padding: 0 6px; border-radius: var(--radius-sm);
+  border: 1px solid var(--gridline); background: var(--surface-raised);
+  color: var(--ink-secondary); font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.letter-jump button:hover { border-color: var(--brand); color: var(--brand-dark); }
+.letter-jump button.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+.letter-jump button:disabled { opacity: 0.35; cursor: default; }
+.letter-jump button:disabled:hover { border-color: var(--gridline); color: var(--ink-secondary); }
+
+/* Floating "back to top" control -- shown once the page has scrolled down a
+   bit, most useful once the vendor list runs into the hundreds/thousands. */
+.back-to-top {
+  position: fixed; right: 22px; bottom: 22px; width: 44px; height: 44px;
+  border-radius: 50%; border: 1px solid var(--gridline); background: var(--surface-raised);
+  color: var(--brand-dark); font-size: 18px; line-height: 1; cursor: pointer;
+  box-shadow: var(--shadow-md); display: flex; align-items: center; justify-content: center;
+  opacity: 0; visibility: hidden; transform: translateY(8px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+  z-index: 40;
+}
+.back-to-top.visible { opacity: 1; visibility: visible; transform: translateY(0); }
+.back-to-top:hover { border-color: var(--brand); color: var(--brand); }
+
 .vendor-card {
   background: var(--surface-raised); border: 1px solid var(--gridline); border-radius: var(--radius-md);
   padding: 20px; display: flex; flex-direction: column; gap: 12px;

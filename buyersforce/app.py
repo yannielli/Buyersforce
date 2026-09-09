@@ -207,6 +207,11 @@ DISCOVER_SORT_OPTIONS = [
 ]
 DISCOVER_SORT_KEYS = {key for key, _label in DISCOVER_SORT_OPTIONS}
 
+# Jump-to-letter strip on Discover -- "#" buckets any company name that
+# doesn't start with A-Z (a digit or symbol), so every vendor always has a
+# bucket even before the taxonomy grows.
+DISCOVER_JUMP_LETTERS = ["#"] + [chr(c) for c in range(ord("A"), ord("Z") + 1)]
+
 
 def vendor_favicon_url(website):
     """Best-effort logo image for a vendor card, derived from their
@@ -1903,6 +1908,15 @@ def buyer_discover():
     if company_size:
         sql += " AND company_size = ?"
         args.append(company_size)
+    letter = request.args.get("letter", "").strip().upper()[:1]
+    if letter and letter not in DISCOVER_JUMP_LETTERS:
+        letter = ""
+    if letter == "#":
+        # No leading A-Z letter -- Postgres regex, case-insensitive.
+        sql += " AND company_name !~* '^[a-z]'"
+    elif letter:
+        sql += " AND company_name ILIKE ?"
+        args.append(letter + "%")
     sort = request.args.get("sort", "name_asc")
     if sort not in DISCOVER_SORT_KEYS:
         sort = "name_asc"
@@ -1944,6 +1958,8 @@ def buyer_discover():
         company_size=company_size,
         sort_options=DISCOVER_SORT_OPTIONS,
         sort=sort,
+        jump_letters=DISCOVER_JUMP_LETTERS,
+        letter=letter,
     )
 
 
