@@ -66,6 +66,33 @@
 </div>
 {% endif %}
 
+{% if open_support_requests %}
+<div class="card" style="border-color:#e0b84a; background:var(--warning-tint); margin-bottom:24px;">
+  <h3 style="font-size:14.5px;">Support requests ({{ open_support_requests|length }})</h3>
+  <p style="font-size:13px; margin-bottom:12px;">Tech support, bug reports, and feature ideas from
+    users, in one place. Reply from the conversation link below.</p>
+  {% for r in open_support_requests %}
+  <div class="mock-row">
+    <span>
+      <strong style="font-size:14px;">{{ r.requester_name }}</strong>
+      <span class="badge badge-neutral" style="margin-left:6px;">{{ r.requester_role|capitalize }}</span>
+      <span class="badge badge-brand" style="margin-left:4px;">{{ support_category_labels[r.category] }}</span>
+      <span class="badge {{ 'badge-good' if r.status == 'in_progress' else 'badge-warning' }}" style="margin-left:4px;">{{ r.status.replace('_', ' ')|capitalize }}</span>
+      <div class="hint">{{ r.requester_company }} · {{ r.created_at|fmt_time }}</div>
+      <div class="snippet">{{ r.notes }}</div>
+    </span>
+    <span style="display:flex; gap:6px; align-items:flex-start;">
+      <a class="btn btn-primary btn-sm" href="{{ url_for('admin_thread', thread_id=r.thread_id) }}">Reply</a>
+      <form method="post" action="{{ url_for('admin_support_status', request_id=r.id) }}">
+        <input type="hidden" name="status" value="resolved">
+        <button class="btn btn-ghost btn-sm" type="submit">Mark resolved</button>
+      </form>
+    </span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 {% if new_invite_link %}
 <div class="card" style="border-color:var(--brand); background:var(--brand-tint); margin-bottom:24px;">
   <h3 style="font-size:14.5px; color:var(--brand-dark);">Access link ready — send this to them yourself</h3>

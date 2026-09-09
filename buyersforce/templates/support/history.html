@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Your support requests{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">We're here to help</span>
+    <h1>Your support requests</h1>
+    <p class="lede">Every request you've sent, and where it stands. Reply in the conversation to
+      add more detail or follow up.</p>
+  </div>
+  <a href="{{ url_for('support_new') }}" class="btn btn-primary">+ New request</a>
+</div>
+
+<div class="thread-list">
+  {% for r in requests %}
+  <a class="thread-row" href="{{ url_for('buyer_thread' if g.user.role == 'buyer' else ('seller_thread' if g.user.role == 'seller' else 'admin_thread'), thread_id=r.thread_id) }}">
+    <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:14px;">
+      {{ '🛠' if r.category == 'tech_support' else ('🐛' if r.category == 'bug_report' else '💡') }}
+    </span>
+    <div style="flex:1; min-width:0;">
+      <strong style="font-size:14px;">{{ category_labels[r.category] }}</strong>
+      <span class="badge {{ 'badge-good' if r.status == 'resolved' else ('badge-brand' if r.status == 'in_progress' else 'badge-neutral') }}" style="margin-left:6px;">
+        {{ r.status.replace('_', ' ')|capitalize }}
+      </span>
+      <div class="snippet">{{ r.notes }}</div>
+    </div>
+    <span class="hint">{{ r.created_at|fmt_time }}</span>
+  </a>
+  {% else %}
+  <div class="card empty-state"><div class="icon">🛟</div>No support requests yet.</div>
+  {% endfor %}
+</div>
+{% endblock %}

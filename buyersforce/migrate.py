@@ -40,6 +40,7 @@ def run_migrations():
             _seed_vendor_directory(cur)
             _add_vendor_wiki_logo_column(cur)
             _backfill_vendor_wiki_logos(cur)
+            _add_support_requests_table(cur)
     finally:
         con.close()
 
@@ -484,6 +485,27 @@ def _backfill_vendor_wiki_logos(cur):
             "AND (wiki_logo_url IS NULL OR wiki_logo_url = '')",
             (wiki_logo_url, name),
         )
+
+
+def _add_support_requests_table(cur):
+    # A user's request for tech support, a bug report, or a feature idea.
+    # The actual conversation happens over the regular messaging system
+    # (thread_id points at a 'direct' thread with the admin account) -- this
+    # table just gives the admin dashboard a structured category/status view
+    # to triage from, without scanning every direct-message thread.
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS support_requests (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            category TEXT NOT NULL CHECK (category IN ('tech_support', 'bug_report', 'feature_request')),
+            notes TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved')),
+            thread_id INTEGER REFERENCES threads(id),
+            created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+        )
+        """
+    )
 
 
 if __name__ == "__main__":

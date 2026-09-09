@@ -163,6 +163,17 @@ COMPANY_SIZE_BANDS = [
 ]
 
 
+# Support request categories -- shown as a select on the Support page and
+# used to badge/filter requests on the admin side. Values are stored on
+# support_requests.category; labels are what the user sees.
+SUPPORT_CATEGORIES = [
+    ("tech_support", "Technical support"),
+    ("bug_report", "Report a bug or issue"),
+    ("feature_request", "Feature enhancement request"),
+]
+SUPPORT_CATEGORY_LABELS = dict(SUPPORT_CATEGORIES)
+
+
 def vendor_favicon_url(website):
     """Best-effort logo image for a vendor card, derived from their
     website via Google's public favicon service -- no API key or account
@@ -286,6 +297,14 @@ def home_for_role(role):
     if role == "admin":
         return url_for("admin_dashboard")
     return url_for("buyer_dashboard" if role == "buyer" else "seller_dashboard")
+
+
+def get_admin_user():
+    """The BuyersForce admin account that support requests (and, in the
+    future, listing-claim approvals) route to. There's exactly one today
+    (Kevin) -- SELECT ... LIMIT 1 rather than hardcoding the id so this
+    keeps working if a second admin is ever seeded."""
+    return dbm.query("SELECT * FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1", one=True)
 
 
 def log_activity(user_id, verb, detail=""):
@@ -778,6 +797,11 @@ def admin_dashboard():
         "SELECT rcr.*, u.name, u.email, u.title, u.company FROM role_change_requests rcr "
         "JOIN users u ON u.id = rcr.user_id WHERE rcr.status = 'pending' ORDER BY rcr.created_at DESC"
     )
+    open_support_requests = dbm.query(
+        "SELECT sr.*, u.name requester_name, u.company requester_company, u.role requester_role "
+        "FROM support_requests sr JOIN users u ON u.id = sr.user_id "
+        "WHERE sr.status != 'resolved' ORDER BY sr.created_at DESC"
+    )
     new_invite_link = None
     new_invite_id = request.args.get("new_invite", type=int)
     if new_invite_id:
@@ -787,6 +811,7 @@ def admin_dashboard():
     return render_template(
         "admin/dashboard.html", users=users, pending_invites=pending_invites,
         pending_signups=pending_signups, pending_role_changes=pending_role_changes,
+        open_support_requests=open_support_requests, support_category_labels=SUPPORT_CATEGORY_LABELS,
         new_invite_link=new_invite_link,
     )
 
@@ -1388,6 +1413,115 @@ def messages_start():
         return redirect(url_for(thread_endpoint, thread_id=thread["id"]))
 
     abort(400)
+
+
+# ---------------------------------------------------------------------------
+# Support -- available to every signed-in role. Submitting a request opens
+# (or reuses) a direct message thread with the BuyersForce admin account, so
+# the whole back-and-forth lives in the same Messages system everyone
+# already uses -- there's no separate support inbox to check.
+# ---------------------------------------------------------------------------
+
+@app.route("/app/support", methods=("GET", "POST"))
+@login_required
+def support_new():
+    if request.method == "POST":
+        category = request.form.get("category", "")
+        notes = request.form.get("notes", "").strip()
+        valid_categories = {key for key, _label in SUPPORT_CATEGORIES}
+        if category not in valid_categories:
+            flash("Choose a category for your request.", "error")
+            return redirect(url_for("support_new"))
+        if not notes:
+            flash("Add a few details before sending your request.", "error")
+            return redirect(url_for("support_new"))
+
+        admin = get_admin_user()
+        if not admin:
+            flash("Support isn't set up yet — there's no BuyersForce admin account to reach.", "error")
+            return redirect(url_for("support_new"))
+
+        label = SUPPORT_CATEGORY_LABELS[category]
+        thread = get_or_create_direct_thread(g.user["id"], admin["id"])
+        ensure_contact(g.user["id"], contact_user_id=admin["id"])
+        ensure_contact(admin["id"], contact_user_id=g.user["id"])
+
+        # Auto-captured, not asked for -- gives whoever's troubleshooting a
+        # head start on tech-support requests without adding a form field.
+        user_agent = request.headers.get("User-Agent", "").strip()
+        context_line = f"\n\n— Browser: {user_agent}" if user_agent else ""
+        dbm.execute(
+            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
+            (thread["id"], g.user["id"], f"New {label.lower()} request:\n\n{notes}{context_line}"),
+        )
+        dbm.execute(
+            "INSERT INTO support_requests (user_id, category, notes, thread_id) VALUES (?, ?, ?, ?)",
+            (g.user["id"], category, notes, thread["id"]),
+        )
+        log_activity(g.user["id"], f"submitted a support request ({label})")
+        flash("Your request has been sent — reply here any time to keep the conversation going.", "success")
+
+        if g.user["role"] == "buyer":
+            return redirect(url_for("buyer_thread", thread_id=thread["id"]))
+        if g.user["role"] == "seller":
+            return redirect(url_for("seller_thread", thread_id=thread["id"]))
+        return redirect(url_for("admin_thread", thread_id=thread["id"]))
+
+    return render_template("support/new.html", categories=SUPPORT_CATEGORIES)
+
+
+@app.route("/app/support/history")
+@login_required
+def support_history():
+    requests_ = dbm.query(
+        "SELECT * FROM support_requests WHERE user_id = ? ORDER BY created_at DESC",
+        (g.user["id"],),
+    )
+    return render_template(
+        "support/history.html", requests=requests_, category_labels=SUPPORT_CATEGORY_LABELS
+    )
+
+
+@app.route("/app/admin/support/<int:request_id>/status", methods=("POST",))
+@admin_required
+def admin_support_status(request_id):
+    req = dbm.query("SELECT * FROM support_requests WHERE id=?", (request_id,), one=True)
+    if not req:
+        abort(404)
+    status = request.form.get("status", "")
+    if status not in ("open", "in_progress", "resolved"):
+        abort(400)
+    dbm.execute("UPDATE support_requests SET status=? WHERE id=?", (status, request_id))
+    flash("Support request updated.", "success")
+    return redirect(request.form.get("next") or url_for("admin_dashboard"))
+
+
+@app.route("/app/admin/messages/<int:thread_id>", methods=("GET", "POST"))
+@admin_required
+def admin_thread(thread_id):
+    thread = _load_thread_for_user(thread_id, g.user)
+    if request.method == "POST":
+        body = request.form.get("body", "").strip()
+        if body:
+            dbm.execute(
+                "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
+                (thread_id, g.user["id"], body),
+            )
+        return redirect(url_for("admin_thread", thread_id=thread_id))
+    messages = dbm.query(
+        "SELECT m.*, u.name sender_name, u.role sender_role FROM messages m "
+        "JOIN users u ON u.id = m.sender_user_id WHERE thread_id=? ORDER BY m.created_at",
+        (thread_id,),
+    )
+    mark_thread_read(g.user["id"], thread_id)
+    info = thread_display_info(thread, g.user)
+    support_request = dbm.query(
+        "SELECT * FROM support_requests WHERE thread_id = ?", (thread_id,), one=True
+    )
+    return render_template(
+        "admin/thread.html", thread=thread, messages=messages, info=info,
+        support_request=support_request, category_labels=SUPPORT_CATEGORY_LABELS,
+    )
 
 
 def vendor_tags(vendor_id):

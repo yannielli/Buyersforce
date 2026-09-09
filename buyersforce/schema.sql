@@ -21,6 +21,7 @@ DROP TABLE IF EXISTS thread_reads CASCADE;
 DROP TABLE IF EXISTS blocked_vendors CASCADE;
 DROP TABLE IF EXISTS role_change_requests CASCADE;
 DROP TABLE IF EXISTS vendor_segments CASCADE;
+DROP TABLE IF EXISTS support_requests CASCADE;
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -204,6 +205,21 @@ CREATE TABLE threads (
     pending_email_sent_at TEXT,
     subject TEXT NOT NULL DEFAULT '',
     created_by INTEGER NOT NULL REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+);
+
+-- A user's request for tech support, a bug report, or a feature idea. The
+-- actual back-and-forth happens over the regular messaging system (see
+-- thread_id, a 'direct' thread with the admin account) -- this table exists
+-- so the admin dashboard can list, badge, and triage requests by category
+-- and status without scanning every direct-message thread.
+CREATE TABLE support_requests (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    category TEXT NOT NULL CHECK (category IN ('tech_support', 'bug_report', 'feature_request')),
+    notes TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved')),
+    thread_id INTEGER REFERENCES threads(id),
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
 );
 
