@@ -174,6 +174,40 @@ SUPPORT_CATEGORIES = [
 SUPPORT_CATEGORY_LABELS = dict(SUPPORT_CATEGORIES)
 
 
+# BuyersForce is meant to eventually cover more than cybersecurity (see
+# vendors.technology_category) -- this is the top-level filter shown ahead
+# of the segment picker on Discover. Only "cybersecurity" is real/selectable
+# today; PLACEHOLDER_TECHNOLOGY_CATEGORIES are shown disabled in the select
+# so the space is visibly reserved without inventing a taxonomy that isn't
+# built out yet.
+TECHNOLOGY_CATEGORIES = [
+    ("cybersecurity", "Cybersecurity"),
+]
+PLACEHOLDER_TECHNOLOGY_CATEGORIES = [
+    "Cloud & Infrastructure", "Data & Analytics", "Sales & Marketing Tech", "IT Operations",
+]
+
+# Vendor-directory listing requests -- see the vendor_requests table.
+VENDOR_REQUEST_KIND_LABELS = {
+    "buyer_referral": "Buyer suggestion",
+    "seller_signup": "Vendor self-listing",
+}
+
+
+# Discover-page sort options -- "alphabetically" (company name) or
+# "numerically" (company size band / founded year) so buyers can jump
+# straight to a vendor while scanning a long, filtered list.
+DISCOVER_SORT_OPTIONS = [
+    ("name_asc", "Name (A-Z)"),
+    ("name_desc", "Name (Z-A)"),
+    ("size_desc", "Company size (largest first)"),
+    ("size_asc", "Company size (smallest first)"),
+    ("founded_desc", "Founded year (newest first)"),
+    ("founded_asc", "Founded year (oldest first)"),
+]
+DISCOVER_SORT_KEYS = {key for key, _label in DISCOVER_SORT_OPTIONS}
+
+
 def vendor_favicon_url(website):
     """Best-effort logo image for a vendor card, derived from their
     website via Google's public favicon service -- no API key or account
@@ -414,6 +448,73 @@ def signup():
         )
         return render_template("signup_pending.html")
     return render_template("signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=WORLD_TIMEZONES, form_data={})
+
+
+@app.route("/join-as-vendor", methods=("GET", "POST"))
+def vendor_signup():
+    """Public, no-login-required: how a vendor who isn't a BuyersForce
+    member yet -- and so can't reach the buyer-only Discover page or its
+    "suggest a vendor" form -- gets their own company listed. Reachable
+    from the landing page's Sellers section and from a link on Discover's
+    "Don't see a company here?" box. Approving the resulting vendor_requests
+    row (see admin_vendor_request_decide) is what actually creates their
+    seller account and vendor listing."""
+    if request.method == "POST":
+        company_name = request.form.get("company_name", "").strip()
+        website = request.form.get("website", "").strip()
+        contact_name = request.form.get("contact_name", "").strip()
+        contact_title = request.form.get("contact_title", "").strip()
+        contact_email = request.form.get("contact_email", "").strip().lower()
+        contact_phone = request.form.get("contact_phone", "").strip()
+        if not all((company_name, website, contact_name, contact_title, contact_email, contact_phone)):
+            flash(
+                "Company name, website, and your name/title/email/phone are all required "
+                "so a BuyersForce admin can reach you.", "error",
+            )
+            form_data = request.form.to_dict()
+            form_data["segments"] = request.form.getlist("segments")
+            return render_template(
+                "vendor_signup.html", all_segments=CYBERSECURITY_SEGMENTS,
+                company_sizes=COMPANY_SIZE_BANDS, form_data=form_data,
+            )
+
+        segments = _parse_proposed_segments(",".join(request.form.getlist("segments")))
+        company_size = request.form.get("company_size", "").strip()
+        if company_size not in COMPANY_SIZE_BANDS:
+            company_size = None
+        founded_year = request.form.get("founded_year", "").strip()
+        founded_year = int(founded_year) if founded_year.isdigit() else None
+        hq_location = request.form.get("hq_location", "").strip()
+        tagline = request.form.get("tagline", "").strip()
+        description = request.form.get("description", "").strip()
+
+        dbm.execute(
+            "INSERT INTO vendor_requests (kind, company_name, website, tagline, description, "
+            "proposed_segments, company_size, founded_year, hq_location, contact_name, "
+            "contact_title, contact_email, contact_phone) "
+            "VALUES ('seller_signup', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (company_name, website, tagline, description, ",".join(segments), company_size,
+             founded_year, hq_location, contact_name, contact_title, contact_email, contact_phone),
+        )
+
+        admin = get_admin_user()
+        if admin:
+            emailer.send_email(
+                admin["email"],
+                subject=f"New vendor wants to list on BuyersForce: {company_name}",
+                text=(
+                    f"{contact_name} ({contact_title}) submitted {company_name} to be listed on "
+                    f"BuyersForce.\n\nWebsite: {website}\nContact: {contact_email} · {contact_phone}\n\n"
+                    f"Review it in your admin dashboard: {url_for('admin_dashboard', _external=True)}"
+                ),
+                reply_to=contact_email,
+            )
+        return render_template("vendor_signup_pending.html", company_name=company_name)
+
+    return render_template(
+        "vendor_signup.html", all_segments=CYBERSECURITY_SEGMENTS, company_sizes=COMPANY_SIZE_BANDS,
+        form_data={},
+    )
 
 
 @app.route("/login", methods=("GET", "POST"))
@@ -802,6 +903,15 @@ def admin_dashboard():
         "FROM support_requests sr JOIN users u ON u.id = sr.user_id "
         "WHERE sr.status != 'resolved' ORDER BY sr.created_at DESC"
     )
+    pending_vendor_requests = dbm.query(
+        "SELECT vr.*, u.name requester_name, u.company requester_company "
+        "FROM vendor_requests vr LEFT JOIN users u ON u.id = vr.requested_by_user_id "
+        "WHERE vr.status = 'pending' ORDER BY vr.created_at DESC"
+    )
+    pending_vendor_requests = [
+        {**dict(r), "proposed_segments_list": _parse_proposed_segments(r["proposed_segments"])}
+        for r in pending_vendor_requests
+    ]
     new_invite_link = None
     new_invite_id = request.args.get("new_invite", type=int)
     if new_invite_id:
@@ -812,6 +922,8 @@ def admin_dashboard():
         "admin/dashboard.html", users=users, pending_invites=pending_invites,
         pending_signups=pending_signups, pending_role_changes=pending_role_changes,
         open_support_requests=open_support_requests, support_category_labels=SUPPORT_CATEGORY_LABELS,
+        pending_vendor_requests=pending_vendor_requests, vendor_request_kind_labels=VENDOR_REQUEST_KIND_LABELS,
+        all_segments=CYBERSECURITY_SEGMENTS, company_sizes=COMPANY_SIZE_BANDS,
         new_invite_link=new_invite_link,
     )
 
@@ -1496,6 +1608,128 @@ def admin_support_status(request_id):
     return redirect(request.form.get("next") or url_for("admin_dashboard"))
 
 
+@app.route("/app/admin/vendor-requests/<int:request_id>/decide", methods=("POST",))
+@admin_required
+def admin_vendor_request_decide(request_id):
+    req = dbm.query("SELECT * FROM vendor_requests WHERE id=? AND status='pending'", (request_id,), one=True)
+    if not req:
+        abort(404)
+    action = request.form.get("action", "")
+    if action not in ("approve", "deny"):
+        abort(400)
+
+    # Admin can edit any of the submitted fields before deciding -- these
+    # are what actually get used below, not the original submission.
+    company_name = request.form.get("company_name", "").strip() or req["company_name"]
+    website = request.form.get("website", "").strip() or req["website"]
+    tagline = request.form.get("tagline", "").strip()
+    description = request.form.get("description", "").strip()
+    segments = _parse_proposed_segments(",".join(request.form.getlist("segments")))
+    company_size = request.form.get("company_size", "").strip()
+    if company_size not in COMPANY_SIZE_BANDS:
+        company_size = None
+    founded_year = request.form.get("founded_year", "").strip()
+    founded_year = int(founded_year) if founded_year.isdigit() else None
+    hq_location = request.form.get("hq_location", "").strip()
+    contact_name = request.form.get("contact_name", "").strip()
+    contact_title = request.form.get("contact_title", "").strip()
+    contact_email = request.form.get("contact_email", "").strip()
+    contact_phone = request.form.get("contact_phone", "").strip()
+
+    if action == "deny":
+        denial_note = request.form.get("denial_note", "").strip()
+        dbm.execute(
+            "UPDATE vendor_requests SET status='denied', denial_note=?, resolved_at=?, resolved_by=? WHERE id=?",
+            (denial_note, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), g.user["id"], request_id),
+        )
+        if req["kind"] == "buyer_referral" and req["thread_id"]:
+            note = (
+                f"Sorry, we received your request to add {req['company_name']} to BuyersForce, "
+                f"but we don't have enough information yet. We're reaching out to the company now."
+            )
+            if denial_note:
+                note += f"\n\n{denial_note}"
+            dbm.execute(
+                "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
+                (req["thread_id"], g.user["id"], note),
+            )
+        elif req["kind"] == "seller_signup" and req["contact_email"]:
+            note = (
+                f"Sorry, we received your request to add {req['company_name']} to BuyersForce, "
+                f"but we don't have enough information yet. Please reply to this email if you'd "
+                f"like to speak to a BuyersForce admin."
+            )
+            if denial_note:
+                note += f"\n\n{denial_note}"
+            emailer.send_email(
+                req["contact_email"], subject=f"Your BuyersForce listing request for {req['company_name']}",
+                text=note, reply_to=g.user["email"],
+            )
+        flash(f"{req['company_name']}'s request denied.", "success")
+        return redirect(url_for("admin_dashboard"))
+
+    # action == "approve"
+    accent, initials = _derive_vendor_accent_initials(company_name)
+    category = segments[0] if segments else "Uncategorized"
+    seller_user_id = None
+    created_user_id = None
+
+    if req["kind"] == "seller_signup":
+        if dbm.query("SELECT id FROM users WHERE email=?", (contact_email,), one=True):
+            flash(
+                f"{contact_email} already has a BuyersForce account -- resolve that manually "
+                f"before approving this listing.", "error",
+            )
+            return redirect(url_for("admin_dashboard"))
+        created_user_id = dbm.execute(
+            "INSERT INTO users (role, name, email, password_hash, company, title, account_status) "
+            "VALUES ('seller', ?, ?, ?, ?, ?, 'active')",
+            (contact_name, contact_email, generate_password_hash(secrets.token_urlsafe(24)),
+             company_name, contact_title),
+        )
+        seller_user_id = created_user_id
+
+    vendor_id = dbm.execute(
+        "INSERT INTO vendors (seller_user_id, company_name, category, tagline, description, website, "
+        "accent, initials, company_size, founded_year, hq_location, contact_email, contact_phone, "
+        "source, technology_category) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'cybersecurity')",
+        (seller_user_id, company_name, category, tagline, description, website, accent, initials,
+         company_size, founded_year, hq_location, contact_email, contact_phone, req["kind"]),
+    )
+    for seg in dict.fromkeys(segments):
+        dbm.execute("INSERT INTO vendor_segments (vendor_id, segment) VALUES (?, ?)", (vendor_id, seg))
+    dbm.execute(
+        "UPDATE vendor_requests SET status='approved', created_vendor_id=?, created_user_id=?, "
+        "resolved_at=?, resolved_by=? WHERE id=?",
+        (vendor_id, created_user_id, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), g.user["id"], request_id),
+    )
+
+    if req["kind"] == "buyer_referral" and req["thread_id"]:
+        dbm.execute(
+            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
+            (req["thread_id"], g.user["id"],
+             f"Congratulations! We took your advice and added {company_name} to BuyersForce."),
+        )
+    elif req["kind"] == "seller_signup" and contact_email:
+        invite_id, token = _create_invite(contact_email, "seller", company_name, contact_name, g.user["id"])
+        emailer.send_email(
+            contact_email,
+            subject="Congratulations — you're live on BuyersForce!",
+            text=(
+                f"Hi {contact_name},\n\nGood news -- {company_name} is now listed on BuyersForce, "
+                f"and we've set up your own account so you can manage it.\n\n"
+                f"Set your password here to get started: {url_for('accept_invite', token=token, _external=True)}\n\n"
+                f"This link expires in 7 days."
+            ),
+            reply_to=g.user["email"],
+        )
+
+    log_activity(g.user["id"], f"approved vendor listing request for {company_name}")
+    flash(f"{company_name} is now live on BuyersForce.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
 @app.route("/app/admin/messages/<int:thread_id>", methods=("GET", "POST"))
 @admin_required
 def admin_thread(thread_id):
@@ -1534,6 +1768,19 @@ def vendor_segments(vendor_id):
         "SELECT segment FROM vendor_segments WHERE vendor_id = ? ORDER BY segment", (vendor_id,)
     )
     return [r["segment"] for r in rows]
+
+
+def _derive_vendor_accent_initials(company_name):
+    """Same formula admin_approve_signup already uses for an
+    auto-created seller vendor row -- kept here as one place so the two
+    vendor_requests approval paths (buyer_referral, seller_signup) match
+    it exactly instead of drifting."""
+    initials = "".join(w[0] for w in company_name.split()[:2]).upper() or "VN"
+    return "#3b82f6", initials
+
+
+def _parse_proposed_segments(raw):
+    return [s for s in (raw or "").split(",") if s in CYBERSECURITY_SEGMENTS]
 
 
 def vendor_listings(vendor_id):
@@ -1635,8 +1882,12 @@ def buyer_discover():
     q = request.args.get("q", "").strip()
     segments = [s for s in request.args.getlist("segment") if s in CYBERSECURITY_SEGMENTS]
     company_size = request.args.get("company_size", "")
-    sql = "SELECT * FROM vendors WHERE 1=1"
-    args = []
+    valid_categories = {key for key, _label in TECHNOLOGY_CATEGORIES}
+    technology_category = request.args.get("technology_category", "cybersecurity")
+    if technology_category not in valid_categories:
+        technology_category = "cybersecurity"
+    sql = "SELECT * FROM vendors WHERE technology_category = ?"
+    args = [technology_category]
     if q:
         sql += (
             " AND (company_name LIKE ? OR tagline LIKE ? OR description LIKE ? "
@@ -1652,7 +1903,24 @@ def buyer_discover():
     if company_size:
         sql += " AND company_size = ?"
         args.append(company_size)
-    sql += " ORDER BY company_name"
+    sort = request.args.get("sort", "name_asc")
+    if sort not in DISCOVER_SORT_KEYS:
+        sort = "name_asc"
+    if sort in ("size_asc", "size_desc"):
+        # COMPANY_SIZE_BANDS is already ordered smallest -> largest; sort by
+        # each vendor's position in that list rather than the band text
+        # (alphabetically "10000+" comes before "51-200").
+        case_when = " ".join(
+            f"WHEN company_size = ? THEN {idx}" for idx, _band in enumerate(COMPANY_SIZE_BANDS)
+        )
+        size_rank = f"CASE {case_when} ELSE {len(COMPANY_SIZE_BANDS)} END"
+        sql += f" ORDER BY {size_rank} {'DESC' if sort == 'size_desc' else 'ASC'}, company_name"
+        args += list(COMPANY_SIZE_BANDS)
+    elif sort in ("founded_asc", "founded_desc"):
+        direction = "DESC" if sort == "founded_desc" else "ASC"
+        sql += f" ORDER BY founded_year IS NULL, founded_year {direction}, company_name"
+    else:
+        sql += f" ORDER BY company_name {'DESC' if sort == 'name_desc' else 'ASC'}"
     vendors = dbm.query(sql, args)
     vendor_data = []
     for v in vendors:
@@ -1669,8 +1937,81 @@ def buyer_discover():
         all_segments=CYBERSECURITY_SEGMENTS,
         selected_segments=segments,
         company_sizes=COMPANY_SIZE_BANDS,
+        technology_categories=TECHNOLOGY_CATEGORIES,
+        placeholder_technology_categories=PLACEHOLDER_TECHNOLOGY_CATEGORIES,
+        technology_category=technology_category,
         q=q,
         company_size=company_size,
+        sort_options=DISCOVER_SORT_OPTIONS,
+        sort=sort,
+    )
+
+
+@app.route("/app/buyer/vendors/suggest", methods=("GET", "POST"))
+@role_required("buyer")
+def suggest_vendor():
+    if request.method == "POST":
+        company_name = request.form.get("company_name", "").strip()
+        website = request.form.get("website", "").strip()
+        if not company_name or not website:
+            flash("Company name and website are required.", "error")
+            return redirect(url_for("suggest_vendor"))
+
+        segments = _parse_proposed_segments(",".join(request.form.getlist("segments")))
+        company_size = request.form.get("company_size", "").strip()
+        if company_size not in COMPANY_SIZE_BANDS:
+            company_size = None
+        founded_year = request.form.get("founded_year", "").strip()
+        founded_year = int(founded_year) if founded_year.isdigit() else None
+        hq_location = request.form.get("hq_location", "").strip()
+        contact_name = request.form.get("contact_name", "").strip()
+        contact_email = request.form.get("contact_email", "").strip()
+        contact_phone = request.form.get("contact_phone", "").strip()
+        notes = request.form.get("notes", "").strip()
+
+        admin = get_admin_user()
+        if not admin:
+            flash("Vendor suggestions aren't set up yet — there's no BuyersForce admin account to reach.", "error")
+            return redirect(url_for("suggest_vendor"))
+
+        thread = get_or_create_direct_thread(g.user["id"], admin["id"])
+        ensure_contact(g.user["id"], contact_user_id=admin["id"])
+        ensure_contact(admin["id"], contact_user_id=g.user["id"])
+
+        summary_lines = [f"New vendor suggestion: {company_name} ({website})"]
+        if segments:
+            summary_lines.append(f"Segments: {', '.join(segments)}")
+        if company_size:
+            summary_lines.append(f"Company size: {company_size}")
+        if founded_year:
+            summary_lines.append(f"Founded: {founded_year}")
+        if hq_location:
+            summary_lines.append(f"HQ: {hq_location}")
+        if contact_name or contact_email or contact_phone:
+            summary_lines.append(
+                f"Contact: {contact_name or '—'} · {contact_email or '—'} · {contact_phone or '—'}"
+            )
+        if notes:
+            summary_lines.append(f"Notes: {notes}")
+        dbm.execute(
+            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
+            (thread["id"], g.user["id"], "\n".join(summary_lines)),
+        )
+
+        dbm.execute(
+            "INSERT INTO vendor_requests (kind, requested_by_user_id, company_name, website, "
+            "proposed_segments, company_size, founded_year, hq_location, contact_name, "
+            "contact_email, contact_phone, notes, thread_id) "
+            "VALUES ('buyer_referral', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (g.user["id"], company_name, website, ",".join(segments), company_size, founded_year,
+             hq_location, contact_name, contact_email, contact_phone, notes, thread["id"]),
+        )
+        log_activity(g.user["id"], f"suggested a vendor ({company_name})")
+        flash("Thank you! You'll be contacted by a BuyersForce admin shortly.", "success")
+        return redirect(url_for("buyer_thread", thread_id=thread["id"]))
+
+    return render_template(
+        "buyer/suggest_vendor.html", all_segments=CYBERSECURITY_SEGMENTS, company_sizes=COMPANY_SIZE_BANDS,
     )
 
 

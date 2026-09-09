@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Suggest a vendor{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Vendor discovery</span>
+    <h1>Suggest a vendor</h1>
+    <p class="lede">Know a company that should be on BuyersForce? Tell us what you know — a
+      BuyersForce admin will review it and follow up with you right here, in Messages.</p>
+  </div>
+  <a href="{{ url_for('buyer_discover') }}" class="btn btn-ghost btn-sm">← Back to Discover</a>
+</div>
+
+<div class="card" style="max-width:640px;">
+  <form method="post">
+    <div class="form-row">
+      <div class="field"><label>Company name *</label><input type="text" name="company_name" required></div>
+      <div class="field"><label>Website *</label><input type="url" name="website" placeholder="https://" required></div>
+    </div>
+
+    <div class="field">
+      <label>Cybersecurity segments (if you know them)</label>
+      <div class="segment-grid" style="margin-top:6px;">
+        {% for seg in all_segments %}
+        <label style="font-weight:400;"><input type="checkbox" name="segments" value="{{ seg }}"> {{ seg }}</label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="field">
+        <label>Company size</label>
+        <select name="company_size">
+          <option value="">Not sure</option>
+          {% for size in company_sizes %}
+          <option value="{{ size }}">{{ size }} employees</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>Founded year</label><input type="number" name="founded_year" min="1900" max="2100"></div>
+      <div class="field"><label>HQ location</label><input type="text" name="hq_location" placeholder="e.g. San Francisco, CA"></div>
+    </div>
+
+    <div class="form-row">
+      <div class="field"><label>Vendor contact name (if known)</label><input type="text" name="contact_name"></div>
+      <div class="field"><label>Vendor contact email</label><input type="email" name="contact_email"></div>
+      <div class="field"><label>Vendor contact phone</label><input type="tel" name="contact_phone"></div>
+    </div>
+
+    <div class="field">
+      <label>Anything else that would help us evaluate them</label>
+      <textarea name="notes" placeholder="Why should we add them? How do you know them?"></textarea>
+    </div>
+
+    <button class="btn btn-primary btn-block" type="submit">Submit for review</button>
+  </form>
+</div>
+{% endblock %}

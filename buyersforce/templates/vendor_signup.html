@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}List your company{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card" style="max-width:640px;">
+    <div class="auth-head">
+      <h1 style="font-size:24px;">Get your company listed on BuyersForce</h1>
+      <p style="margin:0;">Tell us about your company and we'll review your request — a
+        BuyersForce admin will follow up by email, usually within a day or two.</p>
+    </div>
+    <form method="post">
+      <div class="form-row">
+        <div class="field"><label>Company name *</label>
+          <input type="text" name="company_name" required value="{{ form_data.company_name or '' }}"></div>
+        <div class="field"><label>Website *</label>
+          <input type="url" name="website" placeholder="https://" required value="{{ form_data.website or '' }}"></div>
+      </div>
+
+      <div class="form-row">
+        <div class="field"><label>Your name *</label>
+          <input type="text" name="contact_name" required value="{{ form_data.contact_name or '' }}"></div>
+        <div class="field"><label>Your title *</label>
+          <input type="text" name="contact_title" required value="{{ form_data.contact_title or '' }}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Your work email *</label>
+          <input type="email" name="contact_email" required value="{{ form_data.contact_email or '' }}"></div>
+        <div class="field"><label>Your phone *</label>
+          <input type="tel" name="contact_phone" required value="{{ form_data.contact_phone or '' }}"></div>
+      </div>
+
+      <div class="field"><label>Tagline</label>
+        <input type="text" name="tagline" placeholder="One line describing your product" value="{{ form_data.tagline or '' }}"></div>
+      <div class="field"><label>Description</label>
+        <textarea name="description" placeholder="What does your product do, and for whom?">{{ form_data.description or '' }}</textarea></div>
+
+      <div class="field">
+        <label>Cybersecurity segments</label>
+        <div class="segment-grid" style="margin-top:6px;">
+          {% for seg in all_segments %}
+          <label style="font-weight:400;">
+            <input type="checkbox" name="segments" value="{{ seg }}" {{ 'checked' if seg in (form_data.segments or []) }}>
+            {{ seg }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>Company size</label>
+          <select name="company_size">
+            <option value="">Not specified</option>
+            {% for size in company_sizes %}
+            <option value="{{ size }}" {{ 'selected' if size == form_data.company_size }}>{{ size }} employees</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field"><label>Founded year</label>
+          <input type="number" name="founded_year" min="1900" max="2100" value="{{ form_data.founded_year or '' }}"></div>
+        <div class="field"><label>HQ location</label>
+          <input type="text" name="hq_location" placeholder="e.g. San Francisco, CA" value="{{ form_data.hq_location or '' }}"></div>
+      </div>
+
+      <button class="btn btn-primary btn-block" type="submit">Submit for review</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

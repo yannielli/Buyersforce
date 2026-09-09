@@ -93,6 +93,74 @@
 </div>
 {% endif %}
 
+{% if pending_vendor_requests %}
+<div class="card" style="border-color:#e0b84a; background:var(--warning-tint); margin-bottom:24px;">
+  <h3 style="font-size:14.5px;">Vendor listing requests ({{ pending_vendor_requests|length }})</h3>
+  <p style="font-size:13px; margin-bottom:12px;">A company someone suggested, or a vendor asking to
+    be listed themselves. Edit any field before deciding — approving posts the listing live.</p>
+  {% for r in pending_vendor_requests %}
+  <details class="card" style="margin-bottom:10px; background:var(--surface);">
+    <summary style="cursor:pointer;">
+      <strong style="font-size:14px;">{{ r.company_name }}</strong>
+      <span class="badge {{ 'badge-brand' if r.kind == 'seller_signup' else 'badge-neutral' }}" style="margin-left:6px;">{{ vendor_request_kind_labels[r.kind] }}</span>
+      <span class="hint" style="margin-left:6px;">
+        {% if r.kind == 'buyer_referral' %}Suggested by {{ r.requester_name }} ({{ r.requester_company }}){% else %}From {{ r.contact_name }}, no BuyersForce account yet{% endif %}
+        · {{ r.created_at|fmt_time }}
+      </span>
+    </summary>
+    <form method="post" action="{{ url_for('admin_vendor_request_decide', request_id=r.id) }}" style="margin-top:12px;">
+      <div class="form-row">
+        <div class="field"><label>Company name</label><input type="text" name="company_name" value="{{ r.company_name }}"></div>
+        <div class="field"><label>Website</label><input type="url" name="website" value="{{ r.website }}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Tagline</label><input type="text" name="tagline" value="{{ r.tagline or '' }}"></div>
+      </div>
+      <div class="field"><label>Description</label><textarea name="description" style="min-height:70px;">{{ r.description or '' }}</textarea></div>
+      <div class="field">
+        <label>Segments</label>
+        <div class="segment-grid" style="margin-top:6px;">
+          {% for seg in all_segments %}
+          <label style="font-weight:400;">
+            <input type="checkbox" name="segments" value="{{ seg }}" {{ 'checked' if seg in r.proposed_segments_list }}>
+            {{ seg }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Company size</label>
+          <select name="company_size">
+            <option value="">Not specified</option>
+            {% for size in company_sizes %}
+            <option value="{{ size }}" {{ 'selected' if size == r.company_size }}>{{ size }} employees</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field"><label>Founded year</label><input type="number" name="founded_year" min="1900" max="2100" value="{{ r.founded_year or '' }}"></div>
+        <div class="field"><label>HQ location</label><input type="text" name="hq_location" value="{{ r.hq_location or '' }}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Contact name</label><input type="text" name="contact_name" value="{{ r.contact_name or '' }}"></div>
+        <div class="field"><label>Contact title</label><input type="text" name="contact_title" value="{{ r.contact_title or '' }}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Contact email</label><input type="email" name="contact_email" value="{{ r.contact_email or '' }}"></div>
+        <div class="field"><label>Contact phone</label><input type="tel" name="contact_phone" value="{{ r.contact_phone or '' }}"></div>
+      </div>
+      {% if r.notes %}<p class="hint">Submitter's notes: "{{ r.notes }}"</p>{% endif %}
+      <div class="field"><label>Denial note (only used if you deny)</label><input type="text" name="denial_note" placeholder="Optional — included in the message they get"></div>
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        <button class="btn btn-primary btn-sm" type="submit" name="action" value="approve">Approve &amp; post live</button>
+        <button class="btn btn-ghost btn-sm" type="submit" name="action" value="deny">Deny</button>
+      </div>
+    </form>
+  </details>
+  {% endfor %}
+</div>
+{% endif %}
+
 {% if new_invite_link %}
 <div class="card" style="border-color:var(--brand); background:var(--brand-tint); margin-bottom:24px;">
   <h3 style="font-size:14.5px; color:var(--brand-dark);">Access link ready — send this to them yourself</h3>

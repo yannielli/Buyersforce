@@ -224,7 +224,10 @@
           <div><strong>Direct collaboration portal</strong><p>Work with buyers, alliance
             partners, and resellers in one shared space.</p></div></div>
       </div>
-      <a href="{{ url_for('signup') }}" class="btn btn-primary" style="margin-top:20px;">Request seller access</a>
+      <div style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;">
+        <a href="{{ url_for('signup') }}" class="btn btn-primary">Request seller access</a>
+        <a href="{{ url_for('vendor_signup') }}" class="btn btn-secondary">List your company</a>
+      </div>
     </div>
   </div>
 </section>

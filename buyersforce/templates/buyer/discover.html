@@ -7,6 +7,13 @@
     <h1>Discover vendors</h1>
     <p class="lede">Browse, filter, and compare — select up to three to compare side-by-side.</p>
   </div>
+  <div class="card" style="max-width:280px; padding:14px 16px;">
+    <strong style="font-size:13.5px;">Don't see a company here?</strong>
+    <div class="hint" style="margin-top:6px; line-height:1.5;">
+      <a href="{{ url_for('suggest_vendor') }}">Suggest a vendor →</a><br>
+      <a href="{{ url_for('vendor_signup') }}">Are you the vendor? Get listed →</a>
+    </div>
+  </div>
 </div>
 
 <form class="toolbar" method="get" id="discover-form">
@@ -17,8 +24,25 @@
     <option value="{{ size }}" {{ 'selected' if size == company_size }}>{{ size }} employees</option>
     {% endfor %}
   </select>
+  <select name="sort" onchange="this.form.submit()" aria-label="Sort vendors">
+    {% for value, label in sort_options %}
+    <option value="{{ value }}" {{ 'selected' if value == sort }}>Sort: {{ label }}</option>
+    {% endfor %}
+  </select>
   <button class="btn btn-secondary" type="submit">Search</button>
 </form>
+
+<div class="toolbar" style="margin-top:10px; align-items:center;">
+  <select name="technology_category" form="discover-form" onchange="this.form.submit()">
+    {% for value, label in technology_categories %}
+    <option value="{{ value }}" {{ 'selected' if value == technology_category }}>{{ label }}</option>
+    {% endfor %}
+    {% for label in placeholder_technology_categories %}
+    <option disabled>{{ label }} (coming soon)</option>
+    {% endfor %}
+  </select>
+  <span class="hint">BuyersForce is expanding beyond cybersecurity — more technology categories are on the way.</span>
+</div>
 
 <details class="segment-filter" {{ 'open' if selected_segments }}>
   <summary>Filter by cybersecurity segment{% if selected_segments %} ({{ selected_segments|length }} selected){% endif %}</summary>

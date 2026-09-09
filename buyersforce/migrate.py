@@ -41,6 +41,8 @@ def run_migrations():
             _add_vendor_wiki_logo_column(cur)
             _backfill_vendor_wiki_logos(cur)
             _add_support_requests_table(cur)
+            _add_technology_category_column(cur)
+            _add_vendor_requests_table(cur)
     finally:
         con.close()
 
@@ -503,6 +505,54 @@ def _add_support_requests_table(cur):
             status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved')),
             thread_id INTEGER REFERENCES threads(id),
             created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+        )
+        """
+    )
+
+
+def _add_technology_category_column(cur):
+    # BuyersForce is meant to span more than cybersecurity eventually (see
+    # app.py's TECHNOLOGY_CATEGORIES) -- every vendor today defaults to
+    # 'cybersecurity' since that's the only category built out so far.
+    cur.execute(
+        "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS technology_category "
+        "TEXT NOT NULL DEFAULT 'cybersecurity'"
+    )
+
+
+def _add_vendor_requests_table(cur):
+    # A request to add a company to the vendor directory -- either a buyer
+    # suggesting a vendor they know (kind='buyer_referral') or a vendor's
+    # own contact asking to be listed before they have any BuyersForce
+    # account at all (kind='seller_signup', from the public /join-as-vendor
+    # page). See schema.sql's comment on this table for the full shape.
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS vendor_requests (
+            id SERIAL PRIMARY KEY,
+            kind TEXT NOT NULL CHECK (kind IN ('buyer_referral', 'seller_signup')),
+            requested_by_user_id INTEGER REFERENCES users(id),
+            company_name TEXT NOT NULL,
+            website TEXT NOT NULL,
+            tagline TEXT NOT NULL DEFAULT '',
+            description TEXT NOT NULL DEFAULT '',
+            proposed_segments TEXT NOT NULL DEFAULT '',
+            company_size TEXT,
+            founded_year INTEGER,
+            hq_location TEXT,
+            contact_name TEXT,
+            contact_title TEXT,
+            contact_email TEXT,
+            contact_phone TEXT,
+            notes TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'denied')),
+            thread_id INTEGER REFERENCES threads(id),
+            created_vendor_id INTEGER REFERENCES vendors(id),
+            created_user_id INTEGER REFERENCES users(id),
+            denial_note TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+            resolved_at TEXT,
+            resolved_by INTEGER REFERENCES users(id)
         )
         """
     )

@@ -22,6 +22,7 @@ DROP TABLE IF EXISTS blocked_vendors CASCADE;
 DROP TABLE IF EXISTS role_change_requests CASCADE;
 DROP TABLE IF EXISTS vendor_segments CASCADE;
 DROP TABLE IF EXISTS support_requests CASCADE;
+DROP TABLE IF EXISTS vendor_requests CASCADE;
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -136,6 +137,12 @@ CREATE TABLE vendors (
     -- (see the vendor-logo enrichment pass). NULL falls back to the
     -- website-favicon guess in app.py's vendor_favicon_url.
     wiki_logo_url TEXT,
+    -- BuyersForce is meant to span more than cybersecurity eventually (see
+    -- app.py's TECHNOLOGY_CATEGORIES) -- every vendor today is
+    -- 'cybersecurity' since that's the only category built out so far, but
+    -- this is the column the Discover page's top-level category filter
+    -- reads, ahead of the existing segment filter underneath it.
+    technology_category TEXT NOT NULL DEFAULT 'cybersecurity',
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
 );
 
@@ -221,6 +228,41 @@ CREATE TABLE support_requests (
     status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved')),
     thread_id INTEGER REFERENCES threads(id),
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+);
+
+-- A request to add a company to the vendor directory -- either a buyer
+-- suggesting a vendor they know (kind='buyer_referral', tied to their own
+-- account and an admin message thread), or a vendor's own contact asking
+-- to be listed before they have any BuyersForce account at all
+-- (kind='seller_signup', submitted from the public /join-as-vendor page).
+-- Approving either kind creates a real vendors row; approving a
+-- seller_signup additionally creates the contact's own seller account
+-- (created_user_id) via the same invite-link mechanism used elsewhere.
+CREATE TABLE vendor_requests (
+    id SERIAL PRIMARY KEY,
+    kind TEXT NOT NULL CHECK (kind IN ('buyer_referral', 'seller_signup')),
+    requested_by_user_id INTEGER REFERENCES users(id),
+    company_name TEXT NOT NULL,
+    website TEXT NOT NULL,
+    tagline TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    proposed_segments TEXT NOT NULL DEFAULT '',
+    company_size TEXT,
+    founded_year INTEGER,
+    hq_location TEXT,
+    contact_name TEXT,
+    contact_title TEXT,
+    contact_email TEXT,
+    contact_phone TEXT,
+    notes TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'denied')),
+    thread_id INTEGER REFERENCES threads(id),
+    created_vendor_id INTEGER REFERENCES vendors(id),
+    created_user_id INTEGER REFERENCES users(id),
+    denial_note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+    resolved_at TEXT,
+    resolved_by INTEGER REFERENCES users(id)
 );
 
 -- Tracks the highest message id each user has seen in each thread, to
