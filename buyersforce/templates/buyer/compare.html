@@ -28,6 +28,14 @@
     {% for v in vendors %}<td>{{ v.category }}</td>{% endfor %}
   </tr>
   <tr>
+    <td>BF rating — evaluation</td>
+    {% for v in vendors %}<td>{% if v.ratings.evaluation.count %}{{ v.ratings.evaluation.overall }}/10 <span class="hint">({{ v.ratings.evaluation.count }})</span>{% else %}—{% endif %}</td>{% endfor %}
+  </tr>
+  <tr>
+    <td>BF rating — 90-day check-in</td>
+    {% for v in vendors %}<td>{% if v.ratings.production.count %}{{ v.ratings.production.overall }}/10 <span class="hint">({{ v.ratings.production.count }})</span>{% else %}—{% endif %}</td>{% endfor %}
+  </tr>
+  <tr>
     <td>Company size</td>
     {% for v in vendors %}<td>{{ v.company_size or '—' }}{% if v.company_size %} employees{% endif %}</td>{% endfor %}
   </tr>

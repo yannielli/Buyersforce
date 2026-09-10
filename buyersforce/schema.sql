@@ -23,6 +23,7 @@ DROP TABLE IF EXISTS role_change_requests CASCADE;
 DROP TABLE IF EXISTS vendor_segments CASCADE;
 DROP TABLE IF EXISTS support_requests CASCADE;
 DROP TABLE IF EXISTS vendor_requests CASCADE;
+DROP TABLE IF EXISTS vendor_ratings CASCADE;
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -191,6 +192,9 @@ CREATE TABLE shortlist (
     buyer_user_id INTEGER NOT NULL REFERENCES users(id),
     vendor_id INTEGER NOT NULL REFERENCES vendors(id),
     status TEXT NOT NULL DEFAULT 'discovered' CHECK (status IN ('discovered','evaluating','shortlisted','selected','passed')),
+    -- Set the first time status becomes 'selected' -- anchors the 90-day
+    -- production check-in rating window (see vendor_ratings below).
+    selected_at TEXT,
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
     UNIQUE(buyer_user_id, vendor_id)
 );
@@ -347,6 +351,33 @@ CREATE TABLE eval_scores (
     comment TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
     UNIQUE(evaluation_id, criterion_id, user_id)
+);
+
+-- BuyersForce-native crowdsourced vendor ratings, visible platform-wide
+-- (unlike eval_scores above, which is a private per-company scorecard).
+-- One row per buyer per vendor per phase: 'evaluation' (rated any time
+-- while actively considering a vendor) and 'production' (a check-in rating
+-- that only opens up ~90 days after the buyer marks the vendor 'selected',
+-- to see whether the initial read held up). Both phases score the same
+-- three dimensions plus an overall so the numbers aggregate cleanly, but
+-- the question wording shown to the buyer differs by phase (see
+-- RATING_PHASE_QUESTIONS in app.py) since what matters pre-sale (buying
+-- experience) and post-deployment (ongoing support, renewal confidence)
+-- isn't quite the same question. Ratings are stored per-buyer but always
+-- shown in aggregate/anonymized form -- no individual rater is ever named.
+CREATE TABLE vendor_ratings (
+    id SERIAL PRIMARY KEY,
+    vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+    buyer_user_id INTEGER NOT NULL REFERENCES users(id),
+    company TEXT NOT NULL,
+    phase TEXT NOT NULL CHECK (phase IN ('evaluation', 'production')),
+    overall_score INTEGER NOT NULL CHECK (overall_score BETWEEN 1 AND 10),
+    product_score INTEGER NOT NULL CHECK (product_score BETWEEN 1 AND 10),
+    support_score INTEGER NOT NULL CHECK (support_score BETWEEN 1 AND 10),
+    sales_score INTEGER NOT NULL CHECK (sales_score BETWEEN 1 AND 10),
+    comment TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+    UNIQUE(vendor_id, buyer_user_id, phase)
 );
 
 CREATE TABLE partner_contacts (

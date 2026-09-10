@@ -212,6 +212,45 @@ DISCOVER_SORT_KEYS = {key for key, _label in DISCOVER_SORT_OPTIONS}
 # bucket even before the taxonomy grows.
 DISCOVER_JUMP_LETTERS = ["#"] + [chr(c) for c in range(ord("A"), ord("Z") + 1)]
 
+# BuyersForce-native crowdsourced vendor ratings. Two phases per buyer per
+# vendor: an "evaluation" rating (submitted any time a buyer is actively
+# evaluating/shortlisting/has selected a vendor) and a "production" check-in
+# rating, which only opens up RATING_CHECKIN_DAYS after the buyer marks a
+# vendor "selected" -- the idea being the initial read on a vendor may not
+# hold up once a team has actually lived with it. Both phases score the same
+# three underlying dimensions (plus an overall) so aggregates are directly
+# comparable, but the QUESTION WORDING differs by phase -- pre-sales framing
+# for evaluation, lived-with-it framing for production -- since Kevin wants
+# the production questions to reflect what only becomes apparent after go-live.
+RATING_PHASES = ("evaluation", "production")
+RATING_PHASE_LABELS = {"evaluation": "Evaluation", "production": "90-Day Check-in"}
+RATING_DIMENSIONS = [
+    ("product_score", "Product & technical fit"),
+    ("support_score", "Customer service & support"),
+    ("sales_score", "Sales team & buying experience"),
+]
+RATING_PHASE_QUESTIONS = {
+    "evaluation": {
+        "product_score": "How well did the product meet your technical requirements during evaluation?",
+        "support_score": "How responsive and helpful was their team during the sales process?",
+        "sales_score": "How was the sales experience -- transparency, pricing, negotiation?",
+        "overall_score": "Overall, how would you rate this vendor based on your evaluation?",
+    },
+    "production": {
+        "product_score": "Now that it's deployed, how well does the product perform in production?",
+        "support_score": "How has their customer support/service been since go-live?",
+        "sales_score": "How has the ongoing account relationship been -- renewals, upsells, responsiveness?",
+        "overall_score": "Overall, now that you've lived with it, how would you rate this vendor?",
+    },
+}
+# How many days after "selected" the production check-in becomes available.
+# No scheduled-job/reminder-email infrastructure exists yet (see emailer.py --
+# it's used for invites only), so eligibility is computed on-page-load
+# instead of via a proactive reminder: buyer_dashboard() surfaces a banner
+# for any selected vendor that has crossed this threshold without a
+# check-in yet, whenever the buyer happens to visit.
+RATING_CHECKIN_DAYS = 90
+
 
 def vendor_favicon_url(website):
     """Best-effort logo image for a vendor card, derived from their
@@ -1811,6 +1850,57 @@ def shortlist_status(buyer_id, vendor_id):
     return row["status"] if row else None
 
 
+def vendor_rating_summary(vendor_id):
+    """Aggregate BF-native crowdsourced ratings for a vendor, split by phase
+    (evaluation vs. 90-day production check-in) so a vendor's initial
+    reception and how it held up after go-live show as two distinct numbers
+    rather than blending together."""
+    out = {}
+    for phase in RATING_PHASES:
+        row = dbm.query(
+            "SELECT COUNT(*) n, AVG(overall_score) overall, AVG(product_score) product, "
+            "AVG(support_score) support, AVG(sales_score) sales "
+            "FROM vendor_ratings WHERE vendor_id=? AND phase=?",
+            (vendor_id, phase), one=True,
+        )
+        out[phase] = {
+            "count": row["n"] or 0,
+            "overall": round(float(row["overall"]), 1) if row["overall"] is not None else None,
+            "product": round(float(row["product"]), 1) if row["product"] is not None else None,
+            "support": round(float(row["support"]), 1) if row["support"] is not None else None,
+            "sales": round(float(row["sales"]), 1) if row["sales"] is not None else None,
+        }
+    return out
+
+
+def my_vendor_ratings(buyer_id, vendor_id):
+    """This buyer's own submitted ratings for a vendor, keyed by phase --
+    used to show what they already said and let them edit it rather than
+    submit a duplicate."""
+    rows = dbm.query(
+        "SELECT * FROM vendor_ratings WHERE buyer_user_id=? AND vendor_id=?",
+        (buyer_id, vendor_id),
+    )
+    return {r["phase"]: r for r in rows}
+
+
+def production_checkin_eligible(buyer_id, vendor_id):
+    """True once RATING_CHECKIN_DAYS have passed since the buyer marked this
+    vendor 'selected'. Computed on the fly (on-page-load) rather than via a
+    scheduled reminder -- see the RATING_CHECKIN_DAYS comment above."""
+    sl = dbm.query(
+        "SELECT selected_at FROM shortlist WHERE buyer_user_id=? AND vendor_id=? AND status='selected'",
+        (buyer_id, vendor_id), one=True,
+    )
+    if not sl or not sl["selected_at"]:
+        return False
+    try:
+        selected_dt = datetime.strptime(str(sl["selected_at"])[:19], "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return False
+    return (datetime.utcnow() - selected_dt).days >= RATING_CHECKIN_DAYS
+
+
 def get_or_create_vendor_thread(buyer_id, vendor_id):
     thread = dbm.query(
         "SELECT * FROM threads WHERE type='vendor' AND buyer_user_id=? AND vendor_id=?",
@@ -1872,12 +1962,29 @@ def buyer_dashboard():
         "ORDER BY me.proposed_time ASC LIMIT 5",
         (u["id"],),
     )
+    # 90-day production check-in nudges: no scheduled-job/email infrastructure
+    # exists to proactively remind buyers (see RATING_CHECKIN_DAYS comment),
+    # so instead this computes on every dashboard visit which "selected"
+    # vendors have crossed the check-in window without one yet.
+    checkin_cutoff = (datetime.utcnow() - timedelta(days=RATING_CHECKIN_DAYS)).strftime("%Y-%m-%d %H:%M:%S")
+    checkins_due = dbm.query(
+        "SELECT s.vendor_id, v.company_name, v.accent, v.initials FROM shortlist s "
+        "JOIN vendors v ON v.id = s.vendor_id "
+        "WHERE s.buyer_user_id = ? AND s.status = 'selected' AND s.selected_at IS NOT NULL "
+        "AND s.selected_at <= ? AND NOT EXISTS ("
+        "  SELECT 1 FROM vendor_ratings r WHERE r.vendor_id = s.vendor_id "
+        "  AND r.buyer_user_id = s.buyer_user_id AND r.phase = 'production'"
+        ") ORDER BY s.selected_at ASC",
+        (u["id"], checkin_cutoff),
+    )
     return render_template(
         "buyer/dashboard.html",
         counts=counts,
         shortlisted=shortlisted,
         recent_activity=recent_activity,
         upcoming_meetings=upcoming_meetings,
+        checkins_due=checkins_due,
+        rating_checkin_days=RATING_CHECKIN_DAYS,
     )
 
 
@@ -2053,10 +2160,78 @@ def buyer_vendor(vendor_id):
         "SELECT * FROM evaluations WHERE vendor_id=? AND company=? ORDER BY created_at DESC LIMIT 1",
         (vendor_id, g.user["company"]), one=True
     )
+    rating_summary = vendor_rating_summary(vendor_id)
+    my_ratings = my_vendor_ratings(g.user["id"], vendor_id)
+    can_rate_evaluation = status in ("evaluating", "shortlisted", "selected")
+    can_rate_production = "production" in my_ratings or production_checkin_eligible(g.user["id"], vendor_id)
     return render_template(
         "buyer/vendor.html", vendor=vendor, listings=listings, tags=tags, segments=segments,
         logo_url=logo_url, is_claimed=is_claimed, status=status,
         templates=templates_, existing_eval=existing_eval,
+        rating_summary=rating_summary, my_ratings=my_ratings,
+        can_rate_evaluation=can_rate_evaluation, can_rate_production=can_rate_production,
+    )
+
+
+@app.route("/app/buyer/vendor/<int:vendor_id>/rate/<phase>", methods=("GET", "POST"))
+@role_required("buyer")
+def buyer_rate_vendor(vendor_id, phase):
+    if phase not in RATING_PHASES:
+        abort(404)
+    vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
+    if not vendor:
+        abort(404)
+    status = shortlist_status(g.user["id"], vendor_id)
+    existing = dbm.query(
+        "SELECT * FROM vendor_ratings WHERE buyer_user_id=? AND vendor_id=? AND phase=?",
+        (g.user["id"], vendor_id, phase), one=True,
+    )
+    if phase == "evaluation" and status not in ("evaluating", "shortlisted", "selected"):
+        flash("Mark this vendor as evaluating or shortlisted first, then you can rate it.", "error")
+        return redirect(url_for("buyer_vendor", vendor_id=vendor_id))
+    if phase == "production" and not existing and not production_checkin_eligible(g.user["id"], vendor_id):
+        flash(
+            f"The 90-day check-in opens once it's been {RATING_CHECKIN_DAYS} days "
+            "since you marked this vendor Selected.", "error",
+        )
+        return redirect(url_for("buyer_vendor", vendor_id=vendor_id))
+
+    if request.method == "POST":
+        try:
+            scores = {
+                "overall_score": int(request.form.get("overall_score", "")),
+                "product_score": int(request.form.get("product_score", "")),
+                "support_score": int(request.form.get("support_score", "")),
+                "sales_score": int(request.form.get("sales_score", "")),
+            }
+            if not all(1 <= v <= 10 for v in scores.values()):
+                raise ValueError
+        except ValueError:
+            flash("Please give every question a rating from 1-10.", "error")
+            return redirect(url_for("buyer_rate_vendor", vendor_id=vendor_id, phase=phase))
+        comment = request.form.get("comment", "").strip()
+        dbm.execute(
+            "INSERT INTO vendor_ratings "
+            "(vendor_id, buyer_user_id, company, phase, overall_score, product_score, "
+            "support_score, sales_score, comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT (vendor_id, buyer_user_id, phase) DO UPDATE SET "
+            "overall_score=EXCLUDED.overall_score, product_score=EXCLUDED.product_score, "
+            "support_score=EXCLUDED.support_score, sales_score=EXCLUDED.sales_score, "
+            "comment=EXCLUDED.comment",
+            (
+                vendor_id, g.user["id"], g.user["company"], phase,
+                scores["overall_score"], scores["product_score"],
+                scores["support_score"], scores["sales_score"], comment,
+            ),
+        )
+        log_activity(g.user["id"], f"rated {vendor['company_name']} ({RATING_PHASE_LABELS[phase]})")
+        flash(f"Thanks -- your {RATING_PHASE_LABELS[phase].lower()} rating for {vendor['company_name']} is in.", "success")
+        return redirect(url_for("buyer_vendor", vendor_id=vendor_id))
+
+    return render_template(
+        "buyer/rate_vendor.html", vendor=vendor, phase=phase,
+        phase_label=RATING_PHASE_LABELS[phase], questions=RATING_PHASE_QUESTIONS[phase],
+        dimensions=RATING_DIMENSIONS, existing=existing,
     )
 
 
@@ -2070,14 +2245,31 @@ def buyer_shortlist_toggle(vendor_id):
     )
     vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
     if existing:
-        dbm.execute(
-            "UPDATE shortlist SET status=? WHERE id=?", (new_status, existing["id"])
-        )
+        if new_status == "selected":
+            # COALESCE so re-selecting a vendor later doesn't reset the
+            # original "went live" timestamp the 90-day check-in is anchored to.
+            dbm.execute(
+                "UPDATE shortlist SET status=?, "
+                "selected_at=COALESCE(selected_at, to_char(now(), 'YYYY-MM-DD HH24:MI:SS')) "
+                "WHERE id=?",
+                (new_status, existing["id"]),
+            )
+        else:
+            dbm.execute(
+                "UPDATE shortlist SET status=? WHERE id=?", (new_status, existing["id"])
+            )
     else:
-        dbm.execute(
-            "INSERT INTO shortlist (buyer_user_id, vendor_id, status) VALUES (?, ?, ?)",
-            (g.user["id"], vendor_id, new_status),
-        )
+        if new_status == "selected":
+            dbm.execute(
+                "INSERT INTO shortlist (buyer_user_id, vendor_id, status, selected_at) "
+                "VALUES (?, ?, ?, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+                (g.user["id"], vendor_id, new_status),
+            )
+        else:
+            dbm.execute(
+                "INSERT INTO shortlist (buyer_user_id, vendor_id, status) VALUES (?, ?, ?)",
+                (g.user["id"], vendor_id, new_status),
+            )
     log_activity(g.user["id"], f"marked {vendor['company_name']} as {new_status}")
     flash(f"{vendor['company_name']} marked as {new_status}.", "success")
     return redirect(request.referrer or url_for("buyer_vendor", vendor_id=vendor_id))
@@ -2110,6 +2302,7 @@ def buyer_compare():
                 "segments": vendor_segments(vid),
                 "listings": vendor_listings(vid),
                 "logo_url": v["wiki_logo_url"] or vendor_favicon_url(v["website"]),
+                "ratings": vendor_rating_summary(vid),
             })
     all_vendors = dbm.query("SELECT id, company_name FROM vendors ORDER BY company_name")
     return render_template("buyer/compare.html", vendors=vendors, all_vendors=all_vendors, ids=ids)

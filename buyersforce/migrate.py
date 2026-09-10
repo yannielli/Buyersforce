@@ -43,6 +43,8 @@ def run_migrations():
             _add_support_requests_table(cur)
             _add_technology_category_column(cur)
             _add_vendor_requests_table(cur)
+            _add_shortlist_selected_at_column(cur)
+            _add_vendor_ratings_table(cur)
     finally:
         con.close()
 
@@ -505,6 +507,44 @@ def _add_support_requests_table(cur):
             status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved')),
             thread_id INTEGER REFERENCES threads(id),
             created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+        )
+        """
+    )
+
+
+def _add_shortlist_selected_at_column(cur):
+    # Anchors the 90-day production check-in rating window (vendor_ratings
+    # below) -- set the first time a shortlist row's status becomes
+    # 'selected'. Backfill existing 'selected' rows to their created_at as a
+    # reasonable stand-in, since the exact moment they became 'selected'
+    # was never recorded before this column existed.
+    cur.execute("ALTER TABLE shortlist ADD COLUMN IF NOT EXISTS selected_at TEXT")
+    cur.execute(
+        "UPDATE shortlist SET selected_at = created_at "
+        "WHERE status = 'selected' AND selected_at IS NULL"
+    )
+
+
+def _add_vendor_ratings_table(cur):
+    # BuyersForce-native crowdsourced vendor ratings -- see schema.sql's
+    # comment on this table for the full design rationale (evaluation vs.
+    # 90-day production check-in phases, shared dimensions, always shown
+    # anonymized/aggregated).
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS vendor_ratings (
+            id SERIAL PRIMARY KEY,
+            vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+            buyer_user_id INTEGER NOT NULL REFERENCES users(id),
+            company TEXT NOT NULL,
+            phase TEXT NOT NULL CHECK (phase IN ('evaluation', 'production')),
+            overall_score INTEGER NOT NULL CHECK (overall_score BETWEEN 1 AND 10),
+            product_score INTEGER NOT NULL CHECK (product_score BETWEEN 1 AND 10),
+            support_score INTEGER NOT NULL CHECK (support_score BETWEEN 1 AND 10),
+            sales_score INTEGER NOT NULL CHECK (sales_score BETWEEN 1 AND 10),
+            comment TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+            UNIQUE(vendor_id, buyer_user_id, phase)
         )
         """
     )

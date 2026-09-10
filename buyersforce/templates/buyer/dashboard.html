@@ -9,6 +9,22 @@
   <a href="{{ url_for('buyer_discover') }}" class="btn btn-primary">Discover vendors</a>
 </div>
 
+{% if checkins_due %}
+<div class="card" style="margin-bottom:18px; background:var(--brand-tint); border:1px solid var(--brand);">
+  <h3 style="font-size:15px; margin-top:0;">It's been {{ rating_checkin_days }}+ days — how are they holding up?</h3>
+  <p class="hint" style="margin-top:0;">You marked these vendors Selected a while back. A quick check-in helps the whole BuyersForce community see whether the initial read held up in production.</p>
+  {% for c in checkins_due %}
+  <div class="mock-row">
+    <div class="mock-vendor">
+      <span class="mock-logo" style="background:{{ c.accent }};">{{ c.initials }}</span>
+      <span><strong style="font-size:14px;">{{ c.company_name }}</strong></span>
+    </div>
+    <a href="{{ url_for('buyer_rate_vendor', vendor_id=c.vendor_id, phase='production') }}" class="btn btn-primary btn-sm">Rate now</a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="stat-row">
   <div class="stat-tile"><div class="stat-value">{{ counts.shortlisted }}</div><div class="stat-label">Vendors in progress</div></div>
   <div class="stat-tile"><div class="stat-value">{{ counts.evaluations }}</div><div class="stat-label">Team evaluations</div></div>

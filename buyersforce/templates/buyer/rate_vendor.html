@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Rate {{ vendor.company_name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">{{ phase_label }}</span>
+    <h1>Rate {{ vendor.company_name }}</h1>
+  </div>
+  <a href="{{ url_for('buyer_vendor', vendor_id=vendor.id) }}" class="btn btn-secondary">Back to profile</a>
+</div>
+
+<div class="card" style="max-width:640px;">
+  <p class="privacy-note" style="margin-top:0; margin-bottom:18px;">🔒 Your rating is only ever shown to other buyers as part of an anonymous, aggregated score — your name and company are never displayed alongside it.</p>
+  <form method="post">
+    <div class="field">
+      <label>{{ questions.overall_score }}</label>
+      <select name="overall_score" required>
+        <option value="" {{ 'selected' if not existing }}>Select a score (1-10)</option>
+        {% for n in range(1, 11) %}<option value="{{ n }}" {{ 'selected' if existing and existing.overall_score == n }}>{{ n }}</option>{% endfor %}
+      </select>
+    </div>
+    {% for key, label in dimensions %}
+    <div class="field">
+      <label>{{ questions[key] }}</label>
+      <select name="{{ key }}" required>
+        <option value="" {{ 'selected' if not existing }}>Select a score (1-10)</option>
+        {% for n in range(1, 11) %}<option value="{{ n }}" {{ 'selected' if existing and existing[key] == n }}>{{ n }}</option>{% endfor %}
+      </select>
+    </div>
+    {% endfor %}
+    <div class="field">
+      <label>Anything else other buyers should know? (optional)</label>
+      <textarea name="comment" placeholder="e.g. how support handled a tricky renewal, or how the sales process compared to competitors">{{ existing.comment if existing else '' }}</textarea>
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">{{ 'Update rating' if existing else 'Submit rating' }}</button>
+  </form>
+</div>
+{% endblock %}
