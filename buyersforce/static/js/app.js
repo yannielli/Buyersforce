@@ -42,6 +42,32 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // "Open to Outreach" sub-options on the profile form: shown only
+  // while the parent toggle is on, and "Not seeking outreach" is
+  // mutually exclusive with the other three sub-options (checking it
+  // clears them, and vice versa) since it says the opposite thing. The
+  // server enforces the same exclusivity independently, in case this
+  // JS never runs.
+  const outreachEnabled = document.getElementById("outreach_enabled");
+  const outreachSuboptions = document.getElementById("outreach-suboptions");
+  if (outreachEnabled && outreachSuboptions) {
+    outreachEnabled.addEventListener("change", () => {
+      outreachSuboptions.style.display = outreachEnabled.checked ? "flex" : "none";
+    });
+    const noneBox = document.getElementById("outreach_none");
+    const otherBoxes = Array.from(outreachSuboptions.querySelectorAll(".outreach-option"));
+    if (noneBox) {
+      noneBox.addEventListener("change", () => {
+        if (noneBox.checked) otherBoxes.forEach((b) => { b.checked = false; });
+      });
+      otherBoxes.forEach((box) => {
+        box.addEventListener("change", () => {
+          if (box.checked) noneBox.checked = false;
+        });
+      });
+    }
+  }
+
   // Auto-scroll message threads to latest
   const msgList = document.querySelector(".msg-list");
   if (msgList) msgList.scrollTop = msgList.scrollHeight;

@@ -287,6 +287,31 @@ def vendor_favicon_url(website):
 
 app.jinja_env.globals["vendor_favicon_url"] = vendor_favicon_url
 
+
+def buyer_outreach_badge(row, prefix=""):
+    """The single badge shown to sellers for a buyer's "Open to Outreach"
+    setting -- leads dashboard, conversation header. `row` is a user row
+    (or an aliased projection of one, e.g. seller_leads()'s buyer_-prefixed
+    columns -- pass prefix="buyer_" for that shape). Shows the strongest
+    signal only when more than one sub-option is checked, in this order:
+    Open to Buy > Marketing & Events > Informational Only > Not Seeking
+    Outreach. Returns None (no badge) when outreach isn't enabled at all,
+    matching today's "no badge" look for anyone who hasn't opted in."""
+    if not row or not row.get(prefix + "outreach_enabled"):
+        return None
+    if row.get(prefix + "open_to_buy"):
+        return {"label": "Open to Buy", "css_class": "badge-brand"}
+    if row.get(prefix + "outreach_marketing_events"):
+        return {"label": "Marketing & Events", "css_class": "badge-good"}
+    if row.get(prefix + "outreach_informational"):
+        return {"label": "Informational Only", "css_class": "badge-neutral"}
+    if row.get(prefix + "outreach_none"):
+        return {"label": "Not Seeking Outreach", "css_class": "badge-warning"}
+    return None
+
+
+app.jinja_env.globals["buyer_outreach_badge"] = buyer_outreach_badge
+
 # Checked dynamically against the user row rather than tracked with a
 # stored flag, so there's nothing that can drift out of sync. role,
 # company, and email are guaranteed non-blank by the users table itself
@@ -761,17 +786,37 @@ def _apply_profile_form(user, form, files=None):
     zip_code = form.get("zip", "").strip()
     secondary_phone = form.get("secondary_phone", "").strip()
     secondary_phone_country = (form.get("secondary_phone_country", "US").strip().upper() or "US")[:2]
-    open_to_buy = 1 if (user["role"] == "buyer" and form.get("open_to_buy") == "on") else 0
+    # "Open to Outreach" -- buyer-only. The parent toggle gates three
+    # independent sub-options (open_to_buy, informational, marketing &
+    # events); "Not seeking outreach" says the opposite of all three, so
+    # it wins over them here even if the profile form's JS (which mirrors
+    # this exclusivity client-side) was bypassed.
+    if user["role"] == "buyer":
+        outreach_enabled = form.get("outreach_enabled") == "on"
+        outreach_none = outreach_enabled and form.get("outreach_none") == "on"
+        if outreach_none:
+            outreach_informational = False
+            outreach_marketing_events = False
+            open_to_buy = False
+        else:
+            outreach_informational = outreach_enabled and form.get("outreach_informational") == "on"
+            outreach_marketing_events = outreach_enabled and form.get("outreach_marketing_events") == "on"
+            open_to_buy = outreach_enabled and form.get("open_to_buy") == "on"
+    else:
+        outreach_enabled = outreach_none = outreach_informational = outreach_marketing_events = False
+        open_to_buy = False
 
     dbm.execute(
         "UPDATE users SET first_name=?, last_name=?, name=?, email=?, company=?, personal_email=?, "
         "phone=?, phone_country=?, state=?, title=?, address_line1=?, address_line2=?, city=?, zip=?, "
         "secondary_phone=?, secondary_phone_country=?, linkedin_url=?, no_linkedin=?, timezone=?, "
-        "open_to_buy=? WHERE id=?",
+        "open_to_buy=?, outreach_enabled=?, outreach_informational=?, outreach_marketing_events=?, "
+        "outreach_none=? WHERE id=?",
         (first_name, last_name, f"{first_name} {last_name}", work_email, company, personal_email,
          phone, phone_country, state, title, address_line1, address_line2, city, zip_code,
          secondary_phone, secondary_phone_country, linkedin_url, int(no_linkedin), timezone,
-         open_to_buy, user["id"]),
+         int(open_to_buy), int(outreach_enabled), int(outreach_informational),
+         int(outreach_marketing_events), int(outreach_none), user["id"]),
     )
     if photo_data_url:
         dbm.execute("UPDATE users SET photo_data_url=? WHERE id=?", (photo_data_url, user["id"]))
@@ -2922,7 +2967,10 @@ def seller_leads():
     vendor = seller_vendor(g.user)
     leads = dbm.query(
         "SELECT s.*, u.name buyer_name, u.company buyer_company, u.title buyer_title, "
-        "u.open_to_buy buyer_open_to_buy "
+        "u.open_to_buy buyer_open_to_buy, u.outreach_enabled buyer_outreach_enabled, "
+        "u.outreach_informational buyer_outreach_informational, "
+        "u.outreach_marketing_events buyer_outreach_marketing_events, "
+        "u.outreach_none buyer_outreach_none "
         "FROM shortlist s JOIN users u ON u.id=s.buyer_user_id "
         "WHERE s.vendor_id=? ORDER BY s.created_at DESC",
         (vendor["id"],),

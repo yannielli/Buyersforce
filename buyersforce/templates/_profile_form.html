@@ -184,16 +184,50 @@
 {% if user.role == 'buyer' %}
 <div class="card" style="background:var(--brand-tint); border-color:var(--brand); margin:18px 0;">
   <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; margin:0;">
-    <input type="checkbox" name="open_to_buy" style="margin-top:3px;" {% if user.open_to_buy %}checked{% endif %}>
+    <input type="checkbox" id="outreach_enabled" name="outreach_enabled" style="margin-top:3px;" {% if user.outreach_enabled %}checked{% endif %}>
     <span>
-      <strong style="font-size:14px;">Open to Buy</strong>
+      <strong style="font-size:14px;">Open to Outreach</strong>
       <div class="hint" style="margin-top:2px;">
-        Signals to sellers you're actively interested in vendor solicitations. Shown on your
-        conversations and on a seller's leads dashboard when it's on — think of it like LinkedIn's
-        "Open to Work" badge, but for buyers.
+        Signals to sellers you're open to hearing from them. Shown on your conversations and on a
+        seller's leads dashboard when it's on — think of it like LinkedIn's "Open to Work" badge,
+        but for buyers. Turn it on to say more about what you're open to.
       </div>
     </span>
   </label>
+
+  <div id="outreach-suboptions" class="outreach-suboptions"
+       style="margin:14px 0 2px 26px; display:{{ 'flex' if user.outreach_enabled else 'none' }}; flex-direction:column; gap:10px;">
+    <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin:0; font-weight:400;">
+      <input type="checkbox" class="outreach-option" name="outreach_informational" style="margin-top:3px;" {% if user.outreach_informational %}checked{% endif %}>
+      <span>
+        <strong style="font-size:13.5px;">Informational only</strong>
+        <div class="hint" style="margin-top:1px;">Happy to hear what vendors offer — no sales pitch needed.</div>
+      </span>
+    </label>
+    <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin:0; font-weight:400;">
+      <input type="checkbox" class="outreach-option" name="outreach_marketing_events" style="margin-top:3px;" {% if user.outreach_marketing_events %}checked{% endif %}>
+      <span>
+        <strong style="font-size:13.5px;">Marketing &amp; events</strong>
+        <div class="hint" style="margin-top:1px;">Interested in webinars, event invites, and marketing content.</div>
+      </span>
+    </label>
+    <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin:0; font-weight:400;">
+      <input type="checkbox" class="outreach-option" name="open_to_buy" style="margin-top:3px;" {% if user.open_to_buy %}checked{% endif %}>
+      <span>
+        <strong style="font-size:13.5px;">Open to buy</strong>
+        <div class="hint" style="margin-top:1px;">Actively interested in a sales conversation right now.</div>
+      </span>
+    </label>
+    <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin:0; font-weight:400; padding-top:8px; border-top:1px solid var(--border);">
+      <input type="checkbox" id="outreach_none" name="outreach_none" style="margin-top:3px;" {% if user.outreach_none %}checked{% endif %}>
+      <span>
+        <strong style="font-size:13.5px;">Not seeking outreach</strong>
+        <div class="hint" style="margin-top:1px;">
+          Vendors can still reach out, but shouldn't expect a response right now.
+        </div>
+      </span>
+    </label>
+  </div>
 </div>
 {% endif %}
 

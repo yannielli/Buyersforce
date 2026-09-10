@@ -54,7 +54,19 @@ CREATE TABLE users (
     linkedin_url TEXT,
     no_linkedin INTEGER NOT NULL DEFAULT 0,
     timezone TEXT,
+    -- "Open to Outreach" -- a buyer-only signal shown to sellers (leads
+    -- dashboard, conversation header). outreach_enabled is the parent
+    -- toggle; open_to_buy, outreach_informational, and
+    -- outreach_marketing_events are independent sub-options under it;
+    -- outreach_none ("Not seeking outreach") is mutually exclusive with
+    -- those three, enforced in _apply_profile_form(). See migrate.py's
+    -- _add_outreach_columns for the equivalent migration (and backfill)
+    -- on a pre-existing database.
     open_to_buy INTEGER NOT NULL DEFAULT 0,
+    outreach_enabled INTEGER NOT NULL DEFAULT 0,
+    outreach_informational INTEGER NOT NULL DEFAULT 0,
+    outreach_marketing_events INTEGER NOT NULL DEFAULT 0,
+    outreach_none INTEGER NOT NULL DEFAULT 0,
     photo_data_url TEXT,
     account_status TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('pending', 'active', 'denied')),
     -- Per-account light/dark toggle, set from Account > Profile >

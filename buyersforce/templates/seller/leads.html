@@ -18,7 +18,7 @@
     <td>{{ l.buyer_company }}</td>
     <td>{{ l.buyer_title }}</td>
     <td><span class="badge {{ 'badge-good' if l.status in ['shortlisted','selected'] else ('badge-brand' if l.status == 'evaluating' else 'badge-neutral') }}">{{ l.status|capitalize }}</span></td>
-    <td>{% if l.buyer_open_to_buy %}<span class="badge badge-brand">Open to Buy</span>{% endif %}</td>
+    <td>{% set outreach_badge = buyer_outreach_badge(l, 'buyer_') %}{% if outreach_badge %}<span class="badge {{ outreach_badge.css_class }}">{{ outreach_badge.label }}</span>{% endif %}</td>
     <td>{{ l.created_at|fmt_time }}</td>
     <td>
       <form method="post" action="{{ url_for('seller_leads_sync', lead_user_id=l.buyer_user_id) }}">

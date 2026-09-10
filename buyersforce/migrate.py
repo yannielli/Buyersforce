@@ -47,6 +47,7 @@ def run_migrations():
             _add_vendor_ratings_table(cur)
             _add_evaluations_gartner_note_column(cur)
             _add_theme_preference_column(cur)
+            _add_outreach_columns(cur)
     finally:
         con.close()
 
@@ -625,6 +626,30 @@ def _add_theme_preference_column(cur):
         END $$;
         """
     )
+
+
+def _add_outreach_columns(cur):
+    # Expands the old single "Open to Buy" boolean into a fuller signal:
+    # a parent "Open to Outreach" toggle plus three independent
+    # sub-options (open_to_buy itself, outreach_informational,
+    # outreach_marketing_events), plus outreach_none ("Not seeking
+    # outreach") which is mutually exclusive with those three -- enforced
+    # in _apply_profile_form(), not here. open_to_buy is reused unchanged
+    # as the "Open to buy" sub-option's column, since its existing values
+    # already mean exactly that -- so the backfill below just turns
+    # outreach_enabled on for anyone who already had it set, preserving
+    # today's signal exactly. Safe to re-run: once a user's flags are all
+    # 0 (including open_to_buy, whether from never opting in or from
+    # later turning everything off), this never flips outreach_enabled
+    # back on for them.
+    for ddl in (
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS outreach_enabled INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS outreach_informational INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS outreach_marketing_events INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS outreach_none INTEGER NOT NULL DEFAULT 0",
+    ):
+        cur.execute(ddl)
+    cur.execute("UPDATE users SET outreach_enabled = 1 WHERE open_to_buy = 1 AND outreach_enabled = 0")
 
 
 if __name__ == "__main__":
