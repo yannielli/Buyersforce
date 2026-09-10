@@ -339,6 +339,11 @@ CREATE TABLE evaluations (
     vendor_id INTEGER NOT NULL REFERENCES vendors(id),
     company TEXT NOT NULL,
     created_by INTEGER NOT NULL REFERENCES users(id),
+    -- Free-text space for whatever the team found on Gartner Peer Insights --
+    -- BF doesn't pull real review data from Gartner (see
+    -- gartner_peer_insights_url() in app.py), this is a manually-typed
+    -- reference note the team fills in themselves, surfaced back on Compare.
+    gartner_peer_note TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
 );
 

@@ -15,12 +15,13 @@
 {% if vendors|length < 2 %}
 <div class="card empty-state"><div class="icon">⚖️</div>Select at least two vendors from Discover to compare.</div>
 {% else %}
+<form id="shortlist-form" method="post" action="{{ url_for('buyer_move_to_evaluation') }}"></form>
 <div style="overflow-x:auto;">
 <table class="compare-table">
   <tr>
     <th>Vendor</th>
     {% for v in vendors %}
-    <th><span class="vendor-logo" style="background:{{ v.accent }}; width:32px;height:32px;font-size:11px;display:inline-flex;margin-right:8px;vertical-align:middle;">{{ v.initials }}</span>{{ v.company_name }}</th>
+    <th><span class="vendor-logo" style="background:{{ v.accent }}; width:32px;height:32px;font-size:11px;display:inline-flex;margin-right:8px;vertical-align:middle;">{% if v.logo_url %}<img src="{{ v.logo_url }}" alt="" onerror="this.remove();">{% endif %}{{ v.initials }}</span>{{ v.company_name }}</th>
     {% endfor %}
   </tr>
   <tr>
@@ -34,6 +35,21 @@
   <tr>
     <td>BF rating — 90-day check-in</td>
     {% for v in vendors %}<td>{% if v.ratings.production.count %}{{ v.ratings.production.overall }}/10 <span class="hint">({{ v.ratings.production.count }})</span>{% else %}—{% endif %}</td>{% endfor %}
+  </tr>
+  <tr>
+    <td>Gartner Peer Insights</td>
+    {% for v in vendors %}
+    <td>
+      <a href="{{ v.gartner_url }}" target="_blank" rel="noopener">Search reviews ↗</a>
+      {% if v.gartner_note %}<div class="hint" style="margin-top:6px;">{{ v.gartner_note }}</div>{% endif %}
+    </td>
+    {% endfor %}
+  </tr>
+  <tr>
+    <td>Short list <span class="hint" style="font-weight:400;">(up to {{ shortlist_move_max }})</span></td>
+    {% for v in vendors %}
+    <td><label class="compare-check"><input type="checkbox" name="shortlist_ids" value="{{ v.id }}" form="shortlist-form"> Short List</label></td>
+    {% endfor %}
   </tr>
   <tr>
     <td>Company size</td>
@@ -84,5 +100,23 @@
   </tr>
 </table>
 </div>
+<div style="margin-top:16px; text-align:center;">
+  <button id="move-to-eval-submit" class="btn btn-primary" type="submit" form="shortlist-form" disabled>Move to Evaluation →</button>
+  <p class="hint" style="margin-top:8px;">Check up to {{ shortlist_move_max }} vendors' "Short List" box above, then move them into Evaluations to start scoring.</p>
+</div>
+<script>
+(function () {
+  var form = document.getElementById('shortlist-form');
+  var submitBtn = document.getElementById('move-to-eval-submit');
+  if (!form || !submitBtn) return;
+  var boxes = function () { return Array.from(document.querySelectorAll('input[name="shortlist_ids"]')); };
+  document.addEventListener('change', function (e) {
+    if (e.target.name !== 'shortlist_ids') return;
+    var checked = boxes().filter(function (b) { return b.checked; });
+    boxes().forEach(function (b) { b.disabled = checked.length >= {{ shortlist_move_max }} && !b.checked; });
+    submitBtn.disabled = checked.length < 1;
+  });
+})();
+</script>
 {% endif %}
 {% endblock %}

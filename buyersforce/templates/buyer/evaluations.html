@@ -10,6 +10,34 @@
   <a href="{{ url_for('buyer_evaluation_new') }}" class="btn btn-primary">+ New template</a>
 </div>
 
+{% if ready_to_evaluate %}
+<div class="section-title"><h2>Ready to evaluate</h2></div>
+<p class="hint" style="margin-top:-6px; margin-bottom:14px;">Vendors you've shortlisted, from Discover or Compare — pick a scorecard to start scoring.</p>
+<div class="grid grid-2" style="margin-bottom:30px;">
+  {% for r in ready_to_evaluate %}
+  <div class="card">
+    <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
+      <span class="vendor-logo" style="background:{{ r.accent }}; width:38px;height:38px;font-size:12px;">
+        {% if r.logo_url %}<img src="{{ r.logo_url }}" alt="" onerror="this.remove();">{% endif %}
+        {{ r.initials }}
+      </span>
+      <strong>{{ r.company_name }}</strong>
+    </div>
+    {% if templates %}
+    <form method="post" action="{{ url_for('buyer_evaluation_start', vendor_id=r.vendor_id) }}" style="display:flex; gap:8px;">
+      <select name="template_id" style="flex:1;">
+        {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+      </select>
+      <button class="btn btn-primary btn-sm" type="submit">Start evaluation</button>
+    </form>
+    {% else %}
+    <p class="hint" style="margin:0;">Create an evaluation template first.</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="section-title"><h2>Active evaluations</h2></div>
 {% if active %}
 <div class="grid grid-2">
@@ -17,7 +45,7 @@
   <a class="card" href="{{ url_for('buyer_evaluation_detail', eval_id=ev.id) }}" style="display:block;">
     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
       <div style="display:flex; gap:10px; align-items:center;">
-        <span class="vendor-logo" style="background:{{ ev.accent }}; width:38px;height:38px;font-size:12px;">{{ ev.initials }}</span>
+        <span class="vendor-logo" style="background:{{ ev.accent }}; width:38px;height:38px;font-size:12px;">{% if ev.logo_url %}<img src="{{ ev.logo_url }}" alt="" onerror="this.remove();">{% endif %}{{ ev.initials }}</span>
         <div><strong>{{ ev.company_name }}</strong><div class="hint">{{ ev.template_name }}</div></div>
       </div>
       {% if ev.overall %}<span class="badge badge-brand">{{ ev.overall }} / 5</span>{% else %}<span class="badge badge-neutral">Not scored</span>{% endif %}

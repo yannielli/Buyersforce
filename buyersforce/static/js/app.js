@@ -25,14 +25,17 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Cap compare checkboxes at 3
+  // Cap Discover's compare checkboxes at 5 -- research/compare stage; a
+  // separate, smaller cap (3) applies to Compare's own "Short List"
+  // checkboxes, handled inline on compare.html since that page's form
+  // controls live outside the <form> element itself (form="shortlist-form").
   const compareForm = document.getElementById("compare-form");
   if (compareForm) {
     const boxes = () => Array.from(compareForm.querySelectorAll('input[type="checkbox"]'));
     compareForm.addEventListener("change", () => {
       const checked = boxes().filter((b) => b.checked);
       boxes().forEach((b) => {
-        b.disabled = checked.length >= 3 && !b.checked;
+        b.disabled = checked.length >= 5 && !b.checked;
       });
       const submitBtn = document.getElementById("compare-submit");
       if (submitBtn) submitBtn.disabled = checked.length < 2;

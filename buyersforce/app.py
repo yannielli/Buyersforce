@@ -4,6 +4,7 @@ import sqlite3
 import secrets
 from functools import wraps
 from datetime import datetime, timedelta
+from urllib.parse import quote as urlquote
 
 import pytz
 from flask import (
@@ -250,6 +251,19 @@ RATING_PHASE_QUESTIONS = {
 # for any selected vendor that has crossed this threshold without a
 # check-in yet, whenever the buyer happens to visit.
 RATING_CHECKIN_DAYS = 90
+
+# Discover lets a buyer select up to this many vendors to research
+# side-by-side on Compare; Compare's own "Short List" checkboxes then let
+# them down-select to a smaller set to actually move into Evaluations.
+DISCOVER_COMPARE_MAX = 5
+SHORTLIST_MOVE_MAX = 3
+
+# Pipeline order for shortlist.status, used by bump_shortlist_forward() below
+# so a bulk action (like Compare's "Move to Evaluation") only ever advances a
+# vendor's status, never regresses one a buyer already pushed further along
+# (e.g. already 'selected'). 'passed' is intentionally left out -- a buyer
+# who passed on a vendor has to bring it back manually, not via a bulk action.
+SHORTLIST_PIPELINE_ORDER = {"discovered": 0, "shortlisted": 1, "evaluating": 2, "selected": 3}
 
 
 def vendor_favicon_url(website):
@@ -1841,6 +1855,38 @@ def vendor_listings(vendor_id):
     return out
 
 
+def gartner_peer_insights_url(company_name):
+    """Best-effort link out to Gartner Peer Insights for a vendor. Gartner's
+    own vendor-page URLs (gartner.com/reviews/vendor/<slug>) don't follow a
+    guessable slug across 240+ vendor names -- spacing, ampersands, and
+    abbreviations all vary -- so rather than hardcode or maintain a mapping,
+    this links to a site-scoped web search that reliably surfaces the right
+    Peer Insights vendor page as the top result."""
+    query = f'site:gartner.com/reviews/vendor "{company_name}"'
+    return "https://www.google.com/search?q=" + urlquote(query)
+
+
+def bump_shortlist_forward(buyer_id, vendor_id, target_status):
+    """Advance a shortlist row to target_status, but never move it backward.
+    Used by bulk actions (like Compare's "Move to Evaluation") so they can't
+    accidentally downgrade a vendor a buyer already pushed further along --
+    e.g. one already marked Selected shouldn't get bumped back to Shortlisted."""
+    existing = dbm.query(
+        "SELECT * FROM shortlist WHERE buyer_user_id=? AND vendor_id=?",
+        (buyer_id, vendor_id), one=True,
+    )
+    target_rank = SHORTLIST_PIPELINE_ORDER.get(target_status, 0)
+    if existing:
+        current_rank = SHORTLIST_PIPELINE_ORDER.get(existing["status"], 0)
+        if current_rank < target_rank:
+            dbm.execute("UPDATE shortlist SET status=? WHERE id=?", (target_status, existing["id"]))
+    else:
+        dbm.execute(
+            "INSERT INTO shortlist (buyer_user_id, vendor_id, status) VALUES (?, ?, ?)",
+            (buyer_id, vendor_id, target_status),
+        )
+
+
 def shortlist_status(buyer_id, vendor_id):
     row = dbm.query(
         "SELECT status FROM shortlist WHERE buyer_user_id = ? AND vendor_id = ?",
@@ -2291,11 +2337,19 @@ def buyer_compare():
             part = part.strip()
             if part.isdigit():
                 ids.append(int(part))
-    ids = list(dict.fromkeys(ids))[:3]
+    ids = list(dict.fromkeys(ids))[:DISCOVER_COMPARE_MAX]
     vendors = []
     for vid in ids:
         v = dbm.query("SELECT * FROM vendors WHERE id=?", (vid,), one=True)
         if v:
+            # Most recent evaluation (if any) this buyer's company has for
+            # this vendor that has a Gartner Peer Insights note on it, so
+            # Compare can surface what the team already found there.
+            gartner_eval = dbm.query(
+                "SELECT gartner_peer_note FROM evaluations WHERE vendor_id=? AND company=? "
+                "AND gartner_peer_note != '' ORDER BY created_at DESC LIMIT 1",
+                (vid, g.user["company"]), one=True,
+            )
             vendors.append({
                 **dict(v),
                 "tags": vendor_tags(vid),
@@ -2303,9 +2357,44 @@ def buyer_compare():
                 "listings": vendor_listings(vid),
                 "logo_url": v["wiki_logo_url"] or vendor_favicon_url(v["website"]),
                 "ratings": vendor_rating_summary(vid),
+                "gartner_url": gartner_peer_insights_url(v["company_name"]),
+                "gartner_note": gartner_eval["gartner_peer_note"] if gartner_eval else "",
             })
     all_vendors = dbm.query("SELECT id, company_name FROM vendors ORDER BY company_name")
-    return render_template("buyer/compare.html", vendors=vendors, all_vendors=all_vendors, ids=ids)
+    return render_template(
+        "buyer/compare.html", vendors=vendors, all_vendors=all_vendors, ids=ids,
+        shortlist_move_max=SHORTLIST_MOVE_MAX,
+    )
+
+
+@app.route("/app/buyer/vendors/move-to-evaluation", methods=("POST",))
+@role_required("buyer")
+def buyer_move_to_evaluation():
+    # Bulk action from Compare's "Short List" checkboxes: bump each checked
+    # vendor's shortlist status forward (never backward -- see
+    # bump_shortlist_forward) and send the buyer to Evaluations, where the
+    # new "Ready to evaluate" section lets them pick a scorecard per vendor.
+    raw_ids = request.form.getlist("shortlist_ids")
+    ids = []
+    for part in raw_ids:
+        part = part.strip()
+        if part.isdigit():
+            ids.append(int(part))
+    ids = list(dict.fromkeys(ids))[:SHORTLIST_MOVE_MAX]
+    if not ids:
+        flash('Check at least one vendor\'s "Short List" box first.', "error")
+        return redirect(request.referrer or url_for("buyer_discover"))
+    names = []
+    for vid in ids:
+        vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vid,), one=True)
+        if not vendor:
+            continue
+        bump_shortlist_forward(g.user["id"], vid, "shortlisted")
+        log_activity(g.user["id"], f"shortlisted {vendor['company_name']} for evaluation")
+        names.append(vendor["company_name"])
+    if names:
+        flash(f"Moved {', '.join(names)} to Evaluations -- pick a scorecard to get started.", "success")
+    return redirect(url_for("buyer_evaluations"))
 
 
 @app.route("/app/buyer/vendor/<int:vendor_id>/message", methods=("POST",))
@@ -2485,7 +2574,8 @@ def buyer_evaluations():
         (u["company"],),
     )
     active = dbm.query(
-        "SELECT e.*, v.company_name, v.accent, v.initials, t.name template_name "
+        "SELECT e.*, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.website, "
+        "t.name template_name "
         "FROM evaluations e JOIN vendors v ON v.id=e.vendor_id "
         "JOIN eval_templates t ON t.id = e.template_id "
         "WHERE e.company=? ORDER BY e.created_at DESC",
@@ -2509,8 +2599,30 @@ def buyer_evaluations():
             avg = sum(vals) / len(vals) if vals else 0
             weighted_sum += avg * c["weight"]
         overall = round(weighted_sum / total_weight, 1) if scores else None
-        active_data.append({**dict(ev), "overall": overall, "reviewers": len(set(s["user_id"] for s in scores))})
-    return render_template("buyer/evaluations.html", templates=templates_, active=active_data)
+        active_data.append({
+            **dict(ev), "overall": overall, "reviewers": len(set(s["user_id"] for s in scores)),
+            "logo_url": ev["wiki_logo_url"] or vendor_favicon_url(ev["website"]),
+        })
+    # Vendors this buyer has shortlisted/is evaluating that don't have an
+    # evaluations row yet -- the bridge from Compare's "Move to Evaluation"
+    # (and from manually shortlisting a vendor) into actually starting a
+    # scorecard. Once an evaluation exists for a vendor it graduates to
+    # "Active evaluations" above and drops out of this list.
+    ready = dbm.query(
+        "SELECT s.vendor_id, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.website "
+        "FROM shortlist s JOIN vendors v ON v.id = s.vendor_id "
+        "WHERE s.buyer_user_id=? AND s.status IN ('shortlisted', 'evaluating') "
+        "AND s.vendor_id NOT IN (SELECT vendor_id FROM evaluations WHERE company=?) "
+        "ORDER BY s.created_at DESC",
+        (u["id"], u["company"]),
+    )
+    ready_data = [
+        {**dict(r), "logo_url": r["wiki_logo_url"] or vendor_favicon_url(r["website"])}
+        for r in ready
+    ]
+    return render_template(
+        "buyer/evaluations.html", templates=templates_, active=active_data, ready_to_evaluate=ready_data,
+    )
 
 
 @app.route("/app/buyer/evaluations/new", methods=("GET", "POST"))
@@ -2599,6 +2711,13 @@ def buyer_evaluation_detail(eval_id):
                     "DO UPDATE SET score=excluded.score, comment=excluded.comment",
                     (eval_id, c["id"], g.user["id"], int(score), comment),
                 )
+        # Free-text space for whatever the team found on Gartner Peer
+        # Insights -- BF doesn't pull real review data from Gartner, this is
+        # just a manually-typed reference note shared per evaluation.
+        gartner_peer_note = request.form.get("gartner_peer_note", "").strip()
+        dbm.execute(
+            "UPDATE evaluations SET gartner_peer_note=? WHERE id=?", (gartner_peer_note, eval_id)
+        )
         log_activity(g.user["id"], f"submitted scores for {vendor['company_name']}")
         flash("Your scores were saved.", "success")
         return redirect(url_for("buyer_evaluation_detail", eval_id=eval_id))
@@ -2632,10 +2751,13 @@ def buyer_evaluation_detail(eval_id):
             "count": len(vals),
         })
 
+    logo_url = vendor["wiki_logo_url"] or vendor_favicon_url(vendor["website"])
+    gartner_url = gartner_peer_insights_url(vendor["company_name"])
     return render_template(
         "buyer/evaluation_detail.html",
         ev=ev, vendor=vendor, template=template, criteria=criterion_rows,
         my_scores=my_scores, overall=overall, reviewer_rows=reviewer_rows,
+        logo_url=logo_url, gartner_url=gartner_url,
     )
 
 

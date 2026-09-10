@@ -4,7 +4,13 @@
 <div class="page-header">
   <div>
     <span class="eyebrow">{{ template.name }}</span>
-    <h1>Evaluating {{ vendor.company_name }}</h1>
+    <h1>
+      <span class="vendor-logo" style="background:{{ vendor.accent }}; width:30px;height:30px;font-size:11px;display:inline-flex;vertical-align:middle;margin-right:8px;">
+        {% if logo_url %}<img src="{{ logo_url }}" alt="" onerror="this.remove();">{% endif %}
+        {{ vendor.initials }}
+      </span>
+      Evaluating {{ vendor.company_name }}
+    </h1>
     <p class="lede">Collaborative scorecard — every reviewer on {{ ev.company }} scores independently.</p>
   </div>
   <a href="{{ url_for('buyer_vendor', vendor_id=vendor.id) }}" class="btn btn-secondary">View vendor profile</a>
@@ -33,6 +39,11 @@
              value="{{ my_scores[c.id].comment if my_scores.get(c.id) else '' }}"
              style="margin-bottom:14px; font-size:13px;">
       {% endfor %}
+      <div class="field" style="margin-top:6px;">
+        <label>Gartner Peer Insights <a href="{{ gartner_url }}" target="_blank" rel="noopener" style="font-weight:400;">(search reviews ↗)</a></label>
+        <input type="text" name="gartner_peer_note" placeholder="e.g. 4.5/5 stars, 120 reviews — strong marks on support" value="{{ ev.gartner_peer_note }}">
+        <div class="hint">BuyersForce doesn't pull live review data — jot down what your team found so it's visible on Compare too.</div>
+      </div>
       <button class="btn btn-primary" type="submit">Save my scores</button>
     </form>
   </div>

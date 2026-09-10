@@ -45,6 +45,7 @@ def run_migrations():
             _add_vendor_requests_table(cur)
             _add_shortlist_selected_at_column(cur)
             _add_vendor_ratings_table(cur)
+            _add_evaluations_gartner_note_column(cur)
     finally:
         con.close()
 
@@ -548,6 +549,12 @@ def _add_vendor_ratings_table(cur):
         )
         """
     )
+
+
+def _add_evaluations_gartner_note_column(cur):
+    # Free-text space for whatever the team found on Gartner Peer Insights --
+    # see schema.sql's comment on this column for the full rationale.
+    cur.execute("ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS gartner_peer_note TEXT NOT NULL DEFAULT ''")
 
 
 def _add_technology_category_column(cur):
