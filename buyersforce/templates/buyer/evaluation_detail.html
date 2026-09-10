@@ -12,6 +12,12 @@
       Evaluating {{ vendor.company_name }}
     </h1>
     <p class="lede">Collaborative scorecard — every reviewer on {{ ev.company }} scores independently.</p>
+    {% if vendor.website %}
+    <p class="hint" style="margin-top:6px;">
+      <a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }}</a> ↗<br>
+      {{ EXTERNAL_LINK_PRIVACY_NOTE }}
+    </p>
+    {% endif %}
   </div>
   <a href="{{ url_for('buyer_vendor', vendor_id=vendor.id) }}" class="btn btn-secondary">View vendor profile</a>
 </div>

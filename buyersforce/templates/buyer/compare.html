@@ -57,7 +57,14 @@
   </tr>
   <tr>
     <td>Website</td>
-    {% for v in vendors %}<td>{% if v.website %}<a href="{{ v.website }}" target="_blank" rel="noopener">{{ v.website }}</a>{% else %}—{% endif %}</td>{% endfor %}
+    {% for v in vendors %}
+    <td>
+      {% if v.website %}
+      <a href="{{ v.website }}" target="_blank" rel="noopener">{{ v.website }}</a> ↗
+      <div class="hint" style="margin-top:4px;">{{ EXTERNAL_LINK_PRIVACY_NOTE }}</div>
+      {% else %}—{% endif %}
+    </td>
+    {% endfor %}
   </tr>
   <tr>
     <td>Tagline</td>

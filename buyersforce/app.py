@@ -312,6 +312,17 @@ def buyer_outreach_badge(row, prefix=""):
 
 app.jinja_env.globals["buyer_outreach_badge"] = buyer_outreach_badge
 
+# Shown wherever a buyer-facing screen links out to a vendor's own website
+# (Discover's vendor profile, Compare, and an evaluation's header) --
+# BuyersForce doesn't control what happens after that click, and most
+# vendor sites run their own analytics, so buyers should know they may be
+# tracked (clicks, time on page, etc.) once they leave. A single constant
+# so the wording can't drift between the three places it appears.
+EXTERNAL_LINK_PRIVACY_NOTE = (
+    "Leaving BuyersForce — the vendor's site may track this visit (clicks, time on page, and more)."
+)
+app.jinja_env.globals["EXTERNAL_LINK_PRIVACY_NOTE"] = EXTERNAL_LINK_PRIVACY_NOTE
+
 # Checked dynamically against the user row rather than tracked with a
 # stored flag, so there's nothing that can drift out of sync. role,
 # company, and email are guaranteed non-blank by the users table itself
