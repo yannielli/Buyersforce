@@ -32,12 +32,19 @@
 
   --good: #0ca30c;
   --good-tint: #e6f7e6;
+  --good-ink: #0b6b0b;
   --warning: #fab219;
   --warning-tint: #fff6e2;
+  --warning-ink: #96650a;
+  --warning-border: #e0b84a;
+  --warning-ink-strong: #6b4e05;
+  --warning-ink-vivid: #a15c00;
   --serious: #ec835a;
   --serious-tint: #fdeee6;
+  --serious-ink: #a6431f;
   --critical: #d03b3b;
   --critical-tint: #fbe9e9;
+  --critical-ink: #96271f;
 
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -45,6 +52,47 @@
   --shadow-sm: 0 1px 2px rgba(11,11,11,0.06);
   --shadow-md: 0 8px 24px rgba(11,11,11,0.08);
   --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Dark mode: a per-account toggle set from Account > Profile > Appearance
+   (see account_theme() in app.py). Applied by stamping data-theme="dark"
+   on <html> for that person only -- everyone else, and the logged-out
+   landing page, keeps the light palette above untouched. Every rule in
+   this file is written against the tokens above, so this block is the
+   entire theme -- no component styles need to know which mode is active.
+   Vendor/company logo chips are a deliberate exception: .vendor-logo img
+   keeps its solid white backing in both modes, since most uploaded logos
+   are drawn for a light background and would disappear on a dark one. */
+html[data-theme="dark"] {
+  --page: #15171b;
+  --surface: #1c1f24;
+  --surface-raised: #23272d;
+  --ink-primary: #f1f0ec;
+  --ink-secondary: #b7b5af;
+  --ink-muted: #83817b;
+  --gridline: #34373d;
+  --border: rgba(255,255,255,0.10);
+  --border-strong: rgba(255,255,255,0.20);
+
+  --brand: #2bb0aa;
+  --brand-dark: #17948f;
+  --brand-tint: rgba(43,176,170,0.18);
+  --brand-mcm-ink: #f0e6d0;
+
+  --good-tint: rgba(12,163,12,0.18);
+  --good-ink: #7fdb85;
+  --warning-tint: rgba(250,178,25,0.16);
+  --warning-ink: #ffce6b;
+  --warning-border: rgba(250,178,25,0.45);
+  --warning-ink-strong: #f0d090;
+  --warning-ink-vivid: #ffcf7a;
+  --serious-tint: rgba(236,131,90,0.18);
+  --serious-ink: #ffb08f;
+  --critical-tint: rgba(208,59,59,0.20);
+  --critical-ink: #ff9c9c;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.35);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.45);
 }
 
 @font-face {
@@ -173,9 +221,9 @@ button { font-family: inherit; }
   font-size: 12px; font-weight: 600;
 }
 .badge-neutral { background: var(--page); color: var(--ink-secondary); border: 1px solid var(--gridline); }
-.badge-good { background: var(--good-tint); color: #0b6b0b; }
-.badge-warning { background: var(--warning-tint); color: #96650a; }
-.badge-serious { background: var(--serious-tint); color: #a6431f; }
+.badge-good { background: var(--good-tint); color: var(--good-ink); }
+.badge-warning { background: var(--warning-tint); color: var(--warning-ink); }
+.badge-serious { background: var(--serious-tint); color: var(--serious-ink); }
 .badge-brand { background: var(--brand-tint); color: var(--brand-dark); }
 .tag { display: inline-block; padding: 3px 9px; border-radius: 6px; background: var(--page); border: 1px solid var(--gridline); font-size: 12px; color: var(--ink-secondary); margin: 0 6px 6px 0; }
 
@@ -203,8 +251,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 /* ---------- flash ---------- */
 .flash-stack { max-width: 1180px; margin: 16px auto 0; padding: 0 24px; display: flex; flex-direction: column; gap: 8px; }
 .flash { padding: 12px 16px; border-radius: 10px; font-size: 14px; font-weight: 500; }
-.flash-success { background: var(--good-tint); color: #0b6b0b; }
-.flash-error { background: var(--critical-tint); color: #96271f; }
+.flash-success { background: var(--good-tint); color: var(--good-ink); }
+.flash-error { background: var(--critical-tint); color: var(--critical-ink); }
 
 /* ---------- admin "view as" mode banner ---------- */
 .impersonation-bar {
@@ -217,13 +265,13 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
   gap: 16px;
   flex-wrap: wrap;
   font-size: 13.5px;
-  color: #6b4e05;
+  color: var(--warning-ink-strong);
 }
 .impersonation-bar form { margin: 0; }
 .impersonation-bar-btn {
-  background: #fff;
+  background: var(--surface-raised);
   border: 1px solid var(--warning);
-  color: #6b4e05;
+  color: var(--warning-ink-strong);
 }
 .impersonation-bar-btn:hover { background: var(--warning); color: #fff; }
 

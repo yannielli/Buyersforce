@@ -847,6 +847,18 @@ def account_profile():
     return redirect(url_for("account", tab="profile"))
 
 
+@app.route("/app/account/theme", methods=("POST",))
+@login_required
+def account_theme():
+    theme = request.form.get("theme_preference")
+    if theme not in ("light", "dark"):
+        flash("Invalid appearance selection.", "error")
+    else:
+        dbm.execute("UPDATE users SET theme_preference = ? WHERE id = ?", (theme, g.user["id"]))
+        flash(f"Switched to {theme} mode.", "success")
+    return redirect(url_for("account", tab="profile"))
+
+
 @app.route("/app/account/password", methods=("POST",))
 @login_required
 def account_password():

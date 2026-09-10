@@ -56,7 +56,12 @@ CREATE TABLE users (
     timezone TEXT,
     open_to_buy INTEGER NOT NULL DEFAULT 0,
     photo_data_url TEXT,
-    account_status TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('pending', 'active', 'denied'))
+    account_status TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('pending', 'active', 'denied')),
+    -- Per-account light/dark toggle, set from Account > Profile >
+    -- Appearance. Defaults to 'light' so nobody's view changes until they
+    -- opt in. See migrate.py's _add_theme_preference_column for the
+    -- equivalent migration on a pre-existing database.
+    theme_preference TEXT NOT NULL DEFAULT 'light' CHECK (theme_preference IN ('light', 'dark'))
 );
 
 -- A buyer-owned blocklist so a buyer can stop a specific seller, or every

@@ -18,6 +18,24 @@
 </div>
 
 {% if tab == 'profile' %}
+<div class="card" style="max-width:640px; margin-bottom:16px;">
+  <h3 style="font-size:15px;">Appearance</h3>
+  <p class="hint" style="margin-bottom:14px;">Applies everywhere you're signed in on this device.</p>
+  <form method="post" action="{{ url_for('account_theme') }}">
+    <div class="role-toggle">
+      <label class="role-option {{ 'selected' if g.user.theme_preference != 'dark' }}">
+        <input type="radio" name="theme_preference" value="light" {{ 'checked' if g.user.theme_preference != 'dark' }}>
+        <strong>&#9728;&#65039; Light</strong>
+      </label>
+      <label class="role-option {{ 'selected' if g.user.theme_preference == 'dark' }}">
+        <input type="radio" name="theme_preference" value="dark" {{ 'checked' if g.user.theme_preference == 'dark' }}>
+        <strong>&#127769; Dark</strong>
+      </label>
+    </div>
+    <button class="btn btn-primary btn-sm" type="submit" style="margin-top:12px;">Save appearance</button>
+  </form>
+</div>
+
 <div class="card" style="max-width:640px;">
   <form method="post" action="{{ url_for('account_profile') }}" enctype="multipart/form-data">
     {% include "_profile_form.html" %}

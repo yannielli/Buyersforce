@@ -46,6 +46,7 @@ def run_migrations():
             _add_shortlist_selected_at_column(cur)
             _add_vendor_ratings_table(cur)
             _add_evaluations_gartner_note_column(cur)
+            _add_theme_preference_column(cur)
     finally:
         con.close()
 
@@ -601,6 +602,27 @@ def _add_vendor_requests_table(cur):
             resolved_at TEXT,
             resolved_by INTEGER REFERENCES users(id)
         )
+        """
+    )
+
+
+def _add_theme_preference_column(cur):
+    # Per-account light/dark toggle, set from Account > Profile >
+    # Appearance. Defaults to 'light' so nobody's view changes until they
+    # opt in -- matches schema.sql's definition for a brand-new database.
+    cur.execute(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS theme_preference TEXT NOT NULL DEFAULT 'light'"
+    )
+    cur.execute(
+        """
+        DO $$ BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'users_theme_preference_check'
+            ) THEN
+                ALTER TABLE users ADD CONSTRAINT users_theme_preference_check
+                CHECK (theme_preference IN ('light', 'dark'));
+            END IF;
+        END $$;
         """
     )
 

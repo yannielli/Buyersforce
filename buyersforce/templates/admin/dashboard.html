@@ -11,7 +11,7 @@
 </div>
 
 {% if pending_signups %}
-<div class="card" style="border-color:#e0b84a; background:var(--warning-tint); margin-bottom:24px;">
+<div class="card" style="border-color:var(--warning-border); background:var(--warning-tint); margin-bottom:24px;">
   <h3 style="font-size:14.5px;">Pending self-signup requests ({{ pending_signups|length }})</h3>
   <p style="font-size:13px; margin-bottom:12px;">Check their LinkedIn link against the company and
     role they claim before approving.</p>
@@ -22,7 +22,7 @@
       <span class="badge badge-neutral" style="margin-left:6px;">{{ u.role|capitalize }}</span>
       <div class="hint">{{ u.title }} · {{ u.company }} · {{ u.email }} · {{ u.phone }} · {{ u.state }}</div>
       {% if u.no_linkedin %}
-      <div class="hint" style="color:#a15c00; font-weight:600;">No LinkedIn account — verify identity another way</div>
+      <div class="hint" style="color:var(--warning-ink-vivid); font-weight:600;">No LinkedIn account — verify identity another way</div>
       {% else %}
       <div class="hint"><a href="{{ u.linkedin_url }}" target="_blank" rel="noopener">{{ u.linkedin_url }}</a></div>
       {% endif %}
@@ -41,7 +41,7 @@
 {% endif %}
 
 {% if pending_role_changes %}
-<div class="card" style="border-color:#e0b84a; background:var(--warning-tint); margin-bottom:24px;">
+<div class="card" style="border-color:var(--warning-border); background:var(--warning-tint); margin-bottom:24px;">
   <h3 style="font-size:14.5px;">Pending role-change requests ({{ pending_role_changes|length }})</h3>
   <p style="font-size:13px; margin-bottom:12px;">Someone thinks their account type is wrong and
     wants a BuyersForce admin to fix it.</p>
@@ -67,7 +67,7 @@
 {% endif %}
 
 {% if open_support_requests %}
-<div class="card" style="border-color:#e0b84a; background:var(--warning-tint); margin-bottom:24px;">
+<div class="card" style="border-color:var(--warning-border); background:var(--warning-tint); margin-bottom:24px;">
   <h3 style="font-size:14.5px;">Support requests ({{ open_support_requests|length }})</h3>
   <p style="font-size:13px; margin-bottom:12px;">Tech support, bug reports, and feature ideas from
     users, in one place. Reply from the conversation link below.</p>
@@ -94,7 +94,7 @@
 {% endif %}
 
 {% if pending_vendor_requests %}
-<div class="card" style="border-color:#e0b84a; background:var(--warning-tint); margin-bottom:24px;">
+<div class="card" style="border-color:var(--warning-border); background:var(--warning-tint); margin-bottom:24px;">
   <h3 style="font-size:14.5px;">Vendor listing requests ({{ pending_vendor_requests|length }})</h3>
   <p style="font-size:13px; margin-bottom:12px;">A company someone suggested, or a vendor asking to
     be listed themselves. Edit any field before deciding — approving posts the listing live.</p>
