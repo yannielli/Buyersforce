@@ -28,26 +28,45 @@
     {% for v in vendors %}<td>{{ v.category }}</td>{% endfor %}
   </tr>
   <tr>
+    <td>Company size</td>
+    {% for v in vendors %}<td>{{ v.company_size or '—' }}{% if v.company_size %} employees{% endif %}</td>{% endfor %}
+  </tr>
+  <tr>
+    <td>Website</td>
+    {% for v in vendors %}<td>{% if v.website %}<a href="{{ v.website }}" target="_blank" rel="noopener">{{ v.website }}</a>{% else %}—{% endif %}</td>{% endfor %}
+  </tr>
+  <tr>
     <td>Tagline</td>
-    {% for v in vendors %}<td>{{ v.tagline }}</td>{% endfor %}
+    {% for v in vendors %}<td>{{ v.tagline or '—' }}</td>{% endfor %}
+  </tr>
+  <tr>
+    <td>Description</td>
+    {% for v in vendors %}<td>{{ v.description or '—' }}</td>{% endfor %}
+  </tr>
+  <tr>
+    <td>Segments</td>
+    {% for v in vendors %}<td>{% for s in v.segments %}<span class="tag">{{ s }}</span>{% else %}—{% endfor %}</td>{% endfor %}
   </tr>
   <tr>
     <td>Tags</td>
-    {% for v in vendors %}<td>{% for t in v.tags %}<span class="tag">{{ t }}</span>{% endfor %}</td>{% endfor %}
+    {% for v in vendors %}<td>{% for t in v.tags %}<span class="tag">{{ t }}</span>{% else %}—{% endfor %}</td>{% endfor %}
   </tr>
   <tr>
     <td>Products</td>
     {% for v in vendors %}
-    <td>{% for l in v.listings %}<strong style="font-size:13px;">{{ l.name }}</strong><br><span class="hint">{{ l.pricing_model }}</span><br>{% endfor %}</td>
+    <td>{% for l in v.listings %}<strong style="font-size:13px;">{{ l.name }}</strong><br><span class="hint">{{ l.pricing_model }}</span><br>{% else %}—{% endfor %}</td>
     {% endfor %}
   </tr>
   <tr>
     <td>Key features</td>
     {% for v in vendors %}
     <td>
+      {% set has_feat = v.listings|selectattr('features')|list %}
+      {% if has_feat %}
       <ul class="listing-feats">
       {% for l in v.listings %}{% for f in l.features %}<li>{{ f }}</li>{% endfor %}{% endfor %}
       </ul>
+      {% else %}—{% endif %}
     </td>
     {% endfor %}
   </tr>

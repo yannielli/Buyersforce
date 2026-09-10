@@ -2107,7 +2107,9 @@ def buyer_compare():
             vendors.append({
                 **dict(v),
                 "tags": vendor_tags(vid),
+                "segments": vendor_segments(vid),
                 "listings": vendor_listings(vid),
+                "logo_url": v["wiki_logo_url"] or vendor_favicon_url(v["website"]),
             })
     all_vendors = dbm.query("SELECT id, company_name FROM vendors ORDER BY company_name")
     return render_template("buyer/compare.html", vendors=vendors, all_vendors=all_vendors, ids=ids)
