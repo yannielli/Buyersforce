@@ -2468,7 +2468,7 @@ def buyer_move_to_evaluation():
         log_activity(g.user["id"], f"shortlisted {vendor['company_name']} for evaluation")
         names.append(vendor["company_name"])
     if names:
-        flash(f"Moved {', '.join(names)} to Evaluations -- pick a scorecard to get started.", "success")
+        flash(f"Moved {', '.join(names)} to Evaluate -- pick a scorecard to get started.", "success")
     return redirect(url_for("buyer_evaluations"))
 
 
