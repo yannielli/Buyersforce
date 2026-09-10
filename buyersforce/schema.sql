@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS messages CASCADE;
 DROP TABLE IF EXISTS meetings CASCADE;
 DROP TABLE IF EXISTS eval_templates CASCADE;
 DROP TABLE IF EXISTS eval_criteria CASCADE;
+DROP TABLE IF EXISTS eval_projects CASCADE;
 DROP TABLE IF EXISTS evaluations CASCADE;
 DROP TABLE IF EXISTS eval_scores CASCADE;
 DROP TABLE IF EXISTS partner_contacts CASCADE;
@@ -350,12 +351,33 @@ CREATE TABLE eval_criteria (
     position INTEGER NOT NULL DEFAULT 0
 );
 
+-- A single scorecard shared by every vendor a buyer is comparing side by
+-- side against the same template (e.g. the 3 vendors they just moved to
+-- Evaluations together) -- see evaluations.project_id below. "name" is
+-- optional: a buyer can type one when starting the project, but the app
+-- always falls back to an auto-generated "Vendor A vs. Vendor B" name
+-- (project_display_name() in app.py) when it's blank, so this can be ''.
+CREATE TABLE eval_projects (
+    id SERIAL PRIMARY KEY,
+    template_id INTEGER NOT NULL REFERENCES eval_templates(id),
+    company TEXT NOT NULL,
+    name TEXT NOT NULL DEFAULT '',
+    created_by INTEGER NOT NULL REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+);
+
 CREATE TABLE evaluations (
     id SERIAL PRIMARY KEY,
     template_id INTEGER NOT NULL REFERENCES eval_templates(id),
     vendor_id INTEGER NOT NULL REFERENCES vendors(id),
     company TEXT NOT NULL,
     created_by INTEGER NOT NULL REFERENCES users(id),
+    -- Every evaluation belongs to exactly one project -- even a lone-vendor
+    -- one, since a project is just "one or more vendors scored against the
+    -- same template at the same time." This is what makes several vendors'
+    -- rows render as columns of one shared scorecard instead of separate
+    -- pages (buyer_project_detail in app.py).
+    project_id INTEGER NOT NULL REFERENCES eval_projects(id),
     -- Free-text space for whatever the team found on Gartner Peer Insights --
     -- BF doesn't pull real review data from Gartner (see
     -- gartner_peer_insights_url() in app.py), this is a manually-typed

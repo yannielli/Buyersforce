@@ -24,7 +24,7 @@
           {% if g.user.role == 'buyer' %}
             <a href="{{ url_for('buyer_dashboard') }}" class="{{ 'active' if request.endpoint == 'buyer_dashboard' }}">Dashboard</a>
             <a href="{{ url_for('buyer_discover') }}" class="{{ 'active' if request.endpoint in ['buyer_discover','buyer_vendor','buyer_compare'] }}">Discover</a>
-            <a href="{{ url_for('buyer_evaluations') }}" class="{{ 'active' if request.endpoint and request.endpoint.startswith('buyer_evaluation') }}">Evaluations</a>
+            <a href="{{ url_for('buyer_evaluations') }}" class="{{ 'active' if request.endpoint and (request.endpoint.startswith('buyer_evaluation') or request.endpoint in ('buyer_start_project', 'buyer_project_detail')) }}">Evaluations</a>
             <a href="{{ url_for('buyer_messages') }}" class="{{ 'active' if request.endpoint in ['buyer_messages','buyer_thread','messages_new'] }}">Messages{% if g.unread_count %}<span class="nav-badge">{{ g.unread_count }}</span>{% endif %}</a>
             <a href="{{ url_for('buyer_schedule') }}" class="{{ 'active' if request.endpoint == 'buyer_schedule' }}">Schedule</a>
           {% elif g.user.role == 'seller' %}

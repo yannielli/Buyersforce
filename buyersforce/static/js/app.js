@@ -114,6 +114,33 @@ document.addEventListener("DOMContentLoaded", () => {
     updateCriteriaTotal();
   }
 
+  // "Start project" form on the Evaluations tab: the project-name field is
+  // pre-filled with a suggestion built from whichever "ready to evaluate"
+  // vendors are checked, and keeps re-suggesting as the buyer (un)checks
+  // vendors -- but only until they've actually typed their own name, so a
+  // deliberate edit is never silently overwritten.
+  const startProjectForm = document.getElementById("start-project-form");
+  const projectNameInput = document.getElementById("project-name");
+  if (startProjectForm && projectNameInput) {
+    let nameEdited = false;
+    const suggestProjectName = () => {
+      if (nameEdited) return;
+      const names = Array.from(startProjectForm.querySelectorAll(".ready-vendor-checkbox:checked"))
+        .map((box) => {
+          const row = box.closest(".ready-vendor-row");
+          const label = row && row.querySelector("strong");
+          return label ? label.textContent.trim() : "";
+        })
+        .filter(Boolean);
+      projectNameInput.value = names.join(" vs. ");
+    };
+    projectNameInput.addEventListener("input", () => { nameEdited = true; });
+    startProjectForm.querySelectorAll(".ready-vendor-checkbox").forEach((box) => {
+      box.addEventListener("change", suggestProjectName);
+    });
+    suggestProjectName();
+  }
+
   // Auto-scroll message threads to latest
   const msgList = document.querySelector(".msg-list");
   if (msgList) msgList.scrollTop = msgList.scrollHeight;

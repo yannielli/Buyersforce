@@ -48,6 +48,7 @@ def run_migrations():
             _add_evaluations_gartner_note_column(cur)
             _add_theme_preference_column(cur)
             _add_outreach_columns(cur)
+            _add_eval_projects(cur)
     finally:
         con.close()
 
@@ -650,6 +651,46 @@ def _add_outreach_columns(cur):
     ):
         cur.execute(ddl)
     cur.execute("UPDATE users SET outreach_enabled = 1 WHERE open_to_buy = 1 AND outreach_enabled = 0")
+
+
+def _add_eval_projects(cur):
+    # Groups several vendors being evaluated against the same template
+    # into one shared scorecard ("project") instead of separate per-vendor
+    # pages -- see eval_projects' comment in schema.sql. Every evaluation
+    # row needs a project_id, including ones created before this migration
+    # existed, so each of those becomes its own singleton project below --
+    # nothing anyone already scored moves or changes meaning, it just now
+    # has a (single-vendor) project wrapped around it.
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS eval_projects (
+            id SERIAL PRIMARY KEY,
+            template_id INTEGER NOT NULL REFERENCES eval_templates(id),
+            company TEXT NOT NULL,
+            name TEXT NOT NULL DEFAULT '',
+            created_by INTEGER NOT NULL REFERENCES users(id),
+            created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+        )
+        """
+    )
+    cur.execute(
+        "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES eval_projects(id)"
+    )
+    cur.execute(
+        "SELECT id, template_id, company, created_by, created_at FROM evaluations WHERE project_id IS NULL"
+    )
+    orphans = cur.fetchall()
+    for eval_id, template_id, company, created_by, created_at in orphans:
+        cur.execute(
+            "INSERT INTO eval_projects (template_id, company, created_by, created_at) "
+            "VALUES (%s, %s, %s, %s) RETURNING id",
+            (template_id, company, created_by, created_at),
+        )
+        project_id = cur.fetchone()[0]
+        cur.execute("UPDATE evaluations SET project_id = %s WHERE id = %s", (project_id, eval_id))
+    # Only widen the constraint once every row actually has a project --
+    # safe to re-run since it's a no-op when already NOT NULL.
+    cur.execute("ALTER TABLE evaluations ALTER COLUMN project_id SET NOT NULL")
 
 
 if __name__ == "__main__":

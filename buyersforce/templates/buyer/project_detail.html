@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}{{ project_name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">{{ template.name }}</span>
+    <h1>{{ project_name }}</h1>
+    <p class="lede">Collaborative scorecard — every reviewer on {{ project.company }} scores all {{ vendors|length }} vendor{{ 's' if vendors|length != 1 }} independently.</p>
+  </div>
+</div>
+
+<form method="post">
+  <div class="card" style="margin-bottom:24px;">
+    <h3 style="font-size:15px;">Your scores</h3>
+    <div class="scorecard-scroll">
+      <table class="scorecard-table">
+        <thead>
+          <tr>
+            <th class="scorecard-criterion-head">Success criteria</th>
+            {% for v in vendors %}
+            <th class="scorecard-vendor-head">
+              <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <span class="vendor-logo" style="background:{{ v.accent }}; width:28px;height:28px;font-size:10px;">
+                  {% if v.logo_url %}<img src="{{ v.logo_url }}" alt="" onerror="this.remove();">{% endif %}
+                  {{ v.initials }}
+                </span>
+                <span>{{ v.company_name }}</span>
+              </div>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in criteria %}
+          <tr>
+            <td class="scorecard-criterion-cell">
+              <div class="criterion-label">{{ c.label }}</div>
+              <div class="criterion-weight">Weight {{ c.weight }}%</div>
+            </td>
+            {% for v in vendors %}
+            {% set cell = v.cells[c.id] %}
+            <td class="scorecard-score-cell">
+              <div class="score-pill-group">
+                {% for n in range(1, 6) %}
+                <label class="score-dot {{ 'selected' if cell.my_score and cell.my_score.score == n }}">
+                  <input type="radio" name="score_{{ v.evaluation_id }}_{{ c.id }}" value="{{ n }}" {{ 'checked' if cell.my_score and cell.my_score.score == n }}>
+                  {{ n }}
+                </label>
+                {% endfor %}
+              </div>
+              {% if cell.avg %}<div class="hint" style="margin-top:4px;">team avg {{ cell.avg }}</div>{% endif %}
+              <input type="text" name="comment_{{ v.evaluation_id }}_{{ c.id }}" placeholder="Note on {{ c.label|lower }}…"
+                     value="{{ cell.my_score.comment if cell.my_score else '' }}"
+                     class="scorecard-comment-input">
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <button class="btn btn-primary" type="submit" style="margin-top:14px;">Save my scores</button>
+  </div>
+
+  <div class="section-title"><h2>Vendor comparison</h2></div>
+  <div class="vendor-columns-grid">
+    {% for v in vendors %}
+    <div>
+      <div class="card overall-score">
+        <div class="stat-label">{{ v.company_name }} — weighted overall</div>
+        {% if v.website %}
+        <p class="hint" style="margin:4px 0 10px;">
+          <a href="{{ v.website }}" target="_blank" rel="noopener">{{ v.website }}</a> ↗<br>
+          {{ EXTERNAL_LINK_PRIVACY_NOTE }}
+        </p>
+        {% endif %}
+        {% if v.overall %}
+        <div class="big-number">{{ v.overall }}<span class="of5"> / 5</span></div>
+        {% else %}
+        <div class="hint">No scores submitted yet</div>
+        {% endif %}
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h3 style="font-size:14px;">Peer review rating</h3>
+        {% if v.gartner_peer_note %}
+        <p style="font-size:13.5px; margin:0;">{{ v.gartner_peer_note }}</p>
+        {% else %}
+        <p class="hint" style="margin:0;">No Gartner Peer Insights notes yet — add one below.</p>
+        {% endif %}
+        <input type="text" name="gartner_peer_note_{{ v.evaluation_id }}" placeholder="e.g. 4.5/5 stars, 120 reviews — strong marks on support" value="{{ v.gartner_peer_note }}" style="margin-top:10px;">
+        <div class="hint" style="margin-top:4px;">BuyersForce doesn't pull live review data — jot down what your team found so it's visible on Compare too.</div>
+        <a href="{{ v.gartner_url }}" target="_blank" rel="noopener" class="hint" style="display:inline-block; margin-top:8px;">Search reviews ↗</a>
+      </div>
+
+      {% if v.reviewer_rows %}
+      <div class="card" style="margin-top:16px;">
+        <h3 style="font-size:14px;">Score by reviewer</h3>
+        <div class="bar-chart">
+          {% set colors = ['var(--series-1)','var(--series-2)','var(--series-3)','var(--series-4)','var(--series-5)'] %}
+          {% for r in v.reviewer_rows %}
+          <div class="bar-row">
+            <span class="bar-label">{{ r.name }}</span>
+            <div class="bar-track"><div class="bar-fill" style="width:{{ (r.avg / 5 * 100)|round(1) }}%; background:{{ colors[loop.index0 % 5] }};"></div></div>
+            <span class="bar-value">{{ r.avg }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</form>
+{% endblock %}

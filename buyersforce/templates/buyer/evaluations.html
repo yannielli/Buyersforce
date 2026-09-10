@@ -12,45 +12,62 @@
 
 {% if ready_to_evaluate %}
 <div class="section-title"><h2>Ready to evaluate</h2></div>
-<p class="hint" style="margin-top:-6px; margin-bottom:14px;">Vendors you've shortlisted, from Discover or Compare — pick a scorecard to start scoring.</p>
-<div class="grid grid-2" style="margin-bottom:30px;">
-  {% for r in ready_to_evaluate %}
-  <div class="card">
-    <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
-      <span class="vendor-logo" style="background:{{ r.accent }}; width:38px;height:38px;font-size:12px;">
-        {% if r.logo_url %}<img src="{{ r.logo_url }}" alt="" onerror="this.remove();">{% endif %}
-        {{ r.initials }}
-      </span>
-      <strong>{{ r.company_name }}</strong>
+<p class="hint" style="margin-top:-6px; margin-bottom:14px;">Vendors you've shortlisted, from Discover or Compare — pick which ones to compare side by side in one scorecard.</p>
+<div class="card" style="margin-bottom:30px;">
+  {% if templates %}
+  <form method="post" action="{{ url_for('buyer_start_project') }}" id="start-project-form">
+    <div class="ready-vendor-list">
+      {% for r in ready_to_evaluate %}
+      <label class="ready-vendor-row">
+        <input type="checkbox" name="vendor_ids" value="{{ r.vendor_id }}" class="ready-vendor-checkbox" checked>
+        <span class="vendor-logo" style="background:{{ r.accent }}; width:32px;height:32px;font-size:11px;">
+          {% if r.logo_url %}<img src="{{ r.logo_url }}" alt="" onerror="this.remove();">{% endif %}
+          {{ r.initials }}
+        </span>
+        <strong>{{ r.company_name }}</strong>
+      </label>
+      {% endfor %}
     </div>
-    {% if templates %}
-    <form method="post" action="{{ url_for('buyer_evaluation_start', vendor_id=r.vendor_id) }}" style="display:flex; gap:8px;">
-      <select name="template_id" style="flex:1;">
-        {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
-      </select>
-      <button class="btn btn-primary btn-sm" type="submit">Start evaluation</button>
-    </form>
-    {% else %}
-    <p class="hint" style="margin:0;">Create an evaluation template first.</p>
-    {% endif %}
-  </div>
-  {% endfor %}
+    <div class="form-row" style="margin-top:14px;">
+      <div class="field" style="margin-bottom:0;">
+        <label for="project-template">Scorecard template</label>
+        <select name="template_id" id="project-template">
+          {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label for="project-name">Project name</label>
+        <input type="text" name="name" id="project-name" placeholder="e.g. CrowdStrike vs. SentinelOne">
+      </div>
+    </div>
+    <button class="btn btn-primary" type="submit" style="margin-top:14px;">Start project</button>
+  </form>
+  {% else %}
+  <p class="hint" style="margin:0;">Create an evaluation template first.</p>
+  {% endif %}
 </div>
 {% endif %}
 
 <div class="section-title"><h2>Active evaluations</h2></div>
 {% if active %}
 <div class="grid grid-2">
-  {% for ev in active %}
-  <a class="card" href="{{ url_for('buyer_evaluation_detail', eval_id=ev.id) }}" style="display:block;">
-    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-      <div style="display:flex; gap:10px; align-items:center;">
-        <span class="vendor-logo" style="background:{{ ev.accent }}; width:38px;height:38px;font-size:12px;">{% if ev.logo_url %}<img src="{{ ev.logo_url }}" alt="" onerror="this.remove();">{% endif %}{{ ev.initials }}</span>
-        <div><strong>{{ ev.company_name }}</strong><div class="hint">{{ ev.template_name }}</div></div>
+  {% for p in active %}
+  <a class="card" href="{{ url_for('buyer_project_detail', project_id=p.id) }}" style="display:block;">
+    <strong>{{ p.name }}</strong>
+    <div class="hint">{{ p.template_name }}</div>
+    <div class="project-vendor-row">
+      {% for v in p.vendors %}
+      <div class="project-vendor-chip">
+        <span class="vendor-logo" style="background:{{ v.accent }}; width:26px;height:26px;font-size:10px;">
+          {% if v.logo_url %}<img src="{{ v.logo_url }}" alt="" onerror="this.remove();">{% endif %}
+          {{ v.initials }}
+        </span>
+        <span class="hint" style="font-size:12px;">{{ v.company_name }}</span>
+        {% if v.overall %}<span class="badge badge-brand" style="font-size:11px;">{{ v.overall }}</span>{% else %}<span class="badge badge-neutral" style="font-size:11px;">Not scored</span>{% endif %}
       </div>
-      {% if ev.overall %}<span class="badge badge-brand">{{ ev.overall }} / 5</span>{% else %}<span class="badge badge-neutral">Not scored</span>{% endif %}
+      {% endfor %}
     </div>
-    <p class="hint" style="margin-top:10px;">{{ ev.reviewers }} reviewer{{ 's' if ev.reviewers != 1 }} · started {{ ev.created_at|fmt_time }}</p>
+    <p class="hint" style="margin-top:10px;">{{ p.reviewers }} reviewer{{ 's' if p.reviewers != 1 }} · started {{ p.created_at|fmt_time }}</p>
   </a>
   {% endfor %}
 </div>

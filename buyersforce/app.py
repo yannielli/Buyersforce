@@ -2056,8 +2056,10 @@ def buyer_dashboard():
             "SELECT COUNT(*) c FROM shortlist WHERE buyer_user_id=? AND status IN "
             "('shortlisted','evaluating','selected')", (u["id"],), one=True
         )["c"],
+        # Counts projects (scorecards), not individual vendor rows within
+        # them, so a 3-vendor comparison counts as one team evaluation.
         "evaluations": dbm.query(
-            "SELECT COUNT(*) c FROM evaluations WHERE company=?", (u["company"],), one=True
+            "SELECT COUNT(*) c FROM eval_projects WHERE company=?", (u["company"],), one=True
         )["c"],
         "unread_threads": dbm.query(
             "SELECT COUNT(DISTINCT t.id) c FROM threads t JOIN messages m ON m.thread_id=t.id "
@@ -2638,6 +2640,23 @@ def buyer_thread(thread_id):
     return render_template("buyer/thread.html", thread=thread, messages=messages, info=info)
 
 
+def project_display_name(name, vendor_names):
+    """A project's own name if the buyer gave it one, otherwise a name built
+    from its vendors ("CrowdStrike vs. SentinelOne vs. Wiz") -- used on the
+    Evaluations list, the project scorecard page, and as the live
+    suggestion on the "Start project" form (see app.js). Every project
+    (including ones backfilled from before projects existed, which are
+    always single-vendor) goes through this so a blank name never shows up
+    as blank.
+    """
+    name = (name or "").strip()
+    if name:
+        return name
+    if not vendor_names:
+        return "Untitled project"
+    return " vs. ".join(vendor_names)
+
+
 @app.route("/app/buyer/evaluations")
 @role_required("buyer")
 def buyer_evaluations():
@@ -2646,41 +2665,61 @@ def buyer_evaluations():
         "SELECT * FROM eval_templates WHERE company=? OR is_shared=1 ORDER BY created_at DESC",
         (u["company"],),
     )
-    active = dbm.query(
-        "SELECT e.*, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.website, "
-        "t.name template_name "
-        "FROM evaluations e JOIN vendors v ON v.id=e.vendor_id "
-        "JOIN eval_templates t ON t.id = e.template_id "
-        "WHERE e.company=? ORDER BY e.created_at DESC",
+    # One project can (and often does) hold several vendors being scored
+    # against the same template at once -- see eval_projects in schema.sql.
+    # "Active evaluations" below is one card per PROJECT, not per vendor.
+    projects = dbm.query(
+        "SELECT p.*, t.name template_name FROM eval_projects p "
+        "JOIN eval_templates t ON t.id = p.template_id "
+        "WHERE p.company=? ORDER BY p.created_at DESC",
         (u["company"],),
     )
     active_data = []
-    for ev in active:
+    for p in projects:
         criteria = dbm.query(
-            "SELECT * FROM eval_criteria WHERE template_id=? ORDER BY position", (ev["template_id"],)
+            "SELECT * FROM eval_criteria WHERE template_id=? ORDER BY position", (p["template_id"],)
         )
         total_weight = sum(c["weight"] for c in criteria) or 1
-        scores = dbm.query(
-            "SELECT * FROM eval_scores WHERE evaluation_id=?", (ev["id"],)
+        evals = dbm.query(
+            "SELECT e.*, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.website "
+            "FROM evaluations e JOIN vendors v ON v.id = e.vendor_id "
+            "WHERE e.project_id=? ORDER BY e.id",
+            (p["id"],),
         )
-        by_criterion = {}
-        for s in scores:
-            by_criterion.setdefault(s["criterion_id"], []).append(s["score"])
-        weighted_sum = 0
-        for c in criteria:
-            vals = by_criterion.get(c["id"], [])
-            avg = sum(vals) / len(vals) if vals else 0
-            weighted_sum += avg * c["weight"]
-        overall = round(weighted_sum / total_weight, 1) if scores else None
+        if not evals:
+            continue
+        vendor_summaries = []
+        reviewer_ids = set()
+        for ev in evals:
+            scores = dbm.query("SELECT * FROM eval_scores WHERE evaluation_id=?", (ev["id"],))
+            reviewer_ids.update(s["user_id"] for s in scores)
+            by_criterion = {}
+            for s in scores:
+                by_criterion.setdefault(s["criterion_id"], []).append(s["score"])
+            weighted_sum = 0
+            for c in criteria:
+                vals = by_criterion.get(c["id"], [])
+                avg = sum(vals) / len(vals) if vals else 0
+                weighted_sum += avg * c["weight"]
+            overall = round(weighted_sum / total_weight, 1) if scores else None
+            vendor_summaries.append({
+                "company_name": ev["company_name"], "accent": ev["accent"], "initials": ev["initials"],
+                "logo_url": ev["wiki_logo_url"] or vendor_favicon_url(ev["website"]), "overall": overall,
+            })
         active_data.append({
-            **dict(ev), "overall": overall, "reviewers": len(set(s["user_id"] for s in scores)),
-            "logo_url": ev["wiki_logo_url"] or vendor_favicon_url(ev["website"]),
+            "id": p["id"],
+            "name": project_display_name(p["name"], [v["company_name"] for v in vendor_summaries]),
+            "template_name": p["template_name"], "vendors": vendor_summaries,
+            "created_at": p["created_at"], "reviewers": len(reviewer_ids),
         })
     # Vendors this buyer has shortlisted/is evaluating that don't have an
     # evaluations row yet -- the bridge from Compare's "Move to Evaluation"
     # (and from manually shortlisting a vendor) into actually starting a
     # scorecard. Once an evaluation exists for a vendor it graduates to
-    # "Active evaluations" above and drops out of this list.
+    # "Active evaluations" above and drops out of this list. The buyer
+    # picks which of these join one project together (see
+    # buyer_start_project) -- e.g. the 3 vendors just moved here from
+    # Compare become one shared scorecard instead of 3 separate ones.
     ready = dbm.query(
         "SELECT s.vendor_id, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.website "
         "FROM shortlist s JOIN vendors v ON v.id = s.vendor_id "
@@ -2732,7 +2771,7 @@ def buyer_evaluation_new():
             # Weight is now the % of the overall score each criterion carries
             # (previously a 1-5 multiplier), so the set has to add up to a
             # whole 100 -- otherwise "weighted overall score" on the
-            # evaluations list and evaluation_detail.html stops meaning what
+            # evaluations list and project_detail.html stops meaning what
             # it says. Enforced here as well as with the live total shown on
             # the form (see app.js) in case a buyer submits before JS runs.
             if total != 100:
@@ -2768,109 +2807,179 @@ def buyer_evaluation_new():
     )
 
 
-@app.route("/app/buyer/evaluations/start/<int:vendor_id>", methods=("POST",))
+@app.route("/app/buyer/evaluations/start-project", methods=("POST",))
 @role_required("buyer")
-def buyer_evaluation_start(vendor_id):
+def buyer_start_project():
+    # Handles two entry points with one route: the single-vendor "Start
+    # evaluation" button on a vendor's own profile page (vendor.html posts
+    # one vendor_id), and the "Ready to evaluate" multi-select form on the
+    # Evaluations tab (evaluations.html posts several, all sharing one
+    # template + one project name) -- see MAX_EVAL_CRITERIA's neighbor
+    # comment style for why this stays one route instead of two near-
+    # identical ones.
+    seen = set()
+    vendor_ids = []
+    for v in request.form.getlist("vendor_ids"):
+        try:
+            vid = int(v)
+        except (TypeError, ValueError):
+            continue
+        if vid not in seen:
+            seen.add(vid)
+            vendor_ids.append(vid)
     template_id = request.form.get("template_id")
+    name = request.form.get("name", "").strip()
+
+    fallback = request.referrer or url_for("buyer_evaluations")
+    if not vendor_ids:
+        flash("Choose at least one vendor to evaluate.", "error")
+        return redirect(fallback)
     if not template_id:
         flash("Choose an evaluation template first.", "error")
-        return redirect(url_for("buyer_vendor", vendor_id=vendor_id))
-    existing = dbm.query(
-        "SELECT * FROM evaluations WHERE template_id=? AND vendor_id=? AND company=?",
-        (template_id, vendor_id, g.user["company"]), one=True
-    )
-    if existing:
-        return redirect(url_for("buyer_evaluation_detail", eval_id=existing["id"]))
-    eval_id = dbm.execute(
-        "INSERT INTO evaluations (template_id, vendor_id, company, created_by) VALUES (?, ?, ?, ?)",
-        (template_id, vendor_id, g.user["company"], g.user["id"]),
-    )
-    existing_sl = dbm.query(
-        "SELECT * FROM shortlist WHERE buyer_user_id=? AND vendor_id=?",
-        (g.user["id"], vendor_id), one=True
-    )
-    if existing_sl:
-        dbm.execute("UPDATE shortlist SET status='evaluating' WHERE id=?", (existing_sl["id"],))
-    else:
-        dbm.execute(
-            "INSERT INTO shortlist (buyer_user_id, vendor_id, status) VALUES (?, ?, 'evaluating')",
-            (g.user["id"], vendor_id),
+        return redirect(fallback)
+
+    # Re-starting an evaluation for a single vendor already being evaluated
+    # against this exact template (e.g. clicking "Continue evaluation"
+    # again from that vendor's profile) reopens that project instead of
+    # spinning up a duplicate -- matches the old single-vendor behavior. A
+    # multi-vendor batch from "Ready to evaluate" always starts a fresh
+    # project, even if one vendor happens to overlap with a past one,
+    # since that's a deliberate new round of comparison.
+    if len(vendor_ids) == 1:
+        existing = dbm.query(
+            "SELECT * FROM evaluations WHERE template_id=? AND vendor_id=? AND company=?",
+            (template_id, vendor_ids[0], g.user["company"]), one=True,
         )
-    vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
-    log_activity(g.user["id"], f"started an evaluation for {vendor['company_name']}")
-    return redirect(url_for("buyer_evaluation_detail", eval_id=eval_id))
+        if existing:
+            return redirect(url_for("buyer_project_detail", project_id=existing["project_id"]))
 
-
-@app.route("/app/buyer/evaluations/detail/<int:eval_id>", methods=("GET", "POST"))
-@role_required("buyer")
-def buyer_evaluation_detail(eval_id):
-    ev = dbm.query("SELECT * FROM evaluations WHERE id=?", (eval_id,), one=True)
-    if not ev or ev["company"] != g.user["company"]:
-        abort(404)
-    vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (ev["vendor_id"],), one=True)
-    template = dbm.query("SELECT * FROM eval_templates WHERE id=?", (ev["template_id"],), one=True)
-    criteria = dbm.query(
-        "SELECT * FROM eval_criteria WHERE template_id=? ORDER BY position", (ev["template_id"],)
+    project_id = dbm.execute(
+        "INSERT INTO eval_projects (template_id, company, name, created_by) VALUES (?, ?, ?, ?)",
+        (template_id, g.user["company"], name, g.user["id"]),
     )
+    vendor_names = []
+    for vendor_id in vendor_ids:
+        dbm.execute(
+            "INSERT INTO evaluations (template_id, vendor_id, company, created_by, project_id) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (template_id, vendor_id, g.user["company"], g.user["id"], project_id),
+        )
+        existing_sl = dbm.query(
+            "SELECT * FROM shortlist WHERE buyer_user_id=? AND vendor_id=?",
+            (g.user["id"], vendor_id), one=True
+        )
+        if existing_sl:
+            dbm.execute("UPDATE shortlist SET status='evaluating' WHERE id=?", (existing_sl["id"],))
+        else:
+            dbm.execute(
+                "INSERT INTO shortlist (buyer_user_id, vendor_id, status) VALUES (?, ?, 'evaluating')",
+                (g.user["id"], vendor_id),
+            )
+        vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
+        if vendor:
+            vendor_names.append(vendor["company_name"])
+    if len(vendor_names) == 1:
+        log_activity(g.user["id"], f"started an evaluation for {vendor_names[0]}")
+    else:
+        log_activity(g.user["id"], f"started an evaluation project for {', '.join(vendor_names)}")
+    return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+
+@app.route("/app/buyer/evaluations/project/<int:project_id>", methods=("GET", "POST"))
+@role_required("buyer")
+def buyer_project_detail(project_id):
+    project = dbm.query("SELECT * FROM eval_projects WHERE id=?", (project_id,), one=True)
+    if not project or project["company"] != g.user["company"]:
+        abort(404)
+    template = dbm.query("SELECT * FROM eval_templates WHERE id=?", (project["template_id"],), one=True)
+    criteria = dbm.query(
+        "SELECT * FROM eval_criteria WHERE template_id=? ORDER BY position", (project["template_id"],)
+    )
+    evals = dbm.query(
+        "SELECT e.*, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.website "
+        "FROM evaluations e JOIN vendors v ON v.id = e.vendor_id "
+        "WHERE e.project_id=? ORDER BY e.id",
+        (project_id,),
+    )
+    if not evals:
+        abort(404)
 
     if request.method == "POST":
-        for c in criteria:
-            score = request.form.get(f"score_{c['id']}")
-            comment = request.form.get(f"comment_{c['id']}", "").strip()
-            if score:
-                dbm.execute(
-                    "INSERT INTO eval_scores (evaluation_id, criterion_id, user_id, score, comment) "
-                    "VALUES (?, ?, ?, ?, ?) ON CONFLICT(evaluation_id, criterion_id, user_id) "
-                    "DO UPDATE SET score=excluded.score, comment=excluded.comment",
-                    (eval_id, c["id"], g.user["id"], int(score), comment),
-                )
-        # Free-text space for whatever the team found on Gartner Peer
-        # Insights -- BF doesn't pull real review data from Gartner, this is
-        # just a manually-typed reference note shared per evaluation.
-        gartner_peer_note = request.form.get("gartner_peer_note", "").strip()
-        dbm.execute(
-            "UPDATE evaluations SET gartner_peer_note=? WHERE id=?", (gartner_peer_note, eval_id)
+        # Every criterion x vendor cell in the grid is its own score/comment
+        # field, keyed by that vendor's evaluation id so scoring one
+        # vendor's "Ease of integration" never collides with another's --
+        # see the criterion-cell markup in project_detail.html.
+        for ev in evals:
+            for c in criteria:
+                score = request.form.get(f"score_{ev['id']}_{c['id']}")
+                comment = request.form.get(f"comment_{ev['id']}_{c['id']}", "").strip()
+                if score:
+                    dbm.execute(
+                        "INSERT INTO eval_scores (evaluation_id, criterion_id, user_id, score, comment) "
+                        "VALUES (?, ?, ?, ?, ?) ON CONFLICT(evaluation_id, criterion_id, user_id) "
+                        "DO UPDATE SET score=excluded.score, comment=excluded.comment",
+                        (ev["id"], c["id"], g.user["id"], int(score), comment),
+                    )
+            # Free-text space for whatever the team found on Gartner Peer
+            # Insights, per vendor -- BF doesn't pull real review data from
+            # Gartner, this is just a manually-typed reference note.
+            gartner_peer_note = request.form.get(f"gartner_peer_note_{ev['id']}", "").strip()
+            dbm.execute(
+                "UPDATE evaluations SET gartner_peer_note=? WHERE id=?", (gartner_peer_note, ev["id"])
+            )
+        log_activity(
+            g.user["id"],
+            f"submitted scores for {', '.join(ev['company_name'] for ev in evals)}",
         )
-        log_activity(g.user["id"], f"submitted scores for {vendor['company_name']}")
         flash("Your scores were saved.", "success")
-        return redirect(url_for("buyer_evaluation_detail", eval_id=eval_id))
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
 
-    scores = dbm.query("SELECT * FROM eval_scores WHERE evaluation_id=?", (eval_id,))
     reviewers = {r["id"]: r for r in dbm.query(
         "SELECT * FROM users WHERE company=? AND role='buyer'", (g.user["company"],)
     )}
-    my_scores = {s["criterion_id"]: s for s in scores if s["user_id"] == g.user["id"]}
-
-    criterion_rows = []
     total_weight = sum(c["weight"] for c in criteria) or 1
-    weighted_sum = 0
-    for c in criteria:
-        vals = [s["score"] for s in scores if s["criterion_id"] == c["id"]]
-        avg = round(sum(vals) / len(vals), 1) if vals else None
-        weighted_sum += (avg or 0) * c["weight"]
-        criterion_rows.append({**dict(c), "avg": avg, "count": len(vals)})
-    overall = round(weighted_sum / total_weight, 1) if scores else None
 
-    by_reviewer = {}
-    for s in scores:
-        by_reviewer.setdefault(s["user_id"], []).append(s["score"])
-    reviewer_rows = []
-    for uid, vals in by_reviewer.items():
-        reviewer_rows.append({
-            "name": reviewers.get(uid, {"name": "Unknown"})["name"] if uid in reviewers else (
-                g.user["name"] if uid == g.user["id"] else "Teammate"
-            ),
-            "avg": round(sum(vals) / len(vals), 1),
-            "count": len(vals),
+    vendor_columns = []
+    for ev in evals:
+        scores = dbm.query("SELECT * FROM eval_scores WHERE evaluation_id=?", (ev["id"],))
+        my_scores = {s["criterion_id"]: s for s in scores if s["user_id"] == g.user["id"]}
+        weighted_sum = 0
+        cells = {}
+        for c in criteria:
+            vals = [s["score"] for s in scores if s["criterion_id"] == c["id"]]
+            avg = round(sum(vals) / len(vals), 1) if vals else None
+            weighted_sum += (avg or 0) * c["weight"]
+            cells[c["id"]] = {"avg": avg, "count": len(vals), "my_score": my_scores.get(c["id"])}
+        overall = round(weighted_sum / total_weight, 1) if scores else None
+
+        by_reviewer = {}
+        for s in scores:
+            by_reviewer.setdefault(s["user_id"], []).append(s["score"])
+        reviewer_rows = []
+        for uid, vals in by_reviewer.items():
+            reviewer_rows.append({
+                "name": reviewers.get(uid, {"name": "Unknown"})["name"] if uid in reviewers else (
+                    g.user["name"] if uid == g.user["id"] else "Teammate"
+                ),
+                "avg": round(sum(vals) / len(vals), 1),
+                "count": len(vals),
+            })
+
+        vendor_columns.append({
+            "evaluation_id": ev["id"], "vendor_id": ev["vendor_id"],
+            "company_name": ev["company_name"], "accent": ev["accent"], "initials": ev["initials"],
+            "logo_url": ev["wiki_logo_url"] or vendor_favicon_url(ev["website"]),
+            "website": ev["website"],
+            "gartner_peer_note": ev["gartner_peer_note"],
+            "gartner_url": gartner_peer_insights_url(ev["company_name"]),
+            "overall": overall, "reviewer_rows": reviewer_rows, "cells": cells,
         })
 
-    logo_url = vendor["wiki_logo_url"] or vendor_favicon_url(vendor["website"])
-    gartner_url = gartner_peer_insights_url(vendor["company_name"])
+    project_name = project_display_name(project["name"], [v["company_name"] for v in vendor_columns])
     return render_template(
-        "buyer/evaluation_detail.html",
-        ev=ev, vendor=vendor, template=template, criteria=criterion_rows,
-        my_scores=my_scores, overall=overall, reviewer_rows=reviewer_rows,
-        logo_url=logo_url, gartner_url=gartner_url,
+        "buyer/project_detail.html",
+        project=project, project_name=project_name, template=template,
+        criteria=criteria, vendors=vendor_columns,
     )
 
 
