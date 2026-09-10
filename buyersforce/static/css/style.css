@@ -536,6 +536,19 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .criterion-row:last-child { border-bottom: none; }
 .criterion-label { font-weight: 600; font-size: 14.5px; }
 .criterion-weight { font-size: 12px; color: var(--ink-muted); font-weight: 500; }
+
+/* Evaluation-template builder: success-criteria rows and their percent
+   weight inputs (see evaluation_new.html + the "+ Add criterion" /
+   live-total JS in app.js). */
+.criteria-col-headers .criteria-weight-header { flex: 0 0 90px; text-align: center; }
+.criterion-input-row .weight-input-wrap { position: relative; flex: 0 0 90px; }
+.weight-input-wrap .criterion-weight-input { width: 100%; padding-right: 24px; text-align: right; }
+.weight-input-wrap .weight-suffix {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-size: 13px; color: var(--ink-muted); pointer-events: none;
+}
+.criteria-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 6px 0 4px; }
+#criteria-total-value.total-mismatch { color: var(--critical-ink); }
 .score-pill-group { display: flex; gap: 4px; }
 .score-dot {
   width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border-strong); display: flex;

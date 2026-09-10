@@ -68,6 +68,52 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Evaluation-template builder: success criteria start at 5 rows (each
+  // defaulting to a 20% weight so they already sum to 100) and a buyer can
+  // add one row at a time with "+ Add criterion" instead of being capped
+  // at 5 -- up to the same MAX_EVAL_CRITERIA cap app.py enforces server-side
+  // (read off data-max so the two never drift apart). The live "Total
+  // weight" readout mirrors that same 100% check so a buyer sees a mismatch
+  // before they submit, not after.
+  const criteriaRows = document.getElementById("criteria-rows");
+  const addCriterionBtn = document.getElementById("add-criterion-btn");
+  const criteriaTotalValue = document.getElementById("criteria-total-value");
+  if (criteriaRows && criteriaTotalValue) {
+    const maxCriteria = parseInt(criteriaRows.dataset.max, 10) || 50;
+    const criterionRows = () => Array.from(criteriaRows.querySelectorAll(".criterion-input-row"));
+    const updateCriteriaTotal = () => {
+      const rows = criterionRows();
+      const total = rows.reduce((sum, row) => {
+        const label = row.querySelector('input[name="criterion_label"]');
+        const weight = row.querySelector('input[name="criterion_weight"]');
+        if (!label || !weight || !label.value.trim()) return sum;
+        return sum + (parseInt(weight.value, 10) || 0);
+      }, 0);
+      criteriaTotalValue.textContent = total;
+      criteriaTotalValue.classList.toggle("total-mismatch", total !== 100);
+      if (addCriterionBtn) addCriterionBtn.disabled = rows.length >= maxCriteria;
+    };
+    criteriaRows.addEventListener("input", updateCriteriaTotal);
+    if (addCriterionBtn) {
+      addCriterionBtn.addEventListener("click", () => {
+        const rows = criterionRows();
+        if (rows.length >= maxCriteria) return;
+        const newRow = rows[0].cloneNode(true);
+        const label = newRow.querySelector('input[name="criterion_label"]');
+        const weight = newRow.querySelector('input[name="criterion_weight"]');
+        if (label) {
+          label.value = "";
+          label.placeholder = `Criterion ${rows.length + 1} (e.g. Ease of integration)`;
+        }
+        if (weight) weight.value = "0";
+        criteriaRows.appendChild(newRow);
+        updateCriteriaTotal();
+        if (label) label.focus();
+      });
+    }
+    updateCriteriaTotal();
+  }
+
   // Auto-scroll message threads to latest
   const msgList = document.querySelector(".msg-list");
   if (msgList) msgList.scrollTop = msgList.scrollHeight;

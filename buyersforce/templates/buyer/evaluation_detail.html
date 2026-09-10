@@ -30,7 +30,7 @@
       <div class="criterion-row">
         <div>
           <div class="criterion-label">{{ c.label }}</div>
-          <div class="criterion-weight">Weight ×{{ c.weight }} {% if c.avg %}· team avg {{ c.avg }}{% endif %}</div>
+          <div class="criterion-weight">Weight {{ c.weight }}% {% if c.avg %}· team avg {{ c.avg }}{% endif %}</div>
         </div>
         <div class="score-pill-group">
           {% for n in range(1, 6) %}

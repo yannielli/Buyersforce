@@ -2698,6 +2698,12 @@ def buyer_evaluations():
     )
 
 
+# Default is 5 rows client-side, but a buyer can keep clicking
+# "+ Add criterion" past that -- this just keeps it from being truly
+# unbounded. Weight is a percent of the overall score (must sum to 100).
+MAX_EVAL_CRITERIA = 50
+
+
 @app.route("/app/buyer/evaluations/new", methods=("GET", "POST"))
 @role_required("buyer")
 def buyer_evaluation_new():
@@ -2706,26 +2712,60 @@ def buyer_evaluation_new():
         description = request.form.get("description", "").strip()
         labels = request.form.getlist("criterion_label")
         weights = request.form.getlist("criterion_weight")
-        if not name or not any(l.strip() for l in labels):
-            flash("Give your template a name and at least one criterion.", "error")
+        filled = [(l.strip(), w) for l, w in zip(labels, weights) if l.strip()]
+
+        error = None
+        parsed = []
+        if not name or not filled:
+            error = "Give your template a name and at least one criterion."
+        elif len(filled) > MAX_EVAL_CRITERIA:
+            error = f"A template can have at most {MAX_EVAL_CRITERIA} criteria."
         else:
-            template_id = dbm.execute(
-                "INSERT INTO eval_templates (owner_user_id, company, name, description, is_shared) "
-                "VALUES (?, ?, ?, ?, 1)",
-                (g.user["id"], g.user["company"], name, description),
+            total = 0
+            for label, w in filled:
+                try:
+                    weight = max(0, int(w))
+                except (TypeError, ValueError):
+                    weight = 0
+                parsed.append((label, weight))
+                total += weight
+            # Weight is now the % of the overall score each criterion carries
+            # (previously a 1-5 multiplier), so the set has to add up to a
+            # whole 100 -- otherwise "weighted overall score" on the
+            # evaluations list and evaluation_detail.html stops meaning what
+            # it says. Enforced here as well as with the live total shown on
+            # the form (see app.js) in case a buyer submits before JS runs.
+            if total != 100:
+                error = f"Criteria weights must add up to 100% -- they currently add up to {total}%."
+
+        if error:
+            flash(error, "error")
+            return render_template(
+                "buyer/evaluation_new.html",
+                form_name=name, form_description=description,
+                form_rows=list(zip(labels, weights)) or [("", "")],
+                max_criteria=MAX_EVAL_CRITERIA,
             )
-            pos = 0
-            for label, weight in zip(labels, weights):
-                if label.strip():
-                    dbm.execute(
-                        "INSERT INTO eval_criteria (template_id, label, weight, position) "
-                        "VALUES (?, ?, ?, ?)",
-                        (template_id, label.strip(), int(weight or 1), pos),
-                    )
-                    pos += 1
-            flash("Evaluation template created and shared with your team.", "success")
-            return redirect(url_for("buyer_evaluations"))
-    return render_template("buyer/evaluation_new.html")
+
+        template_id = dbm.execute(
+            "INSERT INTO eval_templates (owner_user_id, company, name, description, is_shared) "
+            "VALUES (?, ?, ?, ?, 1)",
+            (g.user["id"], g.user["company"], name, description),
+        )
+        for pos, (label, weight) in enumerate(parsed):
+            dbm.execute(
+                "INSERT INTO eval_criteria (template_id, label, weight, position) "
+                "VALUES (?, ?, ?, ?)",
+                (template_id, label, weight, pos),
+            )
+        flash("Evaluation template created and shared with your team.", "success")
+        return redirect(url_for("buyer_evaluations"))
+    return render_template(
+        "buyer/evaluation_new.html",
+        form_name="", form_description="",
+        form_rows=[("", 20)] * 5,
+        max_criteria=MAX_EVAL_CRITERIA,
+    )
 
 
 @app.route("/app/buyer/evaluations/start/<int:vendor_id>", methods=("POST",))
