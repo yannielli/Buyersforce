@@ -129,29 +129,34 @@ LEGACY_TIMEZONE_MAP = {
 # Matches the categories used when compiling seed_data/vendor_seed_list.json
 # from GitHub's awesome-cybersecurity list, CB Insights market maps, and
 # Momentum Cyber's Cybersecurity Almanac.
+# Alphabetized (case-insensitive) so every checkbox list built from this
+# -- Discover's segment filter, seller profile, vendor signup, admin's
+# segment picker -- is easier for a buyer or seller to scan than the
+# original ad-hoc research order. Order-independent everywhere else this
+# is used (membership checks via `in`), so safe to resort freely.
 CYBERSECURITY_SEGMENTS = [
-    "Endpoint Security",
-    "Network Security",
-    "Cloud Security",
-    "Identity & Access Management",
-    "Data Security & Privacy",
+    "API Security",
     "Application Security",
+    "Backup & Ransomware Recovery",
+    "Cloud Security",
+    "Data Security & Privacy",
     "Email Security",
+    "Endpoint Security",
+    "Fraud & Identity Verification",
+    "GRC & Compliance",
+    "Identity & Access Management",
+    "Incident Response & Forensics",
+    "IoT/OT Security",
+    "Managed Security Services (MSSP/MDR)",
+    "Mobile Security",
+    "Network Security",
+    "Penetration Testing/Offensive Security",
+    "Security Awareness Training",
     "SIEM/SOAR/XDR",
+    "Supply Chain/Third-Party Risk",
     "Threat Intelligence",
     "Vulnerability Management",
-    "GRC & Compliance",
-    "Managed Security Services (MSSP/MDR)",
-    "Fraud & Identity Verification",
-    "IoT/OT Security",
     "Zero Trust/SASE",
-    "Backup & Ransomware Recovery",
-    "Security Awareness Training",
-    "API Security",
-    "Mobile Security",
-    "Incident Response & Forensics",
-    "Penetration Testing/Offensive Security",
-    "Supply Chain/Third-Party Risk",
 ]
 
 # Company-size bands used for both the seed data (see the research agent's
