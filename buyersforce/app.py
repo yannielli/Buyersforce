@@ -3010,7 +3010,8 @@ def seller_dashboard():
     if not vendor:
         abort(404)
     leads = dbm.query(
-        "SELECT s.*, u.name buyer_name, u.company buyer_company FROM shortlist s "
+        "SELECT s.*, u.name buyer_name, u.company buyer_company, u.photo_data_url buyer_photo "
+        "FROM shortlist s "
         "JOIN users u ON u.id = s.buyer_user_id WHERE s.vendor_id=? "
         "ORDER BY s.created_at DESC",
         (vendor["id"],),
@@ -3131,7 +3132,8 @@ def seller_listing_delete(listing_id):
 def seller_leads():
     vendor = seller_vendor(g.user)
     leads = dbm.query(
-        "SELECT s.*, u.name buyer_name, u.company buyer_company, u.title buyer_title, "
+        "SELECT s.*, u.name buyer_name, u.company buyer_company, u.photo_data_url buyer_photo, "
+        "u.title buyer_title, "
         "u.open_to_buy buyer_open_to_buy, u.outreach_enabled buyer_outreach_enabled, "
         "u.outreach_informational buyer_outreach_informational, "
         "u.outreach_marketing_events buyer_outreach_marketing_events, "

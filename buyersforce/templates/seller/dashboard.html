@@ -23,7 +23,14 @@
     <div class="card" style="padding:8px 22px;">
       {% for l in leads %}
       <div class="mock-row">
-        <span>{{ l.buyer_name }} <span class="hint">· {{ l.buyer_company }}</span></span>
+        <span class="mock-vendor">
+          {% if l.buyer_photo %}
+          <img src="{{ l.buyer_photo }}" alt="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;">
+          {% else %}
+          <span class="vendor-logo" style="background:var(--brand); width:26px;height:26px;font-size:10px;">{{ l.buyer_name[0] }}</span>
+          {% endif %}
+          <span>{{ l.buyer_name }} <span class="hint">· {{ l.buyer_company }}</span></span>
+        </span>
         <span class="badge {{ 'badge-good' if l.status in ['shortlisted','selected'] else ('badge-brand' if l.status == 'evaluating' else 'badge-neutral') }}">{{ l.status|capitalize }}</span>
       </div>
       {% endfor %}

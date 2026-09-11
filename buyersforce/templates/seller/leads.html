@@ -14,7 +14,16 @@
   <tr><th>Buyer</th><th>Company</th><th>Title</th><th>Status</th><th></th><th>Engaged</th><th></th></tr>
   {% for l in leads %}
   <tr>
-    <td>{{ l.buyer_name }}</td>
+    <td>
+      <span class="mock-vendor">
+        {% if l.buyer_photo %}
+        <img src="{{ l.buyer_photo }}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">
+        {% else %}
+        <span class="vendor-logo" style="background:var(--brand); width:28px;height:28px;font-size:11px;">{{ l.buyer_name[0] }}</span>
+        {% endif %}
+        {{ l.buyer_name }}
+      </span>
+    </td>
     <td>{{ l.buyer_company }}</td>
     <td>{{ l.buyer_title }}</td>
     <td><span class="badge {{ 'badge-good' if l.status in ['shortlisted','selected'] else ('badge-brand' if l.status == 'evaluating' else 'badge-neutral') }}">{{ l.status|capitalize }}</span></td>
