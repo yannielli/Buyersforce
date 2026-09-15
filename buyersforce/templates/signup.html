@@ -80,19 +80,8 @@
         </div>
       </div>
 
-      <div class="field">
-        <label for="timezone">Time zone *</label>
-        <select id="timezone" name="timezone" required>
-          <option value="">Select a time zone…</option>
-          {% for region, zones in world_timezones %}
-          <optgroup label="{{ region }}">
-            {% for iana_name, label in zones %}
-            <option value="{{ iana_name }}" {% if form_data.timezone == iana_name %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </optgroup>
-          {% endfor %}
-        </select>
-      </div>
+      {% set tz_selected = form_data.timezone %}
+      {% include "_timezone_field.html" %}
 
       <script>
         document.addEventListener("DOMContentLoaded", function () {

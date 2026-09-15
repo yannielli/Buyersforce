@@ -134,19 +134,8 @@
 </div>
 
 <div class="form-row">
-  <div class="field">
-    <label for="timezone">Time zone *</label>
-    <select id="timezone" name="timezone" required>
-      <option value="">Select a time zone…</option>
-      {% for region, zones in world_timezones %}
-      <optgroup label="{{ region }}">
-        {% for iana_name, label in zones %}
-        <option value="{{ iana_name }}" {% if user.timezone == iana_name %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </optgroup>
-      {% endfor %}
-    </select>
-  </div>
+  {% set tz_selected = user.timezone %}
+  {% include "_timezone_field.html" %}
   <div class="field">
     <label for="linkedin_url">LinkedIn *</label>
     <input type="url" id="linkedin_url" name="linkedin_url" value="{{ user.linkedin_url or '' }}"

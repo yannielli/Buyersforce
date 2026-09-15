@@ -1,0 +1,25 @@
+<div class="field">
+  <label for="timezone">Time zone *</label>
+  <select id="timezone" name="timezone" required data-tz-picker>
+    <option value="">Select a time zone…</option>
+    {% for region, zones in world_timezones %}
+    <optgroup label="{{ region }}">
+      {% for iana_name, label in zones %}
+      <option value="{{ iana_name }}" {% if tz_selected == iana_name %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </optgroup>
+    {% endfor %}
+  </select>
+  <div class="tz-picker" data-tz-picker-wrap style="display:none;">
+    <input type="text" class="tz-picker-input" autocomplete="off" placeholder="Search city or time zone…">
+    <div class="tz-picker-list" data-tz-picker-list style="display:none;">
+      {% for region, zones in world_timezones %}
+      <div class="tz-picker-group">{{ region }}</div>
+      {% for iana_name, label in zones %}
+      <div class="tz-picker-option" data-value="{{ iana_name }}">{{ label }}</div>
+      {% endfor %}
+      {% endfor %}
+      <div class="tz-picker-empty" data-tz-picker-empty style="display:none;">No matches</div>
+    </div>
+  </div>
+</div>

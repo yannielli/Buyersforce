@@ -106,10 +106,50 @@ def _build_world_timezones():
 
 
 # [(region, [(iana_name, display_label), ...]), ...] -- see
-# _build_world_timezones. Computed once at import time; pytz's zone data
-# doesn't change without a deploy anyway.
+# _build_world_timezones. The region groupings and city names are static,
+# so this is computed once at import time; each option's GMT offset is
+# NOT baked in here since it can flip across a DST boundary while the
+# server keeps running -- see world_timezones_for_picker().
 WORLD_TIMEZONES = _build_world_timezones()
 WORLD_TIMEZONE_CODES = set(pytz.common_timezones)
+
+# The four continental US zones, pinned at the top of the time zone picker
+# ahead of the alphabetical region groups -- most of BuyersForce's early
+# users are US-based, so Eastern/Central/Mountain/Pacific are what most
+# people will be looking for first. Same IANA zones as LEGACY_TIMEZONE_MAP
+# below (minus Alaska/Hawaii, which aren't pinned).
+US_QUICK_TIMEZONES = [
+    ("America/New_York", "Eastern"),
+    ("America/Chicago", "Central"),
+    ("America/Denver", "Mountain"),
+    ("America/Los_Angeles", "Pacific"),
+]
+
+
+def _gmt_offset_label(iana_name):
+    """Current UTC offset for an IANA zone, formatted like "GMT-4" or
+    "GMT+5:30" -- computed fresh per call (not cached) so it's always
+    correct even right after a DST transition, without needing a deploy."""
+    offset = datetime.now(pytz.timezone(iana_name)).utcoffset()
+    total_minutes = int(offset.total_seconds() // 60)
+    sign = "+" if total_minutes >= 0 else "-"
+    hours, minutes = divmod(abs(total_minutes), 60)
+    return f"GMT{sign}{hours}" + (f":{minutes:02d}" if minutes else "")
+
+
+def world_timezones_for_picker():
+    """WORLD_TIMEZONES, with a "United States" group of the four pinned
+    zones prepended and every option's label annotated with its current
+    GMT offset -- e.g. "Eastern (GMT-4)", "New York (GMT-4)". Called per
+    request (not cached at import time) so offsets stay accurate."""
+    us_group = ("United States", [
+        (iana, f"{label} ({_gmt_offset_label(iana)})") for iana, label in US_QUICK_TIMEZONES
+    ])
+    rest = [
+        (region, [(iana, f"{label} ({_gmt_offset_label(iana)})") for iana, label in zones])
+        for region, zones in WORLD_TIMEZONES
+    ]
+    return [us_group] + rest
 
 # Old pre-worldwide values, migrated to real IANA zones by migrate.py's
 # _migrate_legacy_timezones -- kept here only so nothing else has to guess
@@ -533,7 +573,7 @@ def signup():
             form_data = request.form.to_dict()
             form_data["no_linkedin"] = no_linkedin
             return render_template(
-                "signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=WORLD_TIMEZONES, form_data=form_data,
+                "signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=world_timezones_for_picker(), form_data=form_data,
             )
 
         dbm.execute(
@@ -546,7 +586,7 @@ def signup():
              state, timezone, linkedin_url, int(no_linkedin)),
         )
         return render_template("signup_pending.html")
-    return render_template("signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=WORLD_TIMEZONES, form_data={})
+    return render_template("signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=world_timezones_for_picker(), form_data={})
 
 
 @app.route("/join-as-vendor", methods=("GET", "POST"))
@@ -868,7 +908,7 @@ def complete_profile():
         # and so we're not rendering a stale g.user from before the (failed) update.
         g.user = dbm.query("SELECT * FROM users WHERE id=?", (g.user["id"],), one=True)
     return render_template(
-        "complete_profile.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=WORLD_TIMEZONES, user=g.user,
+        "complete_profile.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=world_timezones_for_picker(), user=g.user,
     )
 
 
@@ -892,7 +932,7 @@ def account():
             (g.user["id"],), one=True,
         )
     return render_template(
-        "account.html", tab=tab, us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=WORLD_TIMEZONES,
+        "account.html", tab=tab, us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=world_timezones_for_picker(),
         blocked=blocked, user=g.user, pending_role_request=pending_role_request, show_role_change=True,
     )
 

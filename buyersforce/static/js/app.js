@@ -144,4 +144,96 @@ document.addEventListener("DOMContentLoaded", () => {
   // Auto-scroll message threads to latest
   const msgList = document.querySelector(".msg-list");
   if (msgList) msgList.scrollTop = msgList.scrollHeight;
+
+  // Time zone picker: a search box layered over the real <select> (built
+  // server-side in _timezone_field.html, with optgroups and GMT-offset
+  // labels -- "United States" pinned first, then the rest alphabetically).
+  // The <select> still carries the value the form submits and works fine
+  // with no JS at all; this just swaps in a filterable text box on top of
+  // it so narrowing ~430 zones doesn't mean scrolling a giant dropdown.
+  document.querySelectorAll("select[data-tz-picker]").forEach((select) => {
+    const wrap = select.nextElementSibling;
+    if (!wrap || !wrap.matches("[data-tz-picker-wrap]")) return;
+    const input = wrap.querySelector(".tz-picker-input");
+    const list = wrap.querySelector("[data-tz-picker-list]");
+    const empty = wrap.querySelector("[data-tz-picker-empty]");
+    const options = Array.from(wrap.querySelectorAll(".tz-picker-option"));
+    const groups = Array.from(wrap.querySelectorAll(".tz-picker-group"));
+    let highlighted = null;
+
+    if (select.selectedIndex > 0) input.value = select.options[select.selectedIndex].text;
+    select.style.display = "none";
+    wrap.style.display = "block";
+
+    const visibleOptions = () => options.filter((o) => o.style.display !== "none");
+
+    const setHighlight = (option) => {
+      if (highlighted) highlighted.classList.remove("highlighted");
+      highlighted = option;
+      if (highlighted) {
+        highlighted.classList.add("highlighted");
+        highlighted.scrollIntoView({ block: "nearest" });
+      }
+    };
+
+    const filter = () => {
+      const q = input.value.trim().toLowerCase();
+      let anyVisible = false;
+      options.forEach((o) => {
+        const match = !q || o.textContent.toLowerCase().indexOf(q) !== -1;
+        o.style.display = match ? "" : "none";
+        if (match) anyVisible = true;
+      });
+      groups.forEach((g) => {
+        let next = g.nextElementSibling;
+        let hasVisible = false;
+        while (next && !next.classList.contains("tz-picker-group")) {
+          if (next.classList.contains("tz-picker-option") && next.style.display !== "none") hasVisible = true;
+          next = next.nextElementSibling;
+        }
+        g.style.display = hasVisible ? "" : "none";
+      });
+      empty.style.display = anyVisible ? "none" : "block";
+      setHighlight(null);
+    };
+
+    const open = () => { list.style.display = "block"; filter(); };
+    const close = () => { list.style.display = "none"; setHighlight(null); };
+    const choose = (option) => {
+      select.value = option.dataset.value;
+      input.value = option.textContent;
+      close();
+    };
+
+    input.addEventListener("focus", open);
+    input.addEventListener("input", () => {
+      select.value = ""; // typing without picking a result must not silently submit the old value
+      open();
+    });
+    input.addEventListener("keydown", (e) => {
+      if (list.style.display === "none") return;
+      const vis = visibleOptions();
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const idx = vis.indexOf(highlighted);
+        setHighlight(idx < vis.length - 1 ? vis[idx + 1] : vis[0]);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const idx = vis.indexOf(highlighted);
+        setHighlight(idx > 0 ? vis[idx - 1] : vis[vis.length - 1]);
+      } else if (e.key === "Enter") {
+        if (highlighted) { e.preventDefault(); choose(highlighted); }
+      } else if (e.key === "Escape") {
+        close();
+      }
+    });
+    options.forEach((o) => {
+      o.addEventListener("mousedown", (e) => e.preventDefault());
+      o.addEventListener("click", () => choose(o));
+      o.addEventListener("mouseenter", () => setHighlight(o));
+    });
+    document.addEventListener("click", (e) => {
+      if (!wrap.contains(e.target)) close();
+    });
+  });
 });
