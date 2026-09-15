@@ -29,7 +29,8 @@
             <a href="{{ url_for('buyer_schedule') }}" class="{{ 'active' if request.endpoint == 'buyer_schedule' }}">Schedule</a>
           {% elif g.user.role == 'seller' %}
             <a href="{{ url_for('seller_dashboard') }}" class="{{ 'active' if request.endpoint == 'seller_dashboard' }}">Dashboard</a>
-            <a href="{{ url_for('seller_profile') }}" class="{{ 'active' if request.endpoint == 'seller_profile' }}">Vendor Profile</a>
+            <a href="{{ url_for('seller_profile') }}" class="{{ 'active' if request.endpoint == 'seller_profile' }}">Your Company Profile</a>
+            <a href="{{ url_for('seller_all_vendors') }}" class="{{ 'active' if request.endpoint in ['seller_all_vendors','seller_view_vendor'] }}">All Vendors</a>
             <a href="{{ url_for('seller_leads') }}" class="{{ 'active' if request.endpoint == 'seller_leads' }}">Leads</a>
             <a href="{{ url_for('seller_messages') }}" class="{{ 'active' if request.endpoint in ['seller_messages','seller_thread','messages_new'] }}">Messages{% if g.unread_count %}<span class="nav-badge">{{ g.unread_count }}</span>{% endif %}</a>
             <a href="{{ url_for('seller_partners') }}" class="{{ 'active' if request.endpoint == 'seller_partners' }}">Partners</a>

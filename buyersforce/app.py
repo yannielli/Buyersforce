@@ -3119,7 +3119,7 @@ def seller_profile():
                     "INSERT INTO vendor_segments (vendor_id, segment) VALUES (?, ?)",
                     (vendor["id"], segment),
                 )
-        flash("Vendor profile updated — buyers will see the latest version.", "success")
+        flash("Your company profile updated — buyers will see the latest version.", "success")
         return redirect(url_for("seller_profile"))
     tags = ", ".join(vendor_tags(vendor["id"]))
     selected_segments = vendor_segments(vendor["id"])
@@ -3149,7 +3149,7 @@ def seller_listing_new():
                 "INSERT INTO listing_features (listing_id, feature_text) VALUES (?, ?)",
                 (listing_id, feat),
             )
-        flash("Product listing added to your vendor profile.", "success")
+        flash("Product listing added to your company profile.", "success")
     return redirect(url_for("seller_profile"))
 
 
@@ -3165,6 +3165,102 @@ def seller_listing_delete(listing_id):
         dbm.execute("DELETE FROM listings WHERE id=?", (listing_id,))
         flash("Listing removed.", "success")
     return redirect(url_for("seller_profile"))
+
+
+# Sellers can see the same vendor directory buyers browse on Discover --
+# vendor "About" info (name, tagline, description, segments) is already
+# public-style content any BuyersForce user can see elsewhere (e.g. LinkedIn
+# company pages), so there's no reason to hide the competitive landscape
+# from sellers. What sellers do NOT get here: BuyersForce ratings, products &
+# pricing, or any "take action" buyer tooling (shortlist/evaluate/message) --
+# those stay buyer-only. This mirrors buyer_discover's query shape rather
+# than sharing code with it, matching how buyer/seller features are kept as
+# separate routes+templates throughout this app.
+@app.route("/app/seller/vendors")
+@role_required("seller")
+def seller_all_vendors():
+    q = request.args.get("q", "").strip()
+    segments = [s for s in request.args.getlist("segment") if s in CYBERSECURITY_SEGMENTS]
+    company_size = request.args.get("company_size", "")
+    sql = "SELECT * FROM vendors WHERE technology_category = ?"
+    args = ["cybersecurity"]
+    if q:
+        # ILIKE, not LIKE -- LIKE is case-sensitive in Postgres, so a lowercase
+        # search like "tines" would never match a stored "Tines".
+        sql += (
+            " AND (company_name ILIKE ? OR tagline ILIKE ? OR description ILIKE ? "
+            "OR hq_location ILIKE ?)"
+        )
+        args += [f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%"]
+    if segments:
+        placeholders = ",".join(["?"] * len(segments))
+        sql += (
+            f" AND id IN (SELECT vendor_id FROM vendor_segments WHERE segment IN ({placeholders}))"
+        )
+        args += segments
+    if company_size:
+        sql += " AND company_size = ?"
+        args.append(company_size)
+    letter = request.args.get("letter", "").strip().upper()[:1]
+    if letter and letter not in DISCOVER_JUMP_LETTERS:
+        letter = ""
+    if letter == "#":
+        # No leading A-Z letter -- Postgres regex, case-insensitive.
+        sql += " AND company_name !~* '^[a-z]'"
+    elif letter:
+        sql += " AND company_name ILIKE ?"
+        args.append(letter + "%")
+    sort = request.args.get("sort", "name_asc")
+    if sort not in DISCOVER_SORT_KEYS:
+        sort = "name_asc"
+    if sort in ("size_asc", "size_desc"):
+        case_when = " ".join(
+            f"WHEN company_size = ? THEN {idx}" for idx, _band in enumerate(COMPANY_SIZE_BANDS)
+        )
+        size_rank = f"CASE {case_when} ELSE {len(COMPANY_SIZE_BANDS)} END"
+        sql += f" ORDER BY {size_rank} {'DESC' if sort == 'size_desc' else 'ASC'}, company_name"
+        args += list(COMPANY_SIZE_BANDS)
+    elif sort in ("founded_asc", "founded_desc"):
+        direction = "DESC" if sort == "founded_desc" else "ASC"
+        sql += f" ORDER BY founded_year IS NULL, founded_year {direction}, company_name"
+    else:
+        sql += f" ORDER BY company_name {'DESC' if sort == 'name_desc' else 'ASC'}"
+    vendors = dbm.query(sql, args)
+    vendor_data = []
+    for v in vendors:
+        vendor_data.append({
+            **dict(v),
+            "tags": vendor_tags(v["id"]),
+            "segments": vendor_segments(v["id"]),
+            "logo_url": v["wiki_logo_url"] or vendor_favicon_url(v["website"]),
+        })
+    return render_template(
+        "seller/all_vendors.html",
+        vendors=vendor_data,
+        all_segments=CYBERSECURITY_SEGMENTS,
+        selected_segments=segments,
+        company_sizes=COMPANY_SIZE_BANDS,
+        q=q,
+        company_size=company_size,
+        sort_options=DISCOVER_SORT_OPTIONS,
+        sort=sort,
+        jump_letters=DISCOVER_JUMP_LETTERS,
+        letter=letter,
+    )
+
+
+@app.route("/app/seller/vendors/<int:vendor_id>")
+@role_required("seller")
+def seller_view_vendor(vendor_id):
+    vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
+    if not vendor:
+        abort(404)
+    tags = vendor_tags(vendor_id)
+    segments = vendor_segments(vendor_id)
+    logo_url = vendor["wiki_logo_url"] or vendor_favicon_url(vendor["website"])
+    return render_template(
+        "seller/vendor_view.html", vendor=vendor, tags=tags, segments=segments, logo_url=logo_url,
+    )
 
 
 @app.route("/app/seller/leads")

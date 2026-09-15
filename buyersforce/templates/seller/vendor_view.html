@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ vendor.company_name }}{% endblock %}
+{% block content %}
+<p class="hint"><a href="{{ url_for('seller_all_vendors') }}">← All vendors</a></p>
+
+<div class="vendor-hero">
+  <span class="vendor-logo" style="background:{{ vendor.accent }};">
+    {% if logo_url %}<img src="{{ logo_url }}" alt="" onerror="this.remove();">{% endif %}
+    {{ vendor.initials }}
+  </span>
+  <div style="flex:1;">
+    <span class="eyebrow">{{ vendor.category }}</span>
+    <h1>{{ vendor.company_name }}</h1>
+    <p style="font-size:15px;">{{ vendor.tagline }}</p>
+    <p class="hint" style="margin-top:2px;">
+      {% if vendor.hq_location %}📍 {{ vendor.hq_location }}{% endif %}
+      {% if vendor.company_size %}{% if vendor.hq_location %} · {% endif %}👥 {{ vendor.company_size }} employees{% endif %}
+      {% if vendor.founded_year %}{% if vendor.hq_location or vendor.company_size %} · {% endif %}Founded {{ vendor.founded_year }}{% endif %}
+    </p>
+    <div>{% for s in segments %}<span class="tag">{{ s }}</span>{% endfor %}{% for t in tags %}<span class="tag">{{ t }}</span>{% endfor %}</div>
+  </div>
+</div>
+
+<div class="card" style="max-width:760px;">
+  <h3 style="font-size:15px;">About</h3>
+  <p>{{ vendor.description }}</p>
+  {% if vendor.website %}
+  <p class="hint">🔗 <a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }}</a><br>{{ EXTERNAL_LINK_PRIVACY_NOTE }}</p>
+  {% endif %}
+  {% if vendor.contact_email %}<p class="hint">✉️ {{ vendor.contact_email }}</p>{% endif %}
+  {% if vendor.contact_phone %}<p class="hint">📞 {{ vendor.contact_phone }}</p>{% endif %}
+</div>
+{% endblock %}
