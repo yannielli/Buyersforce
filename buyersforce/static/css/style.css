@@ -185,6 +185,11 @@ button { font-family: inherit; }
 }
 .page-header h1 { font-size: 26px; }
 .page-header .lede { color: var(--ink-muted); font-size: 14.5px; margin: 0; }
+/* Opt-in modifier for a page-header with no right-side button (e.g. the
+   seller All Vendors / My Company pages) -- centers the eyebrow/title/lede
+   instead of the usual left-aligned, space-between layout. */
+.page-header.page-header-center { justify-content: center; text-align: center; }
+.page-header.page-header-center > div { flex: 0 1 auto; }
 .eyebrow {
   text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; font-weight: 700;
   color: var(--brand); margin-bottom: 8px; display: block;
