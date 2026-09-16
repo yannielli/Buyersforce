@@ -145,6 +145,7 @@ button { font-family: inherit; }
 .main-nav { display: flex; gap: 4px; flex: 1; }
 .main-nav a {
   padding: 8px 12px; border-radius: 8px; color: var(--ink-secondary); font-size: 14.5px; font-weight: 500;
+  text-align: center;
 }
 .main-nav a:hover { background: var(--page); color: var(--ink-primary); }
 .main-nav a.active { background: var(--brand-tint); color: var(--brand-dark); }
