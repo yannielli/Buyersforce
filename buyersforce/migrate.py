@@ -43,12 +43,16 @@ def run_migrations():
             _add_support_requests_table(cur)
             _add_technology_category_column(cur)
             _add_vendor_requests_table(cur)
+            _widen_vendor_requests_kind_check(cur)
             _add_shortlist_selected_at_column(cur)
             _add_vendor_ratings_table(cur)
             _add_evaluations_gartner_note_column(cur)
             _add_theme_preference_column(cur)
             _add_outreach_columns(cur)
             _add_eval_projects(cur)
+            _add_technology_taxonomy_tables(cur)
+            _seed_technology_taxonomy(cur)
+            _add_vendor_requests_proposed_categories_column(cur)
     finally:
         con.close()
 
@@ -608,6 +612,29 @@ def _add_vendor_requests_table(cur):
     )
 
 
+def _widen_vendor_requests_kind_check(cur):
+    # Find whichever CHECK constraint governs vendor_requests.kind (Postgres
+    # auto-names it) and, if it doesn't already allow 'seller_referral',
+    # replace it with one that does. Needed because seller_suggest_vendor
+    # (app.py) inserts kind='seller_referral' but the live table may still
+    # carry the original two-value CHECK from before that kind existed.
+    cur.execute(
+        """
+        SELECT con.conname, pg_get_constraintdef(con.oid) AS def
+        FROM pg_constraint con
+        JOIN pg_class rel ON rel.oid = con.conrelid
+        WHERE rel.relname = 'vendor_requests' AND con.contype = 'c'
+        """
+    )
+    for conname, condef in cur.fetchall():
+        if "kind" in condef and "'buyer_referral'" in condef and "'seller_referral'" not in condef:
+            cur.execute(f'ALTER TABLE vendor_requests DROP CONSTRAINT "{conname}"')
+            cur.execute(
+                "ALTER TABLE vendor_requests ADD CONSTRAINT vendor_requests_kind_check "
+                "CHECK (kind IN ('buyer_referral', 'seller_referral', 'seller_signup'))"
+            )
+
+
 def _add_theme_preference_column(cur):
     # Per-account light/dark toggle, set from Account > Profile >
     # Appearance. Defaults to 'light' so nobody's view changes until they
@@ -696,3 +723,108 @@ def _add_eval_projects(cur):
 if __name__ == "__main__":
     run_migrations()
     print("Migrations applied.")
+def _add_technology_taxonomy_tables(cur):
+    # Two seller/admin-extensible master lists backing the "Technology
+    # Category" and "Sub-Categories / Segments" pickers on the seller
+    # profile, vendor signup, and admin request-review forms -- each with
+    # its own "add a new one" escape hatch (see app.py's
+    # _ensure_technology_category / _ensure_technology_segment). These
+    # replace TECHNOLOGY_CATEGORIES/PLACEHOLDER_TECHNOLOGY_CATEGORIES and
+    # CYBERSECURITY_SEGMENTS as the source of truth for what's selectable
+    # -- app.py still keeps CYBERSECURITY_SEGMENTS as the one-time seed
+    # list below. vendor_technology_categories is the multi-select
+    # junction for a vendor's own categories, mirroring vendor_segments'
+    # existing shape exactly.
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS technology_categories (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL
+        )
+        """
+    )
+    cur.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS technology_categories_name_uniq "
+        "ON technology_categories (lower(name))"
+    )
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS technology_segments (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL
+        )
+        """
+    )
+    cur.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS technology_segments_name_uniq "
+        "ON technology_segments (lower(name))"
+    )
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS vendor_technology_categories (
+            id SERIAL PRIMARY KEY,
+            vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+            category TEXT NOT NULL
+        )
+        """
+    )
+    cur.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS vendor_technology_categories_uniq "
+        "ON vendor_technology_categories (vendor_id, category)"
+    )
+
+
+def _seed_technology_taxonomy(cur):
+    # One-time seed of the two master lists from what used to be app.py's
+    # only source of truth. Safe to run every deploy: each insert is
+    # skipped if a case-insensitive match already exists, so a seller or
+    # admin who has since added/renamed one is never overwritten.
+    starter_categories = [
+        "Cloud & Infrastructure", "Cybersecurity", "Data & Analytics",
+        "IT Operations", "Sales & Marketing Tech",
+    ]
+    for name in starter_categories:
+        cur.execute(
+            "INSERT INTO technology_categories (name) SELECT %s "
+            "WHERE NOT EXISTS (SELECT 1 FROM technology_categories WHERE lower(name) = lower(%s))",
+            (name, name),
+        )
+    starter_segments = [
+        "API Security", "Application Security", "Backup & Ransomware Recovery",
+        "Cloud Security", "Data Security & Privacy", "Email Security",
+        "Endpoint Security", "Fraud & Identity Verification", "GRC & Compliance",
+        "Identity & Access Management", "Incident Response & Forensics",
+        "IoT/OT Security", "Managed Security Services (MSSP/MDR)", "Mobile Security",
+        "Network Security", "Penetration Testing/Offensive Security",
+        "Security Awareness Training", "SIEM/SOAR/XDR", "Supply Chain/Third-Party Risk",
+        "Threat Intelligence", "Vulnerability Management", "Zero Trust/SASE",
+    ]
+    for name in starter_segments:
+        cur.execute(
+            "INSERT INTO technology_segments (name) SELECT %s "
+            "WHERE NOT EXISTS (SELECT 1 FROM technology_segments WHERE lower(name) = lower(%s))",
+            (name, name),
+        )
+    # Every vendor today is technology_category='cybersecurity' (the only
+    # value that has ever existed) -- backfill the new multi-select table
+    # so no existing vendor suddenly shows zero categories.
+    cur.execute(
+        """
+        INSERT INTO vendor_technology_categories (vendor_id, category)
+        SELECT id, 'Cybersecurity' FROM vendors
+        WHERE technology_category = 'cybersecurity'
+        AND NOT EXISTS (
+            SELECT 1 FROM vendor_technology_categories vtc WHERE vtc.vendor_id = vendors.id
+        )
+        """
+    )
+
+
+def _add_vendor_requests_proposed_categories_column(cur):
+    # Mirrors proposed_segments -- a comma-joined list of technology
+    # categories proposed at submission time (vendor_signup today), shown
+    # pre-checked on admin's request-review form.
+    cur.execute(
+        "ALTER TABLE vendor_requests ADD COLUMN IF NOT EXISTS "
+        "proposed_technology_categories TEXT NOT NULL DEFAULT ''"
+    )

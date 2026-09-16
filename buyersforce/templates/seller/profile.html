@@ -13,10 +13,7 @@
   <div class="card">
     <h3 style="font-size:15px;">Profile details</h3>
     <form method="post">
-      <div class="form-row">
-        <div class="field"><label>Company name</label><input type="text" name="company_name" value="{{ vendor.company_name }}" required></div>
-        <div class="field"><label>Category</label><input type="text" name="category" value="{{ vendor.category }}" required></div>
-      </div>
+      <div class="field"><label>Company name</label><input type="text" name="company_name" value="{{ vendor.company_name }}" required></div>
       <div class="field"><label>Tagline</label><input type="text" name="tagline" value="{{ vendor.tagline }}" placeholder="One line describing your product"></div>
       <div class="field"><label>Description</label><textarea name="description" placeholder="What does your product do, and for whom?">{{ vendor.description }}</textarea></div>
       <div class="form-row">
@@ -44,17 +41,23 @@
         <div class="field"><label>Contact phone</label><input type="tel" name="contact_phone" value="{{ vendor.contact_phone or '' }}"></div>
       </div>
 
-      <div class="field">
-        <label>Cybersecurity segments (buyers filter by these)</label>
-        <div class="segment-grid" style="margin-top:6px;">
-          {% for seg in all_segments %}
-          <label style="font-weight:400;">
-            <input type="checkbox" name="segments" value="{{ seg }}" {{ 'checked' if seg in selected_segments }}>
-            {{ seg }}
-          </label>
-          {% endfor %}
-        </div>
-      </div>
+      {% set picklist_label = "Technology Category" %}
+      {% set picklist_hint = "Select every category your product fits — this is the first thing buyers search by." %}
+      {% set picklist_field_name = "technology_categories" %}
+      {% set picklist_options = all_technology_categories %}
+      {% set picklist_selected = selected_technology_categories %}
+      {% set picklist_new_field_name = "new_technology_category" %}
+      {% set picklist_add_placeholder = "Add a new technology category…" %}
+      {% include "_picklist_field.html" %}
+
+      {% set picklist_label = "Sub-Categories / Segments" %}
+      {% set picklist_hint = "The more specific classification buyers search by second." %}
+      {% set picklist_field_name = "segments" %}
+      {% set picklist_options = all_segments %}
+      {% set picklist_selected = selected_segments %}
+      {% set picklist_new_field_name = "new_segment" %}
+      {% set picklist_add_placeholder = "Add a new sub-category / segment…" %}
+      {% include "_picklist_field.html" %}
 
       <button class="btn btn-primary" type="submit">Save profile</button>
     </form>

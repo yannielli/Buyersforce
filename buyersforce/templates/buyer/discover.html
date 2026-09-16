@@ -32,20 +32,27 @@
   <button class="btn btn-secondary" type="submit">Search</button>
 </form>
 
-<div class="toolbar" style="margin-top:10px; align-items:center;">
-  <select name="technology_category" form="discover-form" onchange="this.form.submit()">
-    {% for value, label in technology_categories %}
-    <option value="{{ value }}" {{ 'selected' if value == technology_category }}>{{ label }}</option>
+<details class="segment-filter" {{ 'open' if selected_technology_categories }}>
+  <summary>Filter by technology category{% if selected_technology_categories %} ({{ selected_technology_categories|length }} selected){% endif %}</summary>
+  <div class="segment-grid">
+    {% for cat in all_technology_categories %}
+    <label>
+      <input type="checkbox" name="technology_category" value="{{ cat }}" form="discover-form"
+        {{ 'checked' if cat in selected_technology_categories }}>
+      {{ cat }}
+    </label>
     {% endfor %}
-    {% for label in placeholder_technology_categories %}
-    <option disabled>{{ label }} (coming soon)</option>
-    {% endfor %}
-  </select>
-  <span class="hint">BuyersForce is expanding beyond cybersecurity — more technology categories are on the way.</span>
-</div>
+  </div>
+  <div class="filter-actions">
+    <button class="btn btn-primary btn-sm" type="submit" form="discover-form">Apply filters</button>
+    {% if selected_technology_categories or selected_segments or company_size or q or letter %}
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('buyer_discover') }}">Clear all</a>
+    {% endif %}
+  </div>
+</details>
 
 <details class="segment-filter" {{ 'open' if selected_segments }}>
-  <summary>Filter by cybersecurity segment{% if selected_segments %} ({{ selected_segments|length }} selected){% endif %}</summary>
+  <summary>Filter by sub-category / segment{% if selected_segments %} ({{ selected_segments|length }} selected){% endif %}</summary>
   <div class="segment-grid">
     {% for seg in all_segments %}
     <label>
@@ -57,7 +64,7 @@
   </div>
   <div class="filter-actions">
     <button class="btn btn-primary btn-sm" type="submit" form="discover-form">Apply filters</button>
-    {% if selected_segments or company_size or q or letter %}
+    {% if selected_technology_categories or selected_segments or company_size or q or letter %}
     <a class="btn btn-secondary btn-sm" href="{{ url_for('buyer_discover') }}">Clear all</a>
     {% endif %}
   </div>

@@ -117,17 +117,23 @@
         <div class="field"><label>Tagline</label><input type="text" name="tagline" value="{{ r.tagline or '' }}"></div>
       </div>
       <div class="field"><label>Description</label><textarea name="description" style="min-height:70px;">{{ r.description or '' }}</textarea></div>
-      <div class="field">
-        <label>Segments</label>
-        <div class="segment-grid" style="margin-top:6px;">
-          {% for seg in all_segments %}
-          <label style="font-weight:400;">
-            <input type="checkbox" name="segments" value="{{ seg }}" {{ 'checked' if seg in r.proposed_segments_list }}>
-            {{ seg }}
-          </label>
-          {% endfor %}
-        </div>
-      </div>
+      {% set picklist_label = "Technology Category" %}
+      {% set picklist_hint = none %}
+      {% set picklist_field_name = "technology_categories" %}
+      {% set picklist_options = all_technology_categories %}
+      {% set picklist_selected = r.proposed_technology_categories_list %}
+      {% set picklist_new_field_name = "new_technology_category" %}
+      {% set picklist_add_placeholder = "Add a new technology category…" %}
+      {% include "_picklist_field.html" %}
+
+      {% set picklist_label = "Sub-Categories / Segments" %}
+      {% set picklist_hint = none %}
+      {% set picklist_field_name = "segments" %}
+      {% set picklist_options = all_segments %}
+      {% set picklist_selected = r.proposed_segments_list %}
+      {% set picklist_new_field_name = "new_segment" %}
+      {% set picklist_add_placeholder = "Add a new sub-category / segment…" %}
+      {% include "_picklist_field.html" %}
       <div class="form-row">
         <div class="field">
           <label>Company size</label>

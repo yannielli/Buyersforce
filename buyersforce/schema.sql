@@ -25,6 +25,9 @@ DROP TABLE IF EXISTS vendor_segments CASCADE;
 DROP TABLE IF EXISTS support_requests CASCADE;
 DROP TABLE IF EXISTS vendor_requests CASCADE;
 DROP TABLE IF EXISTS vendor_ratings CASCADE;
+DROP TABLE IF EXISTS technology_categories CASCADE;
+DROP TABLE IF EXISTS technology_segments CASCADE;
+DROP TABLE IF EXISTS vendor_technology_categories CASCADE;
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -184,6 +187,36 @@ CREATE TABLE vendor_segments (
 CREATE UNIQUE INDEX vendor_segments_vendor_segment_uniq
 ON vendor_segments (vendor_id, segment);
 
+-- Seller/admin-extensible master lists backing the "Technology Category"
+-- and "Sub-Categories / Segments" pickers (see app.py's
+-- all_technology_categories()/all_technology_segments() and the
+-- _ensure_technology_category()/_ensure_technology_segment() "add a new
+-- one" helpers). Seeded once by migrate.py's _seed_technology_taxonomy
+-- from what used to be app.py's only source of truth.
+CREATE TABLE technology_categories (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL
+);
+CREATE UNIQUE INDEX technology_categories_name_uniq
+ON technology_categories (lower(name));
+
+CREATE TABLE technology_segments (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL
+);
+CREATE UNIQUE INDEX technology_segments_name_uniq
+ON technology_segments (lower(name));
+
+-- A vendor's own selected Technology Categories -- multi-select, mirrors
+-- vendor_segments' shape exactly.
+CREATE TABLE vendor_technology_categories (
+    id SERIAL PRIMARY KEY,
+    vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+    category TEXT NOT NULL
+);
+CREATE UNIQUE INDEX vendor_technology_categories_uniq
+ON vendor_technology_categories (vendor_id, category);
+
 CREATE TABLE listings (
     id SERIAL PRIMARY KEY,
     vendor_id INTEGER NOT NULL REFERENCES vendors(id),
@@ -252,23 +285,24 @@ CREATE TABLE support_requests (
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
 );
 
--- A request to add a company to the vendor directory -- either a buyer
--- suggesting a vendor they know (kind='buyer_referral', tied to their own
--- account and an admin message thread), or a vendor's own contact asking
--- to be listed before they have any BuyersForce account at all
--- (kind='seller_signup', submitted from the public /join-as-vendor page).
--- Approving either kind creates a real vendors row; approving a
+-- A request to add a company to the vendor directory -- a buyer or seller
+-- suggesting a vendor they know (kind='buyer_referral' / 'seller_referral',
+-- tied to their own account and an admin message thread), or a vendor's own
+-- contact asking to be listed before they have any BuyersForce account at
+-- all (kind='seller_signup', submitted from the public /join-as-vendor
+-- page). Approving any kind creates a real vendors row; approving a
 -- seller_signup additionally creates the contact's own seller account
 -- (created_user_id) via the same invite-link mechanism used elsewhere.
 CREATE TABLE vendor_requests (
     id SERIAL PRIMARY KEY,
-    kind TEXT NOT NULL CHECK (kind IN ('buyer_referral', 'seller_signup')),
+    kind TEXT NOT NULL CHECK (kind IN ('buyer_referral', 'seller_referral', 'seller_signup')),
     requested_by_user_id INTEGER REFERENCES users(id),
     company_name TEXT NOT NULL,
     website TEXT NOT NULL,
     tagline TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     proposed_segments TEXT NOT NULL DEFAULT '',
+    proposed_technology_categories TEXT NOT NULL DEFAULT '',
     company_size TEXT,
     founded_year INTEGER,
     hq_location TEXT,

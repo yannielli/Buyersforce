@@ -163,17 +163,16 @@ LEGACY_TIMEZONE_MAP = {
     "Hawaii": "Pacific/Honolulu",
 }
 
-# Canonical cybersecurity segment/category vocabulary -- powers the
-# multi-select "browse by segment" filter on the buyer vendor directory
-# (vendor_segments table) and the seller profile's own segment picker.
-# Matches the categories used when compiling seed_data/vendor_seed_list.json
-# from GitHub's awesome-cybersecurity list, CB Insights market maps, and
-# Momentum Cyber's Cybersecurity Almanac.
-# Alphabetized (case-insensitive) so every checkbox list built from this
-# -- Discover's segment filter, seller profile, vendor signup, admin's
-# segment picker -- is easier for a buyer or seller to scan than the
-# original ad-hoc research order. Order-independent everywhere else this
-# is used (membership checks via `in`), so safe to resort freely.
+# Starting vocabulary for "Sub-Categories / Segments" -- matches the
+# categories used when compiling seed_data/vendor_seed_list.json from
+# GitHub's awesome-cybersecurity list, CB Insights market maps, and
+# Momentum Cyber's Cybersecurity Almanac. This list is now HISTORICAL: it's
+# only read by migrate.py's one-time seed of the technology_segments table
+# (mirrored there, not imported, since migrate.py is a standalone script).
+# The live, seller/admin-extensible source of truth is that DB table --
+# see all_technology_segments() -- so a value added there after launch
+# won't appear in this constant, and nothing in this file should validate
+# against CYBERSECURITY_SEGMENTS anymore.
 CYBERSECURITY_SEGMENTS = [
     "API Security",
     "Application Security",
@@ -220,18 +219,13 @@ SUPPORT_CATEGORIES = [
 SUPPORT_CATEGORY_LABELS = dict(SUPPORT_CATEGORIES)
 
 
-# BuyersForce is meant to eventually cover more than cybersecurity (see
-# vendors.technology_category) -- this is the top-level filter shown ahead
-# of the segment picker on Discover. Only "cybersecurity" is real/selectable
-# today; PLACEHOLDER_TECHNOLOGY_CATEGORIES are shown disabled in the select
-# so the space is visibly reserved without inventing a taxonomy that isn't
-# built out yet.
-TECHNOLOGY_CATEGORIES = [
-    ("cybersecurity", "Cybersecurity"),
-]
-PLACEHOLDER_TECHNOLOGY_CATEGORIES = [
-    "Cloud & Infrastructure", "Data & Analytics", "Sales & Marketing Tech", "IT Operations",
-]
+# "Technology Category" -- BuyersForce's top-level vendor classification,
+# shown ahead of "Sub-Categories / Segments" everywhere a vendor is
+# classified or a buyer filters. Multi-select, seller/admin-extensible;
+# see the technology_categories DB table and all_technology_categories().
+# (Replaces the old single-value, cybersecurity-only technology_category
+# column/select -- that column is left in place but no longer read or
+# written, kept only for any historical row that still has it.)
 
 # Vendor-directory listing requests -- see the vendor_requests table.
 VENDOR_REQUEST_KIND_LABELS = {
@@ -613,12 +607,25 @@ def vendor_signup():
             )
             form_data = request.form.to_dict()
             form_data["segments"] = request.form.getlist("segments")
+            form_data["technology_categories"] = request.form.getlist("technology_categories")
             return render_template(
-                "vendor_signup.html", all_segments=CYBERSECURITY_SEGMENTS,
+                "vendor_signup.html", all_segments=all_technology_segments(),
+                all_technology_categories=all_technology_categories(),
                 company_sizes=COMPANY_SIZE_BANDS, form_data=form_data,
             )
 
+        new_category = _ensure_technology_category(request.form.get("new_technology_category", ""))
+        technology_categories = _parse_proposed_technology_categories(
+            ",".join(request.form.getlist("technology_categories"))
+        )
+        if new_category and new_category not in technology_categories:
+            technology_categories.append(new_category)
+
+        new_segment = _ensure_technology_segment(request.form.get("new_segment", ""))
         segments = _parse_proposed_segments(",".join(request.form.getlist("segments")))
+        if new_segment and new_segment not in segments:
+            segments.append(new_segment)
+
         company_size = request.form.get("company_size", "").strip()
         if company_size not in COMPANY_SIZE_BANDS:
             company_size = None
@@ -630,11 +637,12 @@ def vendor_signup():
 
         dbm.execute(
             "INSERT INTO vendor_requests (kind, company_name, website, tagline, description, "
-            "proposed_segments, company_size, founded_year, hq_location, contact_name, "
-            "contact_title, contact_email, contact_phone) "
-            "VALUES ('seller_signup', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (company_name, website, tagline, description, ",".join(segments), company_size,
-             founded_year, hq_location, contact_name, contact_title, contact_email, contact_phone),
+            "proposed_segments, proposed_technology_categories, company_size, founded_year, "
+            "hq_location, contact_name, contact_title, contact_email, contact_phone) "
+            "VALUES ('seller_signup', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (company_name, website, tagline, description, ",".join(segments),
+             ",".join(technology_categories), company_size, founded_year, hq_location,
+             contact_name, contact_title, contact_email, contact_phone),
         )
 
         admin = get_admin_user()
@@ -652,8 +660,9 @@ def vendor_signup():
         return render_template("vendor_signup_pending.html", company_name=company_name)
 
     return render_template(
-        "vendor_signup.html", all_segments=CYBERSECURITY_SEGMENTS, company_sizes=COMPANY_SIZE_BANDS,
-        form_data={},
+        "vendor_signup.html", all_segments=all_technology_segments(),
+        all_technology_categories=all_technology_categories(),
+        company_sizes=COMPANY_SIZE_BANDS, form_data={},
     )
 
 
@@ -1080,8 +1089,16 @@ def admin_dashboard():
         "FROM vendor_requests vr LEFT JOIN users u ON u.id = vr.requested_by_user_id "
         "WHERE vr.status = 'pending' ORDER BY vr.created_at DESC"
     )
+    known_segments = all_technology_segments()
+    known_categories = all_technology_categories()
     pending_vendor_requests = [
-        {**dict(r), "proposed_segments_list": _parse_proposed_segments(r["proposed_segments"])}
+        {
+            **dict(r),
+            "proposed_segments_list": _parse_proposed_segments(r["proposed_segments"], known_segments),
+            "proposed_technology_categories_list": _parse_proposed_technology_categories(
+                r["proposed_technology_categories"], known_categories
+            ),
+        }
         for r in pending_vendor_requests
     ]
     new_invite_link = None
@@ -1095,7 +1112,8 @@ def admin_dashboard():
         pending_signups=pending_signups, pending_role_changes=pending_role_changes,
         open_support_requests=open_support_requests, support_category_labels=SUPPORT_CATEGORY_LABELS,
         pending_vendor_requests=pending_vendor_requests, vendor_request_kind_labels=VENDOR_REQUEST_KIND_LABELS,
-        all_segments=CYBERSECURITY_SEGMENTS, company_sizes=COMPANY_SIZE_BANDS,
+        all_segments=known_segments, all_technology_categories=known_categories,
+        company_sizes=COMPANY_SIZE_BANDS,
         new_invite_link=new_invite_link,
     )
 
@@ -1796,7 +1814,16 @@ def admin_vendor_request_decide(request_id):
     website = request.form.get("website", "").strip() or req["website"]
     tagline = request.form.get("tagline", "").strip()
     description = request.form.get("description", "").strip()
+    new_segment = _ensure_technology_segment(request.form.get("new_segment", ""))
     segments = _parse_proposed_segments(",".join(request.form.getlist("segments")))
+    if new_segment and new_segment not in segments:
+        segments.append(new_segment)
+    new_category = _ensure_technology_category(request.form.get("new_technology_category", ""))
+    technology_categories = _parse_proposed_technology_categories(
+        ",".join(request.form.getlist("technology_categories"))
+    )
+    if new_category and new_category not in technology_categories:
+        technology_categories.append(new_category)
     company_size = request.form.get("company_size", "").strip()
     if company_size not in COMPANY_SIZE_BANDS:
         company_size = None
@@ -1842,7 +1869,7 @@ def admin_vendor_request_decide(request_id):
 
     # action == "approve"
     accent, initials = _derive_vendor_accent_initials(company_name)
-    category = segments[0] if segments else "Uncategorized"
+    category = " / ".join(technology_categories) if technology_categories else "Uncategorized"
     seller_user_id = None
     created_user_id = None
 
@@ -1871,6 +1898,11 @@ def admin_vendor_request_decide(request_id):
     )
     for seg in dict.fromkeys(segments):
         dbm.execute("INSERT INTO vendor_segments (vendor_id, segment) VALUES (?, ?)", (vendor_id, seg))
+    for cat in dict.fromkeys(technology_categories):
+        dbm.execute(
+            "INSERT INTO vendor_technology_categories (vendor_id, category) VALUES (?, ?)",
+            (vendor_id, cat),
+        )
     dbm.execute(
         "UPDATE vendor_requests SET status='approved', created_vendor_id=?, created_user_id=?, "
         "resolved_at=?, resolved_by=? WHERE id=?",
@@ -1942,6 +1974,69 @@ def vendor_segments(vendor_id):
     return [r["segment"] for r in rows]
 
 
+def all_technology_categories():
+    """The full, alphabetical "Technology Category" picklist -- every
+    value any seller or admin has ever added, starting from the seed set
+    migrate.py loads once. Backs every Technology Category checkbox list
+    in the app (seller profile, vendor signup, Discover/All Vendors
+    filters, admin's request-review form)."""
+    rows = dbm.query("SELECT name FROM technology_categories ORDER BY name")
+    return [r["name"] for r in rows]
+
+
+def vendor_technology_categories(vendor_id):
+    rows = dbm.query(
+        "SELECT category FROM vendor_technology_categories WHERE vendor_id = ? ORDER BY category",
+        (vendor_id,),
+    )
+    return [r["category"] for r in rows]
+
+
+def all_technology_segments():
+    """The full, alphabetical "Sub-Categories / Segments" picklist --
+    supersedes the CYBERSECURITY_SEGMENTS constant as the live source of
+    truth (that constant is now just migrate.py's one-time seed list)."""
+    rows = dbm.query("SELECT name FROM technology_segments ORDER BY name")
+    return [r["name"] for r in rows]
+
+
+def _ensure_technology_category(name):
+    """Case-insensitively look up `name` in technology_categories, adding
+    it if it's genuinely new. Returns the canonical stored name (existing
+    casing wins) so e.g. adding "cybersecurity" when "Cybersecurity"
+    already exists reuses it instead of creating a near-duplicate. Returns
+    None for a blank name."""
+    name = (name or "").strip()
+    if not name:
+        return None
+    existing = dbm.query(
+        "SELECT name FROM technology_categories WHERE lower(name) = lower(?)", (name,), one=True
+    )
+    if existing:
+        return existing["name"]
+    dbm.execute("INSERT INTO technology_categories (name) VALUES (?)", (name,))
+    return name
+
+
+def _ensure_technology_segment(name):
+    """Same as _ensure_technology_category, for technology_segments."""
+    name = (name or "").strip()
+    if not name:
+        return None
+    existing = dbm.query(
+        "SELECT name FROM technology_segments WHERE lower(name) = lower(?)", (name,), one=True
+    )
+    if existing:
+        return existing["name"]
+    dbm.execute("INSERT INTO technology_segments (name) VALUES (?)", (name,))
+    return name
+
+
+def _parse_proposed_technology_categories(raw, known=None):
+    known = known if known is not None else all_technology_categories()
+    return [c for c in (raw or "").split(",") if c in known]
+
+
 def _derive_vendor_accent_initials(company_name):
     """Same formula admin_approve_signup already uses for an
     auto-created seller vendor row -- kept here as one place so the
@@ -1951,8 +2046,9 @@ def _derive_vendor_accent_initials(company_name):
     return "#3b82f6", initials
 
 
-def _parse_proposed_segments(raw):
-    return [s for s in (raw or "").split(",") if s in CYBERSECURITY_SEGMENTS]
+def _parse_proposed_segments(raw, known=None):
+    known = known if known is not None else all_technology_segments()
+    return [s for s in (raw or "").split(",") if s in known]
 
 
 def vendor_listings(vendor_id):
@@ -2154,14 +2250,21 @@ def buyer_dashboard():
 @role_required("buyer")
 def buyer_discover():
     q = request.args.get("q", "").strip()
-    segments = [s for s in request.args.getlist("segment") if s in CYBERSECURITY_SEGMENTS]
+    known_segments = all_technology_segments()
+    segments = [s for s in request.args.getlist("segment") if s in known_segments]
     company_size = request.args.get("company_size", "")
-    valid_categories = {key for key, _label in TECHNOLOGY_CATEGORIES}
-    technology_category = request.args.get("technology_category", "cybersecurity")
-    if technology_category not in valid_categories:
-        technology_category = "cybersecurity"
-    sql = "SELECT * FROM vendors WHERE technology_category = ?"
-    args = [technology_category]
+    known_categories = all_technology_categories()
+    technology_categories = [
+        c for c in request.args.getlist("technology_category") if c in known_categories
+    ]
+    sql = "SELECT * FROM vendors WHERE 1=1"
+    args = []
+    if technology_categories:
+        placeholders = ",".join(["?"] * len(technology_categories))
+        sql += (
+            f" AND id IN (SELECT vendor_id FROM vendor_technology_categories WHERE category IN ({placeholders}))"
+        )
+        args += technology_categories
     if q:
         # ILIKE, not LIKE -- LIKE is case-sensitive in Postgres, so a lowercase
         # search like "tines" would never match a stored "Tines".
@@ -2219,12 +2322,11 @@ def buyer_discover():
     return render_template(
         "buyer/discover.html",
         vendors=vendor_data,
-        all_segments=CYBERSECURITY_SEGMENTS,
+        all_segments=known_segments,
         selected_segments=segments,
         company_sizes=COMPANY_SIZE_BANDS,
-        technology_categories=TECHNOLOGY_CATEGORIES,
-        placeholder_technology_categories=PLACEHOLDER_TECHNOLOGY_CATEGORIES,
-        technology_category=technology_category,
+        all_technology_categories=known_categories,
+        selected_technology_categories=technology_categories,
         q=q,
         company_size=company_size,
         sort_options=DISCOVER_SORT_OPTIONS,
@@ -2298,7 +2400,7 @@ def suggest_vendor():
         return redirect(url_for("buyer_thread", thread_id=thread["id"]))
 
     return render_template(
-        "buyer/suggest_vendor.html", all_segments=CYBERSECURITY_SEGMENTS, company_sizes=COMPANY_SIZE_BANDS,
+        "buyer/suggest_vendor.html", all_segments=all_technology_segments(), company_sizes=COMPANY_SIZE_BANDS,
     )
 
 
@@ -3094,12 +3196,31 @@ def seller_profile():
         company_size = form.get("company_size", "").strip()
         if company_size not in COMPANY_SIZE_BANDS:
             company_size = None
+
+        new_category = _ensure_technology_category(form.get("new_technology_category", ""))
+        technology_categories = [
+            c for c in form.getlist("technology_categories") if c in all_technology_categories()
+        ]
+        if new_category and new_category not in technology_categories:
+            technology_categories.append(new_category)
+        # `category` (a single display label shown on vendor cards, the
+        # compare table, etc.) is no longer directly editable -- it's
+        # derived from the seller's selected Technology Categories so
+        # those older, single-value display sites keep showing something
+        # sensible without needing their own multi-category redesign.
+        category = " / ".join(technology_categories) if technology_categories else "Uncategorized"
+
+        new_segment = _ensure_technology_segment(form.get("new_segment", ""))
+        segments = [s for s in form.getlist("segments") if s in all_technology_segments()]
+        if new_segment and new_segment not in segments:
+            segments.append(new_segment)
+
         dbm.execute(
             "UPDATE vendors SET company_name=?, category=?, tagline=?, description=?, "
             "website=?, accent=?, initials=?, company_size=?, founded_year=?, hq_location=?, "
             "contact_email=?, contact_phone=? WHERE id=?",
             (
-                form["company_name"].strip(), form["category"].strip(), form["tagline"].strip(),
+                form["company_name"].strip(), category, form["tagline"].strip(),
                 form["description"].strip(), form["website"].strip(), form["accent"].strip() or "#3b82f6",
                 (form["initials"].strip() or "VN")[:3].upper(), company_size, founded_year,
                 form.get("hq_location", "").strip(), form.get("contact_email", "").strip(),
@@ -3114,20 +3235,28 @@ def seller_profile():
                     "INSERT INTO vendor_tags (vendor_id, tag) VALUES (?, ?)", (vendor["id"], tag)
                 )
         dbm.execute("DELETE FROM vendor_segments WHERE vendor_id=?", (vendor["id"],))
-        for segment in form.getlist("segments"):
-            if segment in CYBERSECURITY_SEGMENTS:
-                dbm.execute(
-                    "INSERT INTO vendor_segments (vendor_id, segment) VALUES (?, ?)",
-                    (vendor["id"], segment),
-                )
+        for segment in dict.fromkeys(segments):
+            dbm.execute(
+                "INSERT INTO vendor_segments (vendor_id, segment) VALUES (?, ?)",
+                (vendor["id"], segment),
+            )
+        dbm.execute("DELETE FROM vendor_technology_categories WHERE vendor_id=?", (vendor["id"],))
+        for cat in dict.fromkeys(technology_categories):
+            dbm.execute(
+                "INSERT INTO vendor_technology_categories (vendor_id, category) VALUES (?, ?)",
+                (vendor["id"], cat),
+            )
         flash("Your company profile updated — buyers will see the latest version.", "success")
         return redirect(url_for("seller_profile"))
     tags = ", ".join(vendor_tags(vendor["id"]))
     selected_segments = vendor_segments(vendor["id"])
+    selected_technology_categories = vendor_technology_categories(vendor["id"])
     listings = vendor_listings(vendor["id"])
     return render_template(
         "seller/profile.html", vendor=vendor, tags=tags, listings=listings,
-        all_segments=CYBERSECURITY_SEGMENTS, selected_segments=selected_segments,
+        all_segments=all_technology_segments(), selected_segments=selected_segments,
+        all_technology_categories=all_technology_categories(),
+        selected_technology_categories=selected_technology_categories,
         company_sizes=COMPANY_SIZE_BANDS,
     )
 
@@ -3181,10 +3310,21 @@ def seller_listing_delete(listing_id):
 @role_required("seller")
 def seller_all_vendors():
     q = request.args.get("q", "").strip()
-    segments = [s for s in request.args.getlist("segment") if s in CYBERSECURITY_SEGMENTS]
+    known_segments = all_technology_segments()
+    segments = [s for s in request.args.getlist("segment") if s in known_segments]
     company_size = request.args.get("company_size", "")
-    sql = "SELECT * FROM vendors WHERE technology_category = ?"
-    args = ["cybersecurity"]
+    known_categories = all_technology_categories()
+    technology_categories = [
+        c for c in request.args.getlist("technology_category") if c in known_categories
+    ]
+    sql = "SELECT * FROM vendors WHERE 1=1"
+    args = []
+    if technology_categories:
+        placeholders = ",".join(["?"] * len(technology_categories))
+        sql += (
+            f" AND id IN (SELECT vendor_id FROM vendor_technology_categories WHERE category IN ({placeholders}))"
+        )
+        args += technology_categories
     if q:
         # ILIKE, not LIKE -- LIKE is case-sensitive in Postgres, so a lowercase
         # search like "tines" would never match a stored "Tines".
@@ -3238,9 +3378,11 @@ def seller_all_vendors():
     return render_template(
         "seller/all_vendors.html",
         vendors=vendor_data,
-        all_segments=CYBERSECURITY_SEGMENTS,
+        all_segments=known_segments,
         selected_segments=segments,
         company_sizes=COMPANY_SIZE_BANDS,
+        all_technology_categories=known_categories,
+        selected_technology_categories=technology_categories,
         q=q,
         company_size=company_size,
         sort_options=DISCOVER_SORT_OPTIONS,
@@ -3334,7 +3476,7 @@ def seller_suggest_vendor():
         return redirect(url_for("seller_thread", thread_id=thread["id"]))
 
     return render_template(
-        "seller/suggest_vendor.html", all_segments=CYBERSECURITY_SEGMENTS, company_sizes=COMPANY_SIZE_BANDS,
+        "seller/suggest_vendor.html", all_segments=all_technology_segments(), company_sizes=COMPANY_SIZE_BANDS,
     )
 
 

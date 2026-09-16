@@ -1,0 +1,16 @@
+<div class="field">
+  <label>{{ picklist_label }}</label>
+  {% if picklist_hint %}<p class="hint" style="margin:2px 0 6px;">{{ picklist_hint }}</p>{% endif %}
+  <div class="segment-grid" style="margin-top:6px;">
+    {% for opt in picklist_options %}
+    <label style="font-weight:400;">
+      <input type="checkbox" name="{{ picklist_field_name }}" value="{{ opt }}" {{ 'checked' if opt in picklist_selected }}>
+      {{ opt }}
+    </label>
+    {% endfor %}
+  </div>
+  <div style="margin-top:8px;">
+    <input type="text" name="{{ picklist_new_field_name }}" placeholder="{{ picklist_add_placeholder }}">
+    <p class="hint" style="margin-top:4px;">Don't see it listed? Type a new one above — it'll be added to the list for every vendor to use.</p>
+  </div>
+</div>
