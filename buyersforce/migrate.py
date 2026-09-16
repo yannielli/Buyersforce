@@ -720,9 +720,6 @@ def _add_eval_projects(cur):
     cur.execute("ALTER TABLE evaluations ALTER COLUMN project_id SET NOT NULL")
 
 
-if __name__ == "__main__":
-    run_migrations()
-    print("Migrations applied.")
 def _add_technology_taxonomy_tables(cur):
     # Two seller/admin-extensible master lists backing the "Technology
     # Category" and "Sub-Categories / Segments" pickers on the seller
@@ -828,3 +825,8 @@ def _add_vendor_requests_proposed_categories_column(cur):
         "ALTER TABLE vendor_requests ADD COLUMN IF NOT EXISTS "
         "proposed_technology_categories TEXT NOT NULL DEFAULT ''"
     )
+
+
+if __name__ == "__main__":
+    run_migrations()
+    print("Migrations applied.")
