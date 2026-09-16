@@ -789,14 +789,17 @@ def _seed_technology_taxonomy(cur):
         )
     starter_segments = [
         "API Security", "Application Security", "Backup & Ransomware Recovery",
-        "Cloud Security", "Data Lake/Storage", "Data Security & Privacy",
-        "Email Security", "Endpoint Security", "Fraud & Identity Verification",
-        "GRC & Compliance", "Identity & Access Management", "Incident Response & Forensics",
-        "Information Security", "IoT/OT Security", "Managed Security Services (MSSP/MDR)",
-        "Mobile Security", "Network Security", "Penetration Testing/Offensive Security",
-        "Security Awareness Training", "Security Operations (SOC)", "SIEM/SOAR/XDR",
-        "Supply Chain/Third-Party Risk", "Threat Intelligence", "Vulnerability Management",
-        "Zero Trust/SASE",
+        "Breach Remediation", "Cloud Security", "CNAPP", "Cybercrime",
+        "Data Lake/Storage", "Data Security & Privacy", "EDR/XDR", "Email Security",
+        "Endpoint Security", "Fraud & Identity Verification", "GRC & Compliance",
+        "Identity & Access Management", "Incident Response & Forensics",
+        "Information Security", "IoT/OT Security", "Malware Detection",
+        "Malware Prevention", "Managed Security Services (MSSP/MDR)",
+        "Managed Threat Hunting", "Mobile Security", "Network Security",
+        "Next Gen Anti-Virus", "Next Gen Firewall", "Penetration Testing/Offensive Security",
+        "SecOps", "Security Awareness Training", "Security Operations (SOC)",
+        "SIEM/SOAR/XDR", "Supply Chain/Third-Party Risk", "Threat Intelligence",
+        "Vulnerability Management", "Zero Trust/SASE",
     ]
     for name in starter_segments:
         cur.execute(
