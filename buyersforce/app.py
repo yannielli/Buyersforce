@@ -236,6 +236,7 @@ PLACEHOLDER_TECHNOLOGY_CATEGORIES = [
 # Vendor-directory listing requests -- see the vendor_requests table.
 VENDOR_REQUEST_KIND_LABELS = {
     "buyer_referral": "Buyer suggestion",
+    "seller_referral": "Seller suggestion",
     "seller_signup": "Vendor self-listing",
 }
 
@@ -1813,7 +1814,7 @@ def admin_vendor_request_decide(request_id):
             "UPDATE vendor_requests SET status='denied', denial_note=?, resolved_at=?, resolved_by=? WHERE id=?",
             (denial_note, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), g.user["id"], request_id),
         )
-        if req["kind"] == "buyer_referral" and req["thread_id"]:
+        if req["kind"] in ("buyer_referral", "seller_referral") and req["thread_id"]:
             note = (
                 f"Sorry, we received your request to add {req['company_name']} to BuyersForce, "
                 f"but we don't have enough information yet. We're reaching out to the company now."
@@ -1876,7 +1877,7 @@ def admin_vendor_request_decide(request_id):
         (vendor_id, created_user_id, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), g.user["id"], request_id),
     )
 
-    if req["kind"] == "buyer_referral" and req["thread_id"]:
+    if req["kind"] in ("buyer_referral", "seller_referral") and req["thread_id"]:
         dbm.execute(
             "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
             (req["thread_id"], g.user["id"],
@@ -1943,9 +1944,9 @@ def vendor_segments(vendor_id):
 
 def _derive_vendor_accent_initials(company_name):
     """Same formula admin_approve_signup already uses for an
-    auto-created seller vendor row -- kept here as one place so the two
-    vendor_requests approval paths (buyer_referral, seller_signup) match
-    it exactly instead of drifting."""
+    auto-created seller vendor row -- kept here as one place so the
+    vendor_requests approval paths (buyer_referral, seller_referral,
+    seller_signup) match it exactly instead of drifting."""
     initials = "".join(w[0] for w in company_name.split()[:2]).upper() or "VN"
     return "#3b82f6", initials
 
@@ -3260,6 +3261,80 @@ def seller_view_vendor(vendor_id):
     logo_url = vendor["wiki_logo_url"] or vendor_favicon_url(vendor["website"])
     return render_template(
         "seller/vendor_view.html", vendor=vendor, tags=tags, segments=segments, logo_url=logo_url,
+    )
+
+
+# A seller (already listed themselves) can flag a competitor that's
+# missing from the directory -- same idea as buyer_discover's "suggest a
+# vendor", just filed under its own vendor_requests kind ('seller_referral')
+# so admin can tell the two apart. Mirrors suggest_vendor's logic closely
+# on purpose; see admin_vendor_request_decide for the shared deny/approve
+# handling of both thread-based referral kinds.
+@app.route("/app/seller/vendors/suggest", methods=("GET", "POST"))
+@role_required("seller")
+def seller_suggest_vendor():
+    if request.method == "POST":
+        company_name = request.form.get("company_name", "").strip()
+        website = request.form.get("website", "").strip()
+        if not company_name or not website:
+            flash("Company name and website are required.", "error")
+            return redirect(url_for("seller_suggest_vendor"))
+
+        segments = _parse_proposed_segments(",".join(request.form.getlist("segments")))
+        company_size = request.form.get("company_size", "").strip()
+        if company_size not in COMPANY_SIZE_BANDS:
+            company_size = None
+        founded_year = request.form.get("founded_year", "").strip()
+        founded_year = int(founded_year) if founded_year.isdigit() else None
+        hq_location = request.form.get("hq_location", "").strip()
+        contact_name = request.form.get("contact_name", "").strip()
+        contact_email = request.form.get("contact_email", "").strip()
+        contact_phone = request.form.get("contact_phone", "").strip()
+        notes = request.form.get("notes", "").strip()
+
+        admin = get_admin_user()
+        if not admin:
+            flash("Vendor suggestions aren't set up yet — there's no BuyersForce admin account to reach.", "error")
+            return redirect(url_for("seller_suggest_vendor"))
+
+        thread = get_or_create_direct_thread(g.user["id"], admin["id"])
+        ensure_contact(g.user["id"], contact_user_id=admin["id"])
+        ensure_contact(admin["id"], contact_user_id=g.user["id"])
+
+        summary_lines = [f"New vendor suggestion: {company_name} ({website})"]
+        if segments:
+            summary_lines.append(f"Segments: {', '.join(segments)}")
+        if company_size:
+            summary_lines.append(f"Company size: {company_size}")
+        if founded_year:
+            summary_lines.append(f"Founded: {founded_year}")
+        if hq_location:
+            summary_lines.append(f"HQ: {hq_location}")
+        if contact_name or contact_email or contact_phone:
+            summary_lines.append(
+                f"Contact: {contact_name or '—'} · {contact_email or '—'} · {contact_phone or '—'}"
+            )
+        if notes:
+            summary_lines.append(f"Notes: {notes}")
+        dbm.execute(
+            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
+            (thread["id"], g.user["id"], "\n".join(summary_lines)),
+        )
+
+        dbm.execute(
+            "INSERT INTO vendor_requests (kind, requested_by_user_id, company_name, website, "
+            "proposed_segments, company_size, founded_year, hq_location, contact_name, "
+            "contact_email, contact_phone, notes, thread_id) "
+            "VALUES ('seller_referral', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (g.user["id"], company_name, website, ",".join(segments), company_size, founded_year,
+             hq_location, contact_name, contact_email, contact_phone, notes, thread["id"]),
+        )
+        log_activity(g.user["id"], f"suggested a vendor ({company_name})")
+        flash("Thank you! You'll be contacted by a BuyersForce admin shortly.", "success")
+        return redirect(url_for("seller_thread", thread_id=thread["id"]))
+
+    return render_template(
+        "seller/suggest_vendor.html", all_segments=CYBERSECURITY_SEGMENTS, company_sizes=COMPANY_SIZE_BANDS,
     )
 
 

@@ -104,7 +104,7 @@
       <strong style="font-size:14px;">{{ r.company_name }}</strong>
       <span class="badge {{ 'badge-brand' if r.kind == 'seller_signup' else 'badge-neutral' }}" style="margin-left:6px;">{{ vendor_request_kind_labels[r.kind] }}</span>
       <span class="hint" style="margin-left:6px;">
-        {% if r.kind == 'buyer_referral' %}Suggested by {{ r.requester_name }} ({{ r.requester_company }}){% else %}From {{ r.contact_name }}, no BuyersForce account yet{% endif %}
+        {% if r.kind in ('buyer_referral', 'seller_referral') %}Suggested by {{ r.requester_name }} ({{ r.requester_company }}){% else %}From {{ r.contact_name }}, no BuyersForce account yet{% endif %}
         · {{ r.created_at|fmt_time }}
       </span>
     </summary>
