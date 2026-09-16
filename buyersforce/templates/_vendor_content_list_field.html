@@ -1,0 +1,49 @@
+{# Editable "My Company" section for one of the two dynamic-content lists
+   (Marketing Posts & Announcements, or Awards & Recognition) -- same
+   shape for both, just filed into different tables. Each item is either
+   a link out to something already live on the vendor's own site, or a
+   short write-up typed in directly; the add form has no explicit
+   Link/Write-up choice -- which one it becomes is inferred from whichever
+   field the seller fills in (see _validate_announcement_or_award_form in
+   app.py), so there's no radio toggle to keep in sync here. Included
+   twice from seller/profile.html with different context, same convention
+   as _picklist_field.html. Vars: content_list_label, content_list_add_heading,
+   content_list_hint, content_list_items, content_list_add_endpoint,
+   content_list_delete_endpoint, content_list_delete_arg,
+   content_list_url_placeholder, content_list_body_placeholder,
+   content_list_empty_hint. #}
+<div class="section-title" style="margin-top:30px;"><h2>{{ content_list_label }}</h2></div>
+<div class="grid grid-2" style="align-items:start;">
+  <div>
+    {% for item in content_list_items %}
+    <div class="listing-card">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+          <h4>{{ item.title }}</h4>
+          {% if item.kind == 'link' %}
+          <p class="hint" style="margin:4px 0 0;">🔗 <a href="{{ item.url }}" target="_blank" rel="noopener">{{ item.url }}</a></p>
+          {% else %}
+          <p style="font-size:13.5px; margin:4px 0 0;">{{ item.body }}</p>
+          {% endif %}
+        </div>
+        <form method="post" action="{{ url_for(content_list_delete_endpoint, **{content_list_delete_arg: item.id}) }}">
+          <button class="btn btn-ghost btn-sm" type="submit">Remove</button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <div class="card empty-state"><div class="icon">📣</div>{{ content_list_empty_hint }}</div>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:15px;">{{ content_list_add_heading }}</h3>
+    <form method="post" action="{{ url_for(content_list_add_endpoint) }}">
+      <div class="field"><label>Title</label><input type="text" name="title" required></div>
+      <div class="field"><label>Link</label><input type="url" name="url" placeholder="{{ content_list_url_placeholder }}"></div>
+      <div class="field"><label>Or write it up</label><textarea name="body" placeholder="{{ content_list_body_placeholder }}"></textarea></div>
+      <p class="hint" style="margin-top:-6px;">{{ content_list_hint }}</p>
+      <button class="btn btn-primary" type="submit">Add</button>
+    </form>
+  </div>
+</div>

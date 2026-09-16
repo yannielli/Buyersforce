@@ -12,14 +12,54 @@
 <div class="grid grid-2" style="grid-template-columns:1.2fr 1fr; align-items:start;">
   <div class="card">
     <h3 style="font-size:15px;">Profile details</h3>
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
       <div class="field"><label>Company name</label><input type="text" name="company_name" value="{{ vendor.company_name }}" required></div>
       <div class="field"><label>Tagline</label><input type="text" name="tagline" value="{{ vendor.tagline }}" placeholder="One line describing your product"></div>
       <div class="field"><label>Description</label><textarea name="description" placeholder="What does your product do, and for whom?">{{ vendor.description }}</textarea></div>
-      <div class="form-row">
-        <div class="field"><label>Website</label><input type="url" name="website" value="{{ vendor.website }}" placeholder="https://"></div>
-        <div class="field"><label>Initials</label><input type="text" name="initials" value="{{ vendor.initials }}" maxlength="3"></div>
+      <div class="field"><label>Website</label><input type="url" name="website" value="{{ vendor.website }}" placeholder="https://"></div>
+
+      <div class="field" style="display:flex; align-items:flex-start; gap:14px;">
+        <span id="logo-initials" class="vendor-logo"
+              style="background:{{ vendor.accent }}; {% if vendor.logo_upload_data_url or vendor.logo_link_url %}display:none;{% endif %}">
+          {{ vendor.initials }}
+        </span>
+        <img id="logo-preview" alt=""
+             style="width:46px; height:46px; border-radius:10px; object-fit:contain; background:#fff; border:1px solid var(--gridline); flex-shrink:0; {% if not (vendor.logo_upload_data_url or vendor.logo_link_url) %}display:none;{% endif %}"
+             src="{{ logo_url or '' }}">
+        <div style="flex:1;">
+          <label style="display:block;">Company logo</label>
+          <p class="hint" style="margin:2px 0 6px;">Shows your company initials if you skip this. Paste a link to a logo already hosted somewhere, or upload an image directly — an upload takes priority if you add both. Max 2MB.</p>
+          <input type="url" name="logo_link_url" value="{{ vendor.logo_link_url or '' }}" placeholder="https://yoursite.com/logo.png" style="margin-bottom:8px;">
+          <input type="file" id="logo_upload" name="logo_upload" accept="image/*">
+          <label id="remove-logo-label" style="font-size:13px; font-weight:400; display:flex; align-items:center; gap:6px; margin-top:6px; {% if not (vendor.logo_upload_data_url or vendor.logo_link_url) %}display:none;{% endif %}">
+            <input type="checkbox" name="remove_logo"> Remove current logo
+          </label>
+        </div>
       </div>
+      <script>
+        (function () {
+          var fileInput = document.getElementById("logo_upload");
+          var preview = document.getElementById("logo-preview");
+          var initials = document.getElementById("logo-initials");
+          var removeLabel = document.getElementById("remove-logo-label");
+          fileInput.addEventListener("change", function () {
+            var file = fileInput.files && fileInput.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function (e) {
+              preview.src = e.target.result;
+              preview.style.display = "";
+              initials.style.display = "none";
+              if (removeLabel) {
+                removeLabel.style.display = "none";
+                var cb = removeLabel.querySelector("input[type=checkbox]");
+                if (cb) cb.checked = false;
+              }
+            };
+            reader.readAsDataURL(file);
+          });
+        })();
+      </script>
       <div class="field"><label>Tags (comma-separated)</label><input type="text" name="tags" value="{{ tags }}" placeholder="e.g. CNAPP, Kubernetes, Threat Detection"></div>
 
       <div class="form-row">
@@ -67,8 +107,7 @@
     <div class="vendor-card" style="border:1px solid var(--gridline);">
       <div class="vendor-card-top">
         <span class="vendor-logo" style="background:{{ vendor.accent }};">
-          {% set preview_logo = vendor_favicon_url(vendor.website) %}
-          {% if preview_logo %}<img src="{{ preview_logo }}" alt="" onerror="this.remove();">{% endif %}
+          {% if logo_url %}<img src="{{ logo_url }}" alt="" onerror="this.remove();">{% endif %}
           {{ vendor.initials }}
         </span>
         <div><h3>{{ vendor.company_name }}</h3><span class="cat">{{ vendor.category }}</span></div>
@@ -110,4 +149,28 @@
     </form>
   </div>
 </div>
+
+{% set content_list_label = "Marketing Posts & Announcements" %}
+{% set content_list_add_heading = "Add a post or announcement" %}
+{% set content_list_hint = "Fill in a link, or write it up here — not both. New product releases, press mentions, anything worth surfacing." %}
+{% set content_list_items = announcements %}
+{% set content_list_add_endpoint = "seller_announcement_new" %}
+{% set content_list_delete_endpoint = "seller_announcement_delete" %}
+{% set content_list_delete_arg = "announcement_id" %}
+{% set content_list_url_placeholder = "Link to the announcement on your site" %}
+{% set content_list_body_placeholder = "e.g. We just shipped SSO support for all Enterprise plans." %}
+{% set content_list_empty_hint = "Nothing added yet — share your latest news." %}
+{% include "_vendor_content_list_field.html" %}
+
+{% set content_list_label = "Awards & Recognition" %}
+{% set content_list_add_heading = "Add an award or recognition" %}
+{% set content_list_hint = "Fill in a link, or write it up here — not both. Industry awards, analyst mentions, certifications." %}
+{% set content_list_items = awards %}
+{% set content_list_add_endpoint = "seller_award_new" %}
+{% set content_list_delete_endpoint = "seller_award_delete" %}
+{% set content_list_delete_arg = "award_id" %}
+{% set content_list_url_placeholder = "Link to the award or recognition" %}
+{% set content_list_body_placeholder = "e.g. Named a Leader in the 2026 XYZ Report." %}
+{% set content_list_empty_hint = "Nothing added yet — showcase your recognition." %}
+{% include "_vendor_content_list_field.html" %}
 {% endblock %}

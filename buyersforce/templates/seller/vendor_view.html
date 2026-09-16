@@ -30,4 +30,14 @@
   {% if vendor.contact_email %}<p class="hint">✉️ {{ vendor.contact_email }}</p>{% endif %}
   {% if vendor.contact_phone %}<p class="hint">📞 {{ vendor.contact_phone }}</p>{% endif %}
 </div>
+
+<div style="max-width:760px;">
+  {% set content_list_label = "Marketing Posts & Announcements" %}
+  {% set content_list_items = announcements %}
+  {% include "_vendor_content_list_readonly.html" %}
+
+  {% set content_list_label = "Awards & Recognition" %}
+  {% set content_list_items = awards %}
+  {% include "_vendor_content_list_readonly.html" %}
+</div>
 {% endblock %}

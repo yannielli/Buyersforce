@@ -28,6 +28,8 @@ DROP TABLE IF EXISTS vendor_ratings CASCADE;
 DROP TABLE IF EXISTS technology_categories CASCADE;
 DROP TABLE IF EXISTS technology_segments CASCADE;
 DROP TABLE IF EXISTS vendor_technology_categories CASCADE;
+DROP TABLE IF EXISTS vendor_announcements CASCADE;
+DROP TABLE IF EXISTS vendor_awards CASCADE;
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -159,6 +161,14 @@ CREATE TABLE vendors (
     -- (see the vendor-logo enrichment pass). NULL falls back to the
     -- website-favicon guess in app.py's vendor_favicon_url.
     wiki_logo_url TEXT,
+    -- Seller-provided logo, either pasted in directly (a URL to an image
+    -- already hosted somewhere) or uploaded and stored inline as a base64
+    -- data URI (mirrors users.photo_data_url -- see app.py's
+    -- _read_uploaded_vendor_logo). Display precedence, see
+    -- vendor_display_logo_url in app.py: logo_upload_data_url,
+    -- logo_link_url, wiki_logo_url, favicon guess, then initials.
+    logo_link_url TEXT,
+    logo_upload_data_url TEXT,
     -- BuyersForce is meant to span more than cybersecurity eventually (see
     -- app.py's TECHNOLOGY_CATEGORIES) -- every vendor today is
     -- 'cybersecurity' since that's the only category built out so far, but
@@ -216,6 +226,34 @@ CREATE TABLE vendor_technology_categories (
 );
 CREATE UNIQUE INDEX vendor_technology_categories_uniq
 ON vendor_technology_categories (vendor_id, category);
+
+-- Seller-authored "About" content shown on the vendor's public profile
+-- (buyer/vendor.html, seller/vendor_view.html) as well as managed from My
+-- Company. Each entry is either a direct hyperlink out to something
+-- already live on the vendor's own site (so it stays current without the
+-- seller re-entering anything here) or a short free-text blurb written
+-- directly in BuyersForce. Shown most-recent-first (see app.py's
+-- vendor_announcements/vendor_awards).
+CREATE TABLE vendor_announcements (
+    id SERIAL PRIMARY KEY,
+    vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+    kind TEXT NOT NULL CHECK (kind IN ('link', 'text')),
+    title TEXT NOT NULL,
+    url TEXT NOT NULL DEFAULT '',
+    body TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+);
+
+-- Same shape as vendor_announcements, for industry awards/recognition.
+CREATE TABLE vendor_awards (
+    id SERIAL PRIMARY KEY,
+    vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+    kind TEXT NOT NULL CHECK (kind IN ('link', 'text')),
+    title TEXT NOT NULL,
+    url TEXT NOT NULL DEFAULT '',
+    body TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+);
 
 CREATE TABLE listings (
     id SERIAL PRIMARY KEY,

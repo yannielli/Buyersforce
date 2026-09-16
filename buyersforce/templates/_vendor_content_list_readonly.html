@@ -1,0 +1,20 @@
+{# Read-only display of a seller-authored dynamic content list (Marketing
+   Posts & Announcements, or Awards & Recognition) on a vendor's public
+   profile -- same partial for buyer/vendor.html and seller/vendor_view.html.
+   Rendered only when there's something to show; no empty state for
+   visitors. Each item is either kind='link' (points out to something
+   already live on the vendor's own site) or kind='text' (a short blurb
+   written directly here). Vars: content_list_label, content_list_items. #}
+{% if content_list_items %}
+<div class="section-title" style="margin-top:22px;"><h2>{{ content_list_label }}</h2></div>
+{% for item in content_list_items %}
+<div class="listing-card">
+  <h4>{{ item.title }}</h4>
+  {% if item.kind == 'link' %}
+  <p class="hint" style="margin:6px 0 0;">🔗 <a href="{{ item.url }}" target="_blank" rel="noopener">{{ item.url }}</a><br>{{ EXTERNAL_LINK_PRIVACY_NOTE }}</p>
+  {% else %}
+  <p style="font-size:13.5px; margin:6px 0 0;">{{ item.body }}</p>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}

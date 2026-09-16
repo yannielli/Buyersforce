@@ -38,6 +38,14 @@
       {% if vendor.contact_phone %}<p class="hint">📞 {{ vendor.contact_phone }}</p>{% endif %}
     </div>
 
+    {% set content_list_label = "Marketing Posts & Announcements" %}
+    {% set content_list_items = announcements %}
+    {% include "_vendor_content_list_readonly.html" %}
+
+    {% set content_list_label = "Awards & Recognition" %}
+    {% set content_list_items = awards %}
+    {% include "_vendor_content_list_readonly.html" %}
+
     <div class="section-title" style="margin-top:22px;"><h2>BuyersForce rating</h2></div>
     <div class="card">
       <div class="rating-panel">

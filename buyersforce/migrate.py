@@ -53,6 +53,8 @@ def run_migrations():
             _add_technology_taxonomy_tables(cur)
             _seed_technology_taxonomy(cur)
             _add_vendor_requests_proposed_categories_column(cur)
+            _add_vendor_logo_columns(cur)
+            _add_vendor_announcements_and_awards_tables(cur)
     finally:
         con.close()
 
@@ -830,6 +832,48 @@ def _add_vendor_requests_proposed_categories_column(cur):
         "ALTER TABLE vendor_requests ADD COLUMN IF NOT EXISTS "
         "proposed_technology_categories TEXT NOT NULL DEFAULT ''"
     )
+def _add_vendor_logo_columns(cur):
+    # Seller-provided logo, either a direct URL or an uploaded image stored
+    # inline as base64 (mirrors users.photo_data_url -- see app.py's
+    # _read_uploaded_vendor_logo / vendor_display_logo_url).
+    cur.execute("ALTER TABLE vendors ADD COLUMN IF NOT EXISTS logo_link_url TEXT")
+    cur.execute("ALTER TABLE vendors ADD COLUMN IF NOT EXISTS logo_upload_data_url TEXT")
+
+
+def _add_vendor_announcements_and_awards_tables(cur):
+    # Two small seller-authored "About" content lists shown on the vendor's
+    # public profile as well as managed from My Company -- each entry is
+    # either a hyperlink out to something already live on the vendor's own
+    # site, or a short free-text blurb. Same shape, kept as two tables
+    # (rather than one with a "section" column) since they're managed and
+    # displayed as two clearly separate sections everywhere they appear.
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS vendor_announcements (
+            id SERIAL PRIMARY KEY,
+            vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+            kind TEXT NOT NULL CHECK (kind IN ('link', 'text')),
+            title TEXT NOT NULL,
+            url TEXT NOT NULL DEFAULT '',
+            body TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+        )
+        """
+    )
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS vendor_awards (
+            id SERIAL PRIMARY KEY,
+            vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+            kind TEXT NOT NULL CHECK (kind IN ('link', 'text')),
+            title TEXT NOT NULL,
+            url TEXT NOT NULL DEFAULT '',
+            body TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+        )
+        """
+    )
+
 
 
 if __name__ == "__main__":

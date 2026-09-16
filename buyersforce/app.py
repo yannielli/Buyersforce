@@ -328,6 +328,21 @@ def vendor_favicon_url(website):
 app.jinja_env.globals["vendor_favicon_url"] = vendor_favicon_url
 
 
+def vendor_display_logo_url(v):
+    """Precedence for a vendor's displayed logo, given a row/dict that
+    includes logo_upload_data_url, logo_link_url, wiki_logo_url, and
+    website: a seller-uploaded image wins, then a seller-provided direct
+    link, then the admin-curated Wikipedia logo, then a favicon guess from
+    the website. None means the caller falls back to the initials badge
+    (every logo-wrap template already does this)."""
+    return (
+        v.get("logo_upload_data_url")
+        or v.get("logo_link_url")
+        or v.get("wiki_logo_url")
+        or vendor_favicon_url(v.get("website"))
+    )
+
+
 def buyer_outreach_badge(row, prefix=""):
     """The single badge shown to sellers for a buyer's "Open to Outreach"
     setting -- leads dashboard, conversation header. `row` is a user row
@@ -782,6 +797,26 @@ def _read_uploaded_photo(files):
     mimetype = photo.mimetype or ""
     if not mimetype.startswith("image/"):
         return None, "Profile photo must be an image file."
+    import base64
+    return f"data:{mimetype};base64,{base64.b64encode(raw).decode('ascii')}", None
+
+
+MAX_LOGO_BYTES = 2 * 1024 * 1024  # 2MB -- same limit as MAX_PHOTO_BYTES, stored inline
+
+
+def _read_uploaded_vendor_logo(files):
+    """Same validation/encoding as _read_uploaded_photo, for a vendor's
+    logo upload on My Company. Returns (data_url, error) -- data_url is
+    None if no file was chosen (leave the existing logo alone)."""
+    logo = files.get("logo_upload")
+    if not logo or not logo.filename:
+        return None, None
+    raw = logo.read(MAX_LOGO_BYTES + 1)
+    if len(raw) > MAX_LOGO_BYTES:
+        return None, "Logo image must be 2MB or smaller."
+    mimetype = logo.mimetype or ""
+    if not mimetype.startswith("image/"):
+        return None, "Logo must be an image file."
     import base64
     return f"data:{mimetype};base64,{base64.b64encode(raw).decode('ascii')}", None
 
@@ -2037,13 +2072,21 @@ def _parse_proposed_technology_categories(raw, known=None):
     return [c for c in (raw or "").split(",") if c in known]
 
 
+def _derive_initials(company_name):
+    """First letters of the first two words of a company name, upper-cased
+    -- the one place this formula lives, so every path that needs a
+    fallback/auto initials value (new vendor rows, and a My Company save,
+    where it's no longer a seller-editable field) matches exactly instead
+    of drifting."""
+    return "".join(w[0] for w in company_name.split()[:2]).upper() or "VN"
+
+
 def _derive_vendor_accent_initials(company_name):
     """Same formula admin_approve_signup already uses for an
     auto-created seller vendor row -- kept here as one place so the
     vendor_requests approval paths (buyer_referral, seller_referral,
     seller_signup) match it exactly instead of drifting."""
-    initials = "".join(w[0] for w in company_name.split()[:2]).upper() or "VN"
-    return "#3b82f6", initials
+    return "#3b82f6", _derive_initials(company_name)
 
 
 def _parse_proposed_segments(raw, known=None):
@@ -2063,6 +2106,23 @@ def vendor_listings(vendor_id):
         )
         out.append({**dict(listing), "features": [f["feature_text"] for f in feats]})
     return out
+
+
+def vendor_announcements(vendor_id):
+    """Marketing posts / industry announcements a seller has added to their
+    listing -- most-recent-first. Each row is either kind='link' (a
+    hyperlink out to something already live on the vendor's own site) or
+    kind='text' (a short blurb written directly here)."""
+    return dbm.query(
+        "SELECT * FROM vendor_announcements WHERE vendor_id = ? ORDER BY id DESC", (vendor_id,)
+    )
+
+
+def vendor_awards(vendor_id):
+    """Same shape as vendor_announcements, for industry awards/recognition."""
+    return dbm.query(
+        "SELECT * FROM vendor_awards WHERE vendor_id = ? ORDER BY id DESC", (vendor_id,)
+    )
 
 
 def gartner_peer_insights_url(company_name):
@@ -2316,7 +2376,7 @@ def buyer_discover():
             **dict(v),
             "tags": vendor_tags(v["id"]),
             "segments": vendor_segments(v["id"]),
-            "logo_url": v["wiki_logo_url"] or vendor_favicon_url(v["website"]),
+            "logo_url": vendor_display_logo_url(v),
             "status": shortlist_status(g.user["id"], v["id"]),
         })
     return render_template(
@@ -2413,7 +2473,9 @@ def buyer_vendor(vendor_id):
     listings = vendor_listings(vendor_id)
     tags = vendor_tags(vendor_id)
     segments = vendor_segments(vendor_id)
-    logo_url = vendor["wiki_logo_url"] or vendor_favicon_url(vendor["website"])
+    announcements = vendor_announcements(vendor_id)
+    awards = vendor_awards(vendor_id)
+    logo_url = vendor_display_logo_url(vendor)
     is_claimed = vendor["seller_user_id"] is not None
     status = shortlist_status(g.user["id"], vendor_id)
     templates_ = dbm.query(
@@ -2430,6 +2492,7 @@ def buyer_vendor(vendor_id):
     can_rate_production = "production" in my_ratings or production_checkin_eligible(g.user["id"], vendor_id)
     return render_template(
         "buyer/vendor.html", vendor=vendor, listings=listings, tags=tags, segments=segments,
+        announcements=announcements, awards=awards,
         logo_url=logo_url, is_claimed=is_claimed, status=status,
         templates=templates_, existing_eval=existing_eval,
         rating_summary=rating_summary, my_ratings=my_ratings,
@@ -2573,7 +2636,7 @@ def buyer_compare():
                 "tags": vendor_tags(vid),
                 "segments": vendor_segments(vid),
                 "listings": vendor_listings(vid),
-                "logo_url": v["wiki_logo_url"] or vendor_favicon_url(v["website"]),
+                "logo_url": vendor_display_logo_url(v),
                 "ratings": vendor_rating_summary(vid),
                 "gartner_url": gartner_peer_insights_url(v["company_name"]),
                 "gartner_note": gartner_eval["gartner_peer_note"] if gartner_eval else "",
@@ -2824,7 +2887,7 @@ def buyer_evaluations():
         )
         total_weight = sum(c["weight"] for c in criteria) or 1
         evals = dbm.query(
-            "SELECT e.*, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.website "
+            "SELECT e.*, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.logo_link_url, v.logo_upload_data_url, v.website "
             "FROM evaluations e JOIN vendors v ON v.id = e.vendor_id "
             "WHERE e.project_id=? ORDER BY e.id",
             (p["id"],),
@@ -2847,7 +2910,7 @@ def buyer_evaluations():
             overall = round(weighted_sum / total_weight, 1) if scores else None
             vendor_summaries.append({
                 "company_name": ev["company_name"], "accent": ev["accent"], "initials": ev["initials"],
-                "logo_url": ev["wiki_logo_url"] or vendor_favicon_url(ev["website"]), "overall": overall,
+                "logo_url": vendor_display_logo_url(ev), "overall": overall,
             })
         active_data.append({
             "id": p["id"],
@@ -2864,7 +2927,7 @@ def buyer_evaluations():
     # buyer_start_project) -- e.g. the 3 vendors just moved here from
     # Compare become one shared scorecard instead of 3 separate ones.
     ready = dbm.query(
-        "SELECT s.vendor_id, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.website "
+        "SELECT s.vendor_id, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.logo_link_url, v.logo_upload_data_url, v.website "
         "FROM shortlist s JOIN vendors v ON v.id = s.vendor_id "
         "WHERE s.buyer_user_id=? AND s.status IN ('shortlisted', 'evaluating') "
         "AND s.vendor_id NOT IN (SELECT vendor_id FROM evaluations WHERE company=?) "
@@ -2872,7 +2935,7 @@ def buyer_evaluations():
         (u["id"], u["company"]),
     )
     ready_data = [
-        {**dict(r), "logo_url": r["wiki_logo_url"] or vendor_favicon_url(r["website"])}
+        {**dict(r), "logo_url": vendor_display_logo_url(r)}
         for r in ready
     ]
     return render_template(
@@ -3039,7 +3102,7 @@ def buyer_project_detail(project_id):
         "SELECT * FROM eval_criteria WHERE template_id=? ORDER BY position", (project["template_id"],)
     )
     evals = dbm.query(
-        "SELECT e.*, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.website "
+        "SELECT e.*, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.logo_link_url, v.logo_upload_data_url, v.website "
         "FROM evaluations e JOIN vendors v ON v.id = e.vendor_id "
         "WHERE e.project_id=? ORDER BY e.id",
         (project_id,),
@@ -3111,7 +3174,7 @@ def buyer_project_detail(project_id):
         vendor_columns.append({
             "evaluation_id": ev["id"], "vendor_id": ev["vendor_id"],
             "company_name": ev["company_name"], "accent": ev["accent"], "initials": ev["initials"],
-            "logo_url": ev["wiki_logo_url"] or vendor_favicon_url(ev["website"]),
+            "logo_url": vendor_display_logo_url(ev),
             "website": ev["website"],
             "gartner_peer_note": ev["gartner_peer_note"],
             "gartner_url": gartner_peer_insights_url(ev["company_name"]),
@@ -3191,6 +3254,26 @@ def seller_profile():
     vendor = seller_vendor(g.user)
     if request.method == "POST":
         form = request.form
+        files = request.files
+
+        # Logo: an uploaded file wins if one was chosen this save; otherwise
+        # the existing upload (if any) is left alone. "Remove current logo"
+        # clears both the upload and the link, falling back through the
+        # rest of vendor_display_logo_url's chain (wiki logo, favicon,
+        # initials). Validated/rejected before anything else is saved, same
+        # as the account-photo upload this mirrors.
+        logo_data_url, logo_error = _read_uploaded_vendor_logo(files)
+        if logo_error:
+            flash(logo_error, "error")
+            return redirect(url_for("seller_profile"))
+        remove_logo = form.get("remove_logo") == "on"
+        if remove_logo:
+            new_logo_link_url = ""
+            new_logo_upload_data_url = None
+        else:
+            new_logo_link_url = form.get("logo_link_url", "").strip()
+            new_logo_upload_data_url = logo_data_url if logo_data_url else vendor["logo_upload_data_url"]
+
         founded_year = form.get("founded_year", "").strip()
         founded_year = int(founded_year) if founded_year.isdigit() else None
         company_size = form.get("company_size", "").strip()
@@ -3215,17 +3298,23 @@ def seller_profile():
         if new_segment and new_segment not in segments:
             segments.append(new_segment)
 
+        # Initials are no longer a seller-editable field (removed per
+        # Kevin's request, alongside adding the logo above) -- auto-derived
+        # from the company name instead, same formula every other vendor
+        # row uses (_derive_vendor_accent_initials).
+        initials = _derive_initials(form["company_name"].strip())
+
         dbm.execute(
             # accent is no longer an editable field on this form (removed
             # per Kevin's request) -- deliberately left out of this UPDATE
             # so a save never overwrites the vendor's existing accent color.
             "UPDATE vendors SET company_name=?, category=?, tagline=?, description=?, "
-            "website=?, initials=?, company_size=?, founded_year=?, hq_location=?, "
-            "contact_email=?, contact_phone=? WHERE id=?",
+            "website=?, initials=?, logo_link_url=?, logo_upload_data_url=?, company_size=?, "
+            "founded_year=?, hq_location=?, contact_email=?, contact_phone=? WHERE id=?",
             (
                 form["company_name"].strip(), category, form["tagline"].strip(),
                 form["description"].strip(), form["website"].strip(),
-                (form["initials"].strip() or "VN")[:3].upper(), company_size, founded_year,
+                initials, new_logo_link_url, new_logo_upload_data_url, company_size, founded_year,
                 form.get("hq_location", "").strip(), form.get("contact_email", "").strip(),
                 form.get("contact_phone", "").strip(), vendor["id"],
             ),
@@ -3255,12 +3344,16 @@ def seller_profile():
     selected_segments = vendor_segments(vendor["id"])
     selected_technology_categories = vendor_technology_categories(vendor["id"])
     listings = vendor_listings(vendor["id"])
+    announcements = vendor_announcements(vendor["id"])
+    awards = vendor_awards(vendor["id"])
     return render_template(
         "seller/profile.html", vendor=vendor, tags=tags, listings=listings,
         all_segments=all_technology_segments(), selected_segments=selected_segments,
         all_technology_categories=all_technology_categories(),
         selected_technology_categories=selected_technology_categories,
         company_sizes=COMPANY_SIZE_BANDS,
+        announcements=announcements, awards=awards,
+        logo_url=vendor_display_logo_url(vendor),
     )
 
 
@@ -3297,6 +3390,85 @@ def seller_listing_delete(listing_id):
         dbm.execute("DELETE FROM listing_features WHERE listing_id=?", (listing_id,))
         dbm.execute("DELETE FROM listings WHERE id=?", (listing_id,))
         flash("Listing removed.", "success")
+    return redirect(url_for("seller_profile"))
+
+
+def _validate_announcement_or_award_form(form):
+    """Shared validation for the "add" forms on both My Company sections
+    (Marketing Posts/Announcements and Awards/Recognition) -- same shape,
+    just filed into different tables. No explicit Link/Write-up choice --
+    "kind" is inferred from whichever of url/body the seller filled in, so
+    the form is just a title plus one of two optional fields (fill in a
+    link, or write a blurb). Returns (kind, title, url, body, error);
+    error is None on success."""
+    title = form.get("title", "").strip()
+    url = form.get("url", "").strip()
+    body = form.get("body", "").strip()
+    if not title:
+        return None, title, url, body, "Give it a title."
+    if url:
+        return "link", title, url, "", None
+    if body:
+        return "text", title, "", body, None
+    return None, title, url, body, "Add a link or a short write-up."
+
+
+@app.route("/app/seller/announcements/new", methods=("POST",))
+@role_required("seller")
+def seller_announcement_new():
+    vendor = seller_vendor(g.user)
+    kind, title, url, body, error = _validate_announcement_or_award_form(request.form)
+    if error:
+        flash(error, "error")
+    else:
+        dbm.execute(
+            "INSERT INTO vendor_announcements (vendor_id, kind, title, url, body) VALUES (?, ?, ?, ?, ?)",
+            (vendor["id"], kind, title, url, body),
+        )
+        flash("Added to Marketing Posts & Announcements.", "success")
+    return redirect(url_for("seller_profile"))
+
+
+@app.route("/app/seller/announcements/<int:announcement_id>/delete", methods=("POST",))
+@role_required("seller")
+def seller_announcement_delete(announcement_id):
+    vendor = seller_vendor(g.user)
+    row = dbm.query(
+        "SELECT * FROM vendor_announcements WHERE id=? AND vendor_id=?",
+        (announcement_id, vendor["id"]), one=True,
+    )
+    if row:
+        dbm.execute("DELETE FROM vendor_announcements WHERE id=?", (announcement_id,))
+        flash("Removed.", "success")
+    return redirect(url_for("seller_profile"))
+
+
+@app.route("/app/seller/awards/new", methods=("POST",))
+@role_required("seller")
+def seller_award_new():
+    vendor = seller_vendor(g.user)
+    kind, title, url, body, error = _validate_announcement_or_award_form(request.form)
+    if error:
+        flash(error, "error")
+    else:
+        dbm.execute(
+            "INSERT INTO vendor_awards (vendor_id, kind, title, url, body) VALUES (?, ?, ?, ?, ?)",
+            (vendor["id"], kind, title, url, body),
+        )
+        flash("Added to Awards & Recognition.", "success")
+    return redirect(url_for("seller_profile"))
+
+
+@app.route("/app/seller/awards/<int:award_id>/delete", methods=("POST",))
+@role_required("seller")
+def seller_award_delete(award_id):
+    vendor = seller_vendor(g.user)
+    row = dbm.query(
+        "SELECT * FROM vendor_awards WHERE id=? AND vendor_id=?", (award_id, vendor["id"]), one=True,
+    )
+    if row:
+        dbm.execute("DELETE FROM vendor_awards WHERE id=?", (award_id,))
+        flash("Removed.", "success")
     return redirect(url_for("seller_profile"))
 
 
@@ -3376,7 +3548,7 @@ def seller_all_vendors():
             **dict(v),
             "tags": vendor_tags(v["id"]),
             "segments": vendor_segments(v["id"]),
-            "logo_url": v["wiki_logo_url"] or vendor_favicon_url(v["website"]),
+            "logo_url": vendor_display_logo_url(v),
         })
     return render_template(
         "seller/all_vendors.html",
@@ -3403,9 +3575,12 @@ def seller_view_vendor(vendor_id):
         abort(404)
     tags = vendor_tags(vendor_id)
     segments = vendor_segments(vendor_id)
-    logo_url = vendor["wiki_logo_url"] or vendor_favicon_url(vendor["website"])
+    announcements = vendor_announcements(vendor_id)
+    awards = vendor_awards(vendor_id)
+    logo_url = vendor_display_logo_url(vendor)
     return render_template(
         "seller/vendor_view.html", vendor=vendor, tags=tags, segments=segments, logo_url=logo_url,
+        announcements=announcements, awards=awards,
     )
 
 
