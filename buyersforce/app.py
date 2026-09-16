@@ -3216,12 +3216,15 @@ def seller_profile():
             segments.append(new_segment)
 
         dbm.execute(
+            # accent is no longer an editable field on this form (removed
+            # per Kevin's request) -- deliberately left out of this UPDATE
+            # so a save never overwrites the vendor's existing accent color.
             "UPDATE vendors SET company_name=?, category=?, tagline=?, description=?, "
-            "website=?, accent=?, initials=?, company_size=?, founded_year=?, hq_location=?, "
+            "website=?, initials=?, company_size=?, founded_year=?, hq_location=?, "
             "contact_email=?, contact_phone=? WHERE id=?",
             (
                 form["company_name"].strip(), category, form["tagline"].strip(),
-                form["description"].strip(), form["website"].strip(), form["accent"].strip() or "#3b82f6",
+                form["description"].strip(), form["website"].strip(),
                 (form["initials"].strip() or "VN")[:3].upper(), company_size, founded_year,
                 form.get("hq_location", "").strip(), form.get("contact_email", "").strip(),
                 form.get("contact_phone", "").strip(), vendor["id"],

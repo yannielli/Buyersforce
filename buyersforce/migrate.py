@@ -778,7 +778,8 @@ def _seed_technology_taxonomy(cur):
     # admin who has since added/renamed one is never overwritten.
     starter_categories = [
         "Cloud & Infrastructure", "Cybersecurity", "Data & Analytics",
-        "IT Operations", "Sales & Marketing Tech",
+        "IT Operations", "Networking/Technology Infrastructure",
+        "Sales & Marketing Tech",
     ]
     for name in starter_categories:
         cur.execute(
@@ -788,13 +789,14 @@ def _seed_technology_taxonomy(cur):
         )
     starter_segments = [
         "API Security", "Application Security", "Backup & Ransomware Recovery",
-        "Cloud Security", "Data Security & Privacy", "Email Security",
-        "Endpoint Security", "Fraud & Identity Verification", "GRC & Compliance",
-        "Identity & Access Management", "Incident Response & Forensics",
-        "IoT/OT Security", "Managed Security Services (MSSP/MDR)", "Mobile Security",
-        "Network Security", "Penetration Testing/Offensive Security",
-        "Security Awareness Training", "SIEM/SOAR/XDR", "Supply Chain/Third-Party Risk",
-        "Threat Intelligence", "Vulnerability Management", "Zero Trust/SASE",
+        "Cloud Security", "Data Lake/Storage", "Data Security & Privacy",
+        "Email Security", "Endpoint Security", "Fraud & Identity Verification",
+        "GRC & Compliance", "Identity & Access Management", "Incident Response & Forensics",
+        "Information Security", "IoT/OT Security", "Managed Security Services (MSSP/MDR)",
+        "Mobile Security", "Network Security", "Penetration Testing/Offensive Security",
+        "Security Awareness Training", "Security Operations (SOC)", "SIEM/SOAR/XDR",
+        "Supply Chain/Third-Party Risk", "Threat Intelligence", "Vulnerability Management",
+        "Zero Trust/SASE",
     ]
     for name in starter_segments:
         cur.execute(
