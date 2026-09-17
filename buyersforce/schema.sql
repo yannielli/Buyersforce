@@ -30,6 +30,8 @@ DROP TABLE IF EXISTS technology_segments CASCADE;
 DROP TABLE IF EXISTS vendor_technology_categories CASCADE;
 DROP TABLE IF EXISTS vendor_announcements CASCADE;
 DROP TABLE IF EXISTS vendor_awards CASCADE;
+DROP TABLE IF EXISTS vendor_claim_requests CASCADE;
+DROP TABLE IF EXISTS vendor_listing_reports CASCADE;
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -257,6 +259,40 @@ CREATE TABLE vendor_awards (
     url TEXT NOT NULL DEFAULT '',
     body TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+);
+
+-- Only one seller per company can edit that company's My Company listing
+-- (vendors.seller_user_id is that single editor). Anyone else at the same
+-- company (matched by their own Account "Company" field -- see app.py's
+-- seller_company_vendor) sees the listing read-only with a "Claim this
+-- company listing" link, which files one of these -- a request that sits
+-- in the admin queue (like vendor_requests) until decided. Approving one
+-- doesn't create anything; it just reassigns vendors.seller_user_id to
+-- the requester (see admin_vendor_claim_decide).
+CREATE TABLE vendor_claim_requests (
+    id SERIAL PRIMARY KEY,
+    vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+    requested_by_user_id INTEGER NOT NULL REFERENCES users(id),
+    note TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'denied')),
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+    resolved_at TEXT,
+    resolved_by INTEGER REFERENCES users(id)
+);
+
+-- A "report a problem or error on this listing" note from any seller who
+-- can see the listing (the editor or not) -- purely informational for
+-- admin, no approve/deny decision to make, just an open/resolved queue
+-- item (see admin_listing_report_resolve).
+CREATE TABLE vendor_listing_reports (
+    id SERIAL PRIMARY KEY,
+    vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+    reported_by_user_id INTEGER REFERENCES users(id),
+    message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved')),
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+    resolved_at TEXT,
+    resolved_by INTEGER REFERENCES users(id)
 );
 
 CREATE TABLE listings (

@@ -56,6 +56,7 @@ def run_migrations():
             _add_vendor_logo_columns(cur)
             _add_vendor_announcements_and_awards_tables(cur)
             _add_vendor_contact_phone_country_column(cur)
+            _add_vendor_claim_and_report_tables(cur)
     finally:
         con.close()
 
@@ -886,6 +887,43 @@ def _add_vendor_contact_phone_country_column(cur):
     cur.execute(
         "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contact_phone_country "
         "TEXT NOT NULL DEFAULT 'US'"
+    )
+
+
+def _add_vendor_claim_and_report_tables(cur):
+    # Only one seller per company can edit that company's My Company listing
+    # (vendors.seller_user_id is that single editor). Anyone else at the same
+    # company can file a claim request, which sits in the admin queue until
+    # approved/denied (approving just reassigns seller_user_id -- it never
+    # creates a new vendor row). vendor_listing_reports is a separate,
+    # simpler "report a problem" queue with no approve/deny decision.
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS vendor_claim_requests (
+            id SERIAL PRIMARY KEY,
+            vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+            requested_by_user_id INTEGER NOT NULL REFERENCES users(id),
+            note TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'denied')),
+            created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+            resolved_at TEXT,
+            resolved_by INTEGER REFERENCES users(id)
+        )
+        """
+    )
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS vendor_listing_reports (
+            id SERIAL PRIMARY KEY,
+            vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+            reported_by_user_id INTEGER REFERENCES users(id),
+            message TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved')),
+            created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+            resolved_at TEXT,
+            resolved_by INTEGER REFERENCES users(id)
+        )
+        """
     )
 
 

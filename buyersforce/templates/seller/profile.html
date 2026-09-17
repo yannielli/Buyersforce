@@ -1,14 +1,98 @@
 {% extends "base.html" %}
 {% block title %}My Company{% endblock %}
 {% block content %}
-<div class="page-header page-header-center">
+<div class="page-header">
   <div>
     <span class="eyebrow">Your listing</span>
     <h1>My Company</h1>
     <p class="lede">This is what buyers see when they discover you on BuyersForce.</p>
   </div>
+  {% if vendor and not is_editor %}
+  <div class="card" style="max-width:280px; padding:14px 16px;">
+    <strong style="font-size:13.5px;">You're not this listing's editor</strong>
+    <div class="hint" style="margin-top:6px; line-height:1.5;">
+      Only one person per company can edit My Company.
+      {% if pending_claim %}
+      <br>Your claim request is pending BuyersForce's approval.
+      {% else %}
+      <form method="post" action="{{ url_for('seller_claim_listing') }}" style="margin-top:8px;">
+        <button class="btn btn-secondary btn-sm" type="submit">Claim this company listing →</button>
+      </form>
+      {% endif %}
+    </div>
+    <details style="margin-top:10px;">
+      <summary style="font-size:13px; cursor:pointer; color:var(--brand);">Report a problem or error on this listing</summary>
+      <form method="post" action="{{ url_for('seller_report_listing') }}" style="margin-top:8px;">
+        <textarea name="message" placeholder="What's wrong with this listing?" required style="min-height:70px; font-size:13px; width:100%;"></textarea>
+        <button class="btn btn-ghost btn-sm" type="submit" style="margin-top:6px;">Send report</button>
+      </form>
+    </details>
+  </div>
+  {% endif %}
 </div>
 
+{% if not vendor %}
+<div class="card empty-state">
+  <div class="icon">🏢</div>
+  We don't have a My Company listing for your company yet. If this seems wrong,
+  <a href="{{ url_for('support_new') }}">let BuyersForce know</a>.
+</div>
+
+{% elif not is_editor %}
+<div class="grid grid-2" style="grid-template-columns:1.2fr 1fr; align-items:start;">
+  <div class="card">
+    <h3 style="font-size:15px;">About</h3>
+    <span class="vendor-logo" style="background:{{ vendor.accent }}; margin-bottom:10px;">
+      {% if logo_url %}<img src="{{ logo_url }}" alt="" onerror="this.remove();">{% endif %}
+      {{ vendor.initials }}
+    </span>
+    <p style="font-size:15px; font-weight:600; margin:4px 0 0;">{{ vendor.company_name }}</p>
+    <p class="hint" style="margin:2px 0 10px;">{{ vendor.tagline }}</p>
+    <p>{{ vendor.description }}</p>
+    {% if vendor.website %}
+    <p class="hint">🔗 <a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }}</a><br>{{ EXTERNAL_LINK_PRIVACY_NOTE }}</p>
+    {% endif %}
+    {% if vendor.contact_email %}<p class="hint">✉️ {{ vendor.contact_email }}</p>{% endif %}
+    {% if vendor.contact_phone %}<p class="hint">📞 {{ vendor.contact_phone }}</p>{% endif %}
+    <p class="hint" style="margin-top:2px;">
+      {% if vendor.hq_location %}📍 {{ vendor.hq_location }}{% endif %}
+      {% if vendor.company_size %}{% if vendor.hq_location %} · {% endif %}👥 {{ vendor.company_size }} employees{% endif %}
+      {% if vendor.founded_year %}{% if vendor.hq_location or vendor.company_size %} · {% endif %}Founded {{ vendor.founded_year }}{% endif %}
+    </p>
+    {% if tags %}<p class="hint" style="margin-top:8px;"><strong>Tags:</strong> {{ tags }}</p>{% endif %}
+  </div>
+
+  <div class="card" style="background:var(--surface);">
+    <h3 style="font-size:14px;">Category</h3>
+    <p class="hint">{{ vendor.category }}</p>
+    {% if selected_segments %}
+    <h3 style="font-size:14px; margin-top:12px;">Sub-categories / segments</h3>
+    <div>{% for s in selected_segments %}<span class="tag">{{ s }}</span>{% endfor %}</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="section-title" style="margin-top:30px;"><h2>Product listings</h2></div>
+{% for l in listings %}
+<div class="listing-card">
+  <h4>{{ l.name }}</h4>
+  {% if l.pricing_model %}<span class="price">{{ l.pricing_model }}</span>{% endif %}
+  {% if l.description %}<p style="font-size:13.5px;">{{ l.description }}</p>{% endif %}
+  <ul class="listing-feats">{% for f in l.features %}<li>{{ f }}</li>{% endfor %}</ul>
+</div>
+{% else %}
+<div class="card empty-state"><div class="icon">📦</div>No product listings yet.</div>
+{% endfor %}
+
+{% set content_list_label = "Marketing Posts & Announcements" %}
+{% set content_list_items = announcements %}
+{% include "_vendor_content_list_readonly.html" %}
+
+{% set content_list_label = "Awards & Recognition" %}
+{% set content_list_items = awards %}
+{% include "_vendor_content_list_readonly.html" %}
+
+{% else %}
 <div class="grid grid-2" style="grid-template-columns:1.2fr 1fr; align-items:start;">
   <div class="card">
     <h3 style="font-size:15px;">Profile details</h3>
@@ -190,4 +274,5 @@
 {% set content_list_body_placeholder = "e.g. Named a Leader in the 2026 XYZ Report." %}
 {% set content_list_empty_hint = "Nothing added yet — showcase your recognition." %}
 {% include "_vendor_content_list_field.html" %}
+{% endif %}
 {% endblock %}

@@ -43,36 +43,35 @@ US_STATE_CODES = {code for code, _ in US_STATES}
 
 # (ISO 3166-1 alpha-2, name, calling code) for the phone-number country
 # picker. Not exhaustive -- covers the countries a B2B tech buyer/seller
-# audience is realistically based in. "XX" is a catch-all for anyone else:
-# no dial code is prefixed and digits are just lightly grouped, so nobody
-# is stuck if their country isn't listed.
+# audience is realistically based in. Sorted alphabetically by name, with
+# the US pinned first (most of this audience) and "XX" -- a catch-all for
+# anyone else, no dial code prefixed, digits just lightly grouped -- pinned
+# last since it isn't a real country.
 PHONE_COUNTRIES = [
-    ("US", "United States", "1"), ("CA", "Canada", "1"),
-    ("GB", "United Kingdom", "44"), ("IE", "Ireland", "353"),
-    ("AU", "Australia", "61"), ("NZ", "New Zealand", "64"),
-    ("DE", "Germany", "49"), ("FR", "France", "33"), ("IT", "Italy", "39"),
-    ("ES", "Spain", "34"), ("PT", "Portugal", "351"), ("NL", "Netherlands", "31"),
-    ("BE", "Belgium", "32"), ("LU", "Luxembourg", "352"), ("CH", "Switzerland", "41"),
-    ("AT", "Austria", "43"), ("SE", "Sweden", "46"), ("NO", "Norway", "47"),
-    ("DK", "Denmark", "45"), ("FI", "Finland", "358"), ("IS", "Iceland", "354"),
-    ("PL", "Poland", "48"), ("CZ", "Czech Republic", "420"), ("SK", "Slovakia", "421"),
-    ("HU", "Hungary", "36"), ("RO", "Romania", "40"), ("BG", "Bulgaria", "359"),
-    ("GR", "Greece", "30"), ("HR", "Croatia", "385"), ("SI", "Slovenia", "386"),
-    ("EE", "Estonia", "372"), ("LV", "Latvia", "371"), ("LT", "Lithuania", "370"),
-    ("UA", "Ukraine", "380"), ("RU", "Russia", "7"), ("TR", "Turkey", "90"),
-    ("IL", "Israel", "972"), ("AE", "United Arab Emirates", "971"),
-    ("SA", "Saudi Arabia", "966"), ("QA", "Qatar", "974"), ("KW", "Kuwait", "965"),
-    ("BH", "Bahrain", "973"), ("OM", "Oman", "968"), ("EG", "Egypt", "20"),
-    ("ZA", "South Africa", "27"), ("NG", "Nigeria", "234"), ("KE", "Kenya", "254"),
-    ("GH", "Ghana", "233"), ("IN", "India", "91"), ("PK", "Pakistan", "92"),
-    ("BD", "Bangladesh", "880"), ("LK", "Sri Lanka", "94"), ("CN", "China", "86"),
-    ("HK", "Hong Kong", "852"), ("TW", "Taiwan", "886"), ("JP", "Japan", "81"),
-    ("KR", "South Korea", "82"), ("SG", "Singapore", "65"), ("MY", "Malaysia", "60"),
-    ("TH", "Thailand", "66"), ("ID", "Indonesia", "62"), ("PH", "Philippines", "63"),
-    ("VN", "Vietnam", "84"), ("BR", "Brazil", "55"), ("MX", "Mexico", "52"),
-    ("AR", "Argentina", "54"), ("CL", "Chile", "56"), ("CO", "Colombia", "57"),
-    ("PE", "Peru", "51"), ("UY", "Uruguay", "598"),
-    ("XX", "Other / not listed", ""),
+    ("US", "United States", "1"), ("AR", "Argentina", "54"), ("AU", "Australia", "61"),
+    ("AT", "Austria", "43"), ("BH", "Bahrain", "973"), ("BD", "Bangladesh", "880"),
+    ("BE", "Belgium", "32"), ("BR", "Brazil", "55"), ("BG", "Bulgaria", "359"),
+    ("CA", "Canada", "1"), ("CL", "Chile", "56"), ("CN", "China", "86"),
+    ("CO", "Colombia", "57"), ("HR", "Croatia", "385"), ("CZ", "Czech Republic", "420"),
+    ("DK", "Denmark", "45"), ("EG", "Egypt", "20"), ("EE", "Estonia", "372"),
+    ("FI", "Finland", "358"), ("FR", "France", "33"), ("DE", "Germany", "49"),
+    ("GH", "Ghana", "233"), ("GR", "Greece", "30"), ("HK", "Hong Kong", "852"),
+    ("HU", "Hungary", "36"), ("IS", "Iceland", "354"), ("IN", "India", "91"),
+    ("ID", "Indonesia", "62"), ("IE", "Ireland", "353"), ("IL", "Israel", "972"),
+    ("IT", "Italy", "39"), ("JP", "Japan", "81"), ("KE", "Kenya", "254"),
+    ("KW", "Kuwait", "965"), ("LV", "Latvia", "371"), ("LT", "Lithuania", "370"),
+    ("LU", "Luxembourg", "352"), ("MY", "Malaysia", "60"), ("MX", "Mexico", "52"),
+    ("NL", "Netherlands", "31"), ("NZ", "New Zealand", "64"), ("NG", "Nigeria", "234"),
+    ("NO", "Norway", "47"), ("OM", "Oman", "968"), ("PK", "Pakistan", "92"),
+    ("PE", "Peru", "51"), ("PH", "Philippines", "63"), ("PL", "Poland", "48"),
+    ("PT", "Portugal", "351"), ("QA", "Qatar", "974"), ("RO", "Romania", "40"),
+    ("RU", "Russia", "7"), ("SA", "Saudi Arabia", "966"), ("SG", "Singapore", "65"),
+    ("SK", "Slovakia", "421"), ("SI", "Slovenia", "386"), ("ZA", "South Africa", "27"),
+    ("KR", "South Korea", "82"), ("ES", "Spain", "34"), ("LK", "Sri Lanka", "94"),
+    ("SE", "Sweden", "46"), ("CH", "Switzerland", "41"), ("TW", "Taiwan", "886"),
+    ("TH", "Thailand", "66"), ("TR", "Turkey", "90"), ("UA", "Ukraine", "380"),
+    ("AE", "United Arab Emirates", "971"), ("GB", "United Kingdom", "44"),
+    ("UY", "Uruguay", "598"), ("VN", "Vietnam", "84"), ("XX", "Other / not listed", "")
 ]
 
 
@@ -1136,6 +1135,20 @@ def admin_dashboard():
         }
         for r in pending_vendor_requests
     ]
+    pending_vendor_claims = dbm.query(
+        "SELECT vc.*, v.company_name, u.name requester_name, u.email requester_email "
+        "FROM vendor_claim_requests vc "
+        "JOIN vendors v ON v.id = vc.vendor_id "
+        "JOIN users u ON u.id = vc.requested_by_user_id "
+        "WHERE vc.status = 'pending' ORDER BY vc.created_at DESC"
+    )
+    open_listing_reports = dbm.query(
+        "SELECT lr.*, v.company_name, u.name reporter_name, u.email reporter_email "
+        "FROM vendor_listing_reports lr "
+        "JOIN vendors v ON v.id = lr.vendor_id "
+        "LEFT JOIN users u ON u.id = lr.reported_by_user_id "
+        "WHERE lr.status = 'open' ORDER BY lr.created_at DESC"
+    )
     new_invite_link = None
     new_invite_id = request.args.get("new_invite", type=int)
     if new_invite_id:
@@ -1147,6 +1160,7 @@ def admin_dashboard():
         pending_signups=pending_signups, pending_role_changes=pending_role_changes,
         open_support_requests=open_support_requests, support_category_labels=SUPPORT_CATEGORY_LABELS,
         pending_vendor_requests=pending_vendor_requests, vendor_request_kind_labels=VENDOR_REQUEST_KIND_LABELS,
+        pending_vendor_claims=pending_vendor_claims, open_listing_reports=open_listing_reports,
         all_segments=known_segments, all_technology_categories=known_categories,
         company_sizes=COMPANY_SIZE_BANDS,
         new_invite_link=new_invite_link,
@@ -1161,12 +1175,24 @@ def admin_approve_signup(user_id):
         abort(404)
     dbm.execute("UPDATE users SET account_status='active' WHERE id=?", (user_id,))
     if user["role"] == "seller":
-        dbm.execute(
-            "INSERT INTO vendors (seller_user_id, company_name, category, tagline, description, "
-            "website, accent, initials) VALUES (?, ?, 'Uncategorized', '', '', '', '#3b82f6', ?)",
-            (user_id, user["company"],
-             "".join([w[0] for w in user["company"].split()[:2]]).upper() or "VN"),
+        # Don't create a second vendor listing for a company that's already
+        # listed -- exact match (case-insensitive/trimmed) on company_name,
+        # same rule seller_company_vendor uses. Only the first approved
+        # seller from a given company auto-becomes its editor; everyone
+        # after that sees the existing listing read-only and uses "Claim
+        # this company listing" on My Company if they should be the editor.
+        existing_vendor = dbm.query(
+            "SELECT id FROM vendors WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(?))",
+            (user["company"],),
+            one=True,
         )
+        if not existing_vendor:
+            dbm.execute(
+                "INSERT INTO vendors (seller_user_id, company_name, category, tagline, description, "
+                "website, accent, initials) VALUES (?, ?, 'Uncategorized', '', '', '', '#3b82f6', ?)",
+                (user_id, user["company"],
+                 "".join([w[0] for w in user["company"].split()[:2]]).upper() or "VN"),
+            )
     log_activity(user_id, "account approved by admin")
     emailer.send_signup_decision(user["email"], approved=True, login_url=url_for("login", _external=True))
     flash(f"{user['name']} approved.", "success")
@@ -1183,6 +1209,70 @@ def admin_deny_signup(user_id):
     log_activity(user_id, "account denied by admin")
     emailer.send_signup_decision(user["email"], approved=False)
     flash(f"{user['name']}'s request denied.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/app/admin/vendor-claims/<int:claim_id>/approve", methods=("POST",))
+@admin_required
+def admin_approve_vendor_claim(claim_id):
+    claim = dbm.query(
+        "SELECT * FROM vendor_claim_requests WHERE id=? AND status='pending'", (claim_id,), one=True
+    )
+    if not claim:
+        abort(404)
+    vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (claim["vendor_id"],), one=True)
+    requester = dbm.query("SELECT * FROM users WHERE id=?", (claim["requested_by_user_id"],), one=True)
+    dbm.execute("UPDATE vendors SET seller_user_id=? WHERE id=?", (claim["requested_by_user_id"], vendor["id"]))
+    dbm.execute(
+        "UPDATE vendor_claim_requests SET status='approved', "
+        "resolved_at=to_char(now(), 'YYYY-MM-DD HH24:MI:SS'), resolved_by=? WHERE id=?",
+        (g.user["id"], claim_id),
+    )
+    log_activity(g.user["id"], f"approved a company-listing claim on {vendor['company_name']}")
+    if requester:
+        emailer.send_email(
+            requester["email"],
+            subject=f"You're now the editor for {vendor['company_name']} on BuyersForce",
+            text=(
+                f"Hi {requester['name']},\n\nYour request to claim the {vendor['company_name']} "
+                f"listing has been approved. You can now edit it from My Company."
+            ),
+        )
+    flash(f"{requester['name'] if requester else 'Requester'} now has edit access to {vendor['company_name']}.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/app/admin/vendor-claims/<int:claim_id>/deny", methods=("POST",))
+@admin_required
+def admin_deny_vendor_claim(claim_id):
+    claim = dbm.query(
+        "SELECT * FROM vendor_claim_requests WHERE id=? AND status='pending'", (claim_id,), one=True
+    )
+    if not claim:
+        abort(404)
+    dbm.execute(
+        "UPDATE vendor_claim_requests SET status='denied', "
+        "resolved_at=to_char(now(), 'YYYY-MM-DD HH24:MI:SS'), resolved_by=? WHERE id=?",
+        (g.user["id"], claim_id),
+    )
+    log_activity(g.user["id"], f"denied company-listing claim request {claim_id}")
+    flash("Claim request denied.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/app/admin/listing-reports/<int:report_id>/resolve", methods=("POST",))
+@admin_required
+def admin_resolve_listing_report(report_id):
+    report = dbm.query("SELECT * FROM vendor_listing_reports WHERE id=?", (report_id,), one=True)
+    if not report:
+        abort(404)
+    dbm.execute(
+        "UPDATE vendor_listing_reports SET status='resolved', "
+        "resolved_at=to_char(now(), 'YYYY-MM-DD HH24:MI:SS'), resolved_by=? WHERE id=?",
+        (g.user["id"], report_id),
+    )
+    log_activity(g.user["id"], f"resolved listing report {report_id}")
+    flash("Marked resolved.", "success")
     return redirect(url_for("admin_dashboard"))
 
 
@@ -3209,6 +3299,30 @@ def seller_vendor(user):
     return dbm.query("SELECT * FROM vendors WHERE seller_user_id=?", (user["id"],), one=True)
 
 
+def seller_company_vendor(user):
+    """Broader than seller_vendor: also finds the vendor row for this
+    user's company even when they aren't its assigned editor
+    (vendors.seller_user_id), by matching their Account "Company" field
+    against vendors.company_name (case-insensitive, trimmed). This is what
+    lets a second (third, ...) seller from the same company see -- read
+    only -- the listing a colleague already claimed, instead of getting a
+    duplicate listing or a 404. Exact match only: a typo'd company name
+    won't find the existing vendor here (admin_approve_signup would then
+    create a new vendor for them) -- a known limitation an admin can catch
+    by eyeballing the company name on the pending-signups queue."""
+    vendor = seller_vendor(user)
+    if vendor:
+        return vendor
+    company = (user["company"] or "").strip()
+    if not company:
+        return None
+    return dbm.query(
+        "SELECT * FROM vendors WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(?))",
+        (company,),
+        one=True,
+    )
+
+
 @app.route("/app/seller")
 @role_required("seller")
 def seller_dashboard():
@@ -3251,8 +3365,12 @@ def seller_dashboard():
 @app.route("/app/seller/profile", methods=("GET", "POST"))
 @role_required("seller")
 def seller_profile():
-    vendor = seller_vendor(g.user)
+    vendor = seller_company_vendor(g.user)
+    is_editor = bool(vendor) and vendor["seller_user_id"] == g.user["id"]
+
     if request.method == "POST":
+        if not is_editor:
+            abort(403)
         form = request.form
         files = request.files
 
@@ -3355,6 +3473,26 @@ def seller_profile():
             )
         flash("Your company profile updated — buyers will see the latest version.", "success")
         return redirect(url_for("seller_profile"))
+    if not vendor:
+        # No vendor exists yet for this seller's company at all (shouldn't
+        # normally happen -- admin_approve_signup creates one for the first
+        # approved seller from any company -- but handled gracefully in
+        # case the Account "Company" field was changed after signup, or an
+        # admin removed the listing).
+        return render_template(
+            "seller/profile.html", vendor=None, is_editor=False, pending_claim=None,
+            phone_countries=PHONE_COUNTRIES,
+        )
+
+    pending_claim = None
+    if not is_editor:
+        pending_claim = dbm.query(
+            "SELECT * FROM vendor_claim_requests WHERE vendor_id=? AND requested_by_user_id=? "
+            "AND status='pending'",
+            (vendor["id"], g.user["id"]),
+            one=True,
+        )
+
     tags = ", ".join(vendor_tags(vendor["id"]))
     selected_segments = vendor_segments(vendor["id"])
     selected_technology_categories = vendor_technology_categories(vendor["id"])
@@ -3362,7 +3500,8 @@ def seller_profile():
     announcements = vendor_announcements(vendor["id"])
     awards = vendor_awards(vendor["id"])
     return render_template(
-        "seller/profile.html", vendor=vendor, tags=tags, listings=listings,
+        "seller/profile.html", vendor=vendor, is_editor=is_editor, pending_claim=pending_claim,
+        tags=tags, listings=listings,
         all_segments=all_technology_segments(), selected_segments=selected_segments,
         all_technology_categories=all_technology_categories(),
         selected_technology_categories=selected_technology_categories,
@@ -3371,6 +3510,77 @@ def seller_profile():
         logo_url=vendor_display_logo_url(vendor),
         phone_countries=PHONE_COUNTRIES,
     )
+
+
+@app.route("/app/seller/profile/claim", methods=("POST",))
+@role_required("seller")
+def seller_claim_listing():
+    vendor = seller_company_vendor(g.user)
+    if not vendor:
+        abort(404)
+    if vendor["seller_user_id"] == g.user["id"]:
+        flash("You already have edit access to this listing.", "error")
+        return redirect(url_for("seller_profile"))
+    existing = dbm.query(
+        "SELECT id FROM vendor_claim_requests WHERE vendor_id=? AND requested_by_user_id=? "
+        "AND status='pending'",
+        (vendor["id"], g.user["id"]),
+        one=True,
+    )
+    if existing:
+        flash("You already have a pending claim request for this listing.", "error")
+        return redirect(url_for("seller_profile"))
+    note = request.form.get("note", "").strip()
+    dbm.execute(
+        "INSERT INTO vendor_claim_requests (vendor_id, requested_by_user_id, note) VALUES (?, ?, ?)",
+        (vendor["id"], g.user["id"], note),
+    )
+    log_activity(g.user["id"], f"claimed company listing for {vendor['company_name']}")
+    admin = get_admin_user()
+    if admin:
+        emailer.send_email(
+            admin["email"],
+            subject=f"Company listing claim: {vendor['company_name']}",
+            text=(
+                f"{g.user['name']} ({g.user['email']}) wants to claim editing access to the "
+                f"{vendor['company_name']} listing on BuyersForce.\n\n"
+                f"Review it here: {url_for('admin_dashboard', _external=True)}"
+            ),
+            reply_to=g.user["email"],
+        )
+    flash("Your request to claim this listing has been sent to BuyersForce for approval.", "success")
+    return redirect(url_for("seller_profile"))
+
+
+@app.route("/app/seller/profile/report", methods=("POST",))
+@role_required("seller")
+def seller_report_listing():
+    vendor = seller_company_vendor(g.user)
+    if not vendor:
+        abort(404)
+    message = request.form.get("message", "").strip()
+    if not message:
+        flash("Please describe the problem before submitting.", "error")
+        return redirect(url_for("seller_profile"))
+    dbm.execute(
+        "INSERT INTO vendor_listing_reports (vendor_id, reported_by_user_id, message) VALUES (?, ?, ?)",
+        (vendor["id"], g.user["id"], message),
+    )
+    log_activity(g.user["id"], f"reported a problem on {vendor['company_name']}'s listing")
+    admin = get_admin_user()
+    if admin:
+        emailer.send_email(
+            admin["email"],
+            subject=f"Listing issue reported: {vendor['company_name']}",
+            text=(
+                f"{g.user['name']} ({g.user['email']}) reported a problem on the "
+                f"{vendor['company_name']} listing:\n\n{message}\n\n"
+                f"Review it here: {url_for('admin_dashboard', _external=True)}"
+            ),
+            reply_to=g.user["email"],
+        )
+    flash("Thanks -- we've sent this to the BuyersForce team.", "success")
+    return redirect(url_for("seller_profile"))
 
 
 @app.route("/app/seller/listings/new", methods=("POST",))

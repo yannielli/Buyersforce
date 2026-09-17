@@ -93,6 +93,59 @@
 </div>
 {% endif %}
 
+{% if pending_vendor_claims %}
+<div class="card" style="border-color:var(--warning-border); background:var(--warning-tint); margin-bottom:24px;">
+  <h3 style="font-size:14.5px;">Company listing claims ({{ pending_vendor_claims|length }})</h3>
+  <p style="font-size:13px; margin-bottom:12px;">Someone wants edit access to their company's My Company
+    listing. Only one seller per company can be the editor.</p>
+  {% for c in pending_vendor_claims %}
+  <div class="mock-row">
+    <span>
+      <strong style="font-size:14px;">{{ c.requester_name }}</strong>
+      <span class="hint">wants to edit</span>
+      <span class="badge badge-neutral" style="margin-left:4px;">{{ c.company_name }}</span>
+      <div class="hint">{{ c.requester_email }} · {{ c.created_at|fmt_time }}</div>
+      {% if c.note %}<div class="hint">"{{ c.note }}"</div>{% endif %}
+    </span>
+    <span style="display:flex; gap:6px;">
+      <form method="post" action="{{ url_for('admin_approve_vendor_claim', claim_id=c.id) }}">
+        <button class="btn btn-primary btn-sm" type="submit">Approve</button>
+      </form>
+      <form method="post" action="{{ url_for('admin_deny_vendor_claim', claim_id=c.id) }}">
+        <button class="btn btn-ghost btn-sm" type="submit">Deny</button>
+      </form>
+    </span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if open_listing_reports %}
+<div class="card" style="border-color:var(--warning-border); background:var(--warning-tint); margin-bottom:24px;">
+  <h3 style="font-size:14.5px;">Listing issue reports ({{ open_listing_reports|length }})</h3>
+  <p style="font-size:13px; margin-bottom:12px;">Problems or errors sellers have flagged on a
+    My Company listing.</p>
+  {% for rep in open_listing_reports %}
+  <div class="mock-row">
+    <span>
+      <strong style="font-size:14px;">{{ rep.company_name }}</strong>
+      <div class="hint">
+        {% if rep.reporter_name %}Reported by {{ rep.reporter_name }} ({{ rep.reporter_email }}){% else %}Reported by a former user{% endif %}
+        · {{ rep.created_at|fmt_time }}
+      </div>
+      <div class="snippet">{{ rep.message }}</div>
+    </span>
+    <span style="display:flex; gap:6px; align-items:flex-start;">
+      <form method="post" action="{{ url_for('admin_resolve_listing_report', report_id=rep.id) }}">
+        <input type="hidden" name="status" value="resolved">
+        <button class="btn btn-ghost btn-sm" type="submit">Mark resolved</button>
+      </form>
+    </span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 {% if pending_vendor_requests %}
 <div class="card" style="border-color:var(--warning-border); background:var(--warning-tint); margin-bottom:24px;">
   <h3 style="font-size:14.5px;">Vendor listing requests ({{ pending_vendor_requests|length }})</h3>
