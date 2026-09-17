@@ -16,11 +16,20 @@
   <p style="font-size:13px; margin-bottom:12px;">Check their LinkedIn link against the company and
     role they claim before approving.</p>
   {% for u in pending_signups %}
-  <div class="mock-row">
-    <span>
-      <strong style="font-size:14px;">{{ u.name }}</strong>
-      <span class="badge badge-neutral" style="margin-left:6px;">{{ u.role|capitalize }}</span>
-      <div class="hint">{{ u.title }} · {{ u.company }} · {{ u.email }} · {{ u.phone }} · {{ u.state }}</div>
+  <div class="mock-row" style="align-items:flex-start;">
+    <span style="flex:1;">
+      <form method="post" action="{{ url_for('admin_approve_signup', user_id=u.id) }}" id="approve-signup-{{ u.id }}">
+        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:4px;">
+          <input type="text" name="name" value="{{ u.name }}" style="font-weight:600; font-size:14px; width:150px; padding:3px 6px;">
+          <span class="badge badge-neutral">{{ u.role|capitalize }}</span>
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+          <input type="text" name="title" value="{{ u.title }}" placeholder="Title" style="font-size:12.5px; width:120px; padding:3px 6px;">
+          <input type="text" name="company" value="{{ u.company }}" placeholder="Company" style="font-size:12.5px; width:150px; padding:3px 6px;">
+          <span class="hint">{{ u.email }} · {{ u.phone }} · {{ u.state }}</span>
+        </div>
+      </form>
+      <p class="hint" style="margin-top:4px;">Fix a typo (e.g. company name) here before approving — it's saved when you hit Approve.</p>
       {% if u.no_linkedin %}
       <div class="hint" style="color:var(--warning-ink-vivid); font-weight:600;">No LinkedIn account — verify identity another way</div>
       {% else %}
@@ -28,9 +37,7 @@
       {% endif %}
     </span>
     <span style="display:flex; gap:6px;">
-      <form method="post" action="{{ url_for('admin_approve_signup', user_id=u.id) }}">
-        <button class="btn btn-primary btn-sm" type="submit">Approve</button>
-      </form>
+      <button class="btn btn-primary btn-sm" type="submit" form="approve-signup-{{ u.id }}">Approve</button>
       <form method="post" action="{{ url_for('admin_deny_signup', user_id=u.id) }}">
         <button class="btn btn-ghost btn-sm" type="submit">Deny</button>
       </form>

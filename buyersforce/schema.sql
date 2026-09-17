@@ -155,6 +155,9 @@ CREATE TABLE vendors (
     company_size TEXT,
     founded_year INTEGER,
     hq_location TEXT,
+    -- Primary human contact for this listing (buyers and other sellers at
+    -- the same company see this alongside contact_email/contact_phone).
+    contact_name TEXT NOT NULL DEFAULT '',
     contact_email TEXT,
     contact_phone TEXT,
     -- Which PHONE_COUNTRIES entry contact_phone is formatted/dialed for

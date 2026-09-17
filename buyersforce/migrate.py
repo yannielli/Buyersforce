@@ -57,6 +57,7 @@ def run_migrations():
             _add_vendor_announcements_and_awards_tables(cur)
             _add_vendor_contact_phone_country_column(cur)
             _add_vendor_claim_and_report_tables(cur)
+            _add_vendor_contact_name_column(cur)
     finally:
         con.close()
 
@@ -924,6 +925,16 @@ def _add_vendor_claim_and_report_tables(cur):
             resolved_by INTEGER REFERENCES users(id)
         )
         """
+    )
+
+
+def _add_vendor_contact_name_column(cur):
+    # Primary human contact's full name for a listing (mirrors
+    # contact_email/contact_phone) -- defaults existing rows to '' since
+    # this is new, purely-additive info nobody has filled in yet.
+    cur.execute(
+        "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contact_name "
+        "TEXT NOT NULL DEFAULT ''"
     )
 
 

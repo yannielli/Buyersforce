@@ -27,6 +27,7 @@
   {% if vendor.website %}
   <p class="hint">🔗 <a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }}</a><br>{{ EXTERNAL_LINK_PRIVACY_NOTE }}</p>
   {% endif %}
+  {% if vendor.contact_name %}<p class="hint">👤 {{ vendor.contact_name }}</p>{% endif %}
   {% if vendor.contact_email %}<p class="hint">✉️ {{ vendor.contact_email }}</p>{% endif %}
   {% if vendor.contact_phone %}<p class="hint">📞 {{ vendor.contact_phone }}</p>{% endif %}
 </div>

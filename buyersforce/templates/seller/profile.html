@@ -7,11 +7,11 @@
     <h1>My Company</h1>
     <p class="lede">This is what buyers see when they discover you on BuyersForce.</p>
   </div>
-  {% if vendor and not is_editor %}
+  {% if vendor %}
   <div class="card" style="max-width:280px; padding:14px 16px;">
-    <strong style="font-size:13.5px;">You're not this listing's editor</strong>
+    <strong style="font-size:13.5px;">Listing access</strong>
     <div class="hint" style="margin-top:6px; line-height:1.5;">
-      Only one person per company can edit My Company.
+      Only one person per company edits My Company at a time.
       {% if pending_claim %}
       <br>Your claim request is pending BuyersForce's approval.
       {% else %}
@@ -52,6 +52,7 @@
     {% if vendor.website %}
     <p class="hint">🔗 <a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }}</a><br>{{ EXTERNAL_LINK_PRIVACY_NOTE }}</p>
     {% endif %}
+    {% if vendor.contact_name %}<p class="hint">👤 {{ vendor.contact_name }}</p>{% endif %}
     {% if vendor.contact_email %}<p class="hint">✉️ {{ vendor.contact_email }}</p>{% endif %}
     {% if vendor.contact_phone %}<p class="hint">📞 {{ vendor.contact_phone }}</p>{% endif %}
     <p class="hint" style="margin-top:2px;">
@@ -62,12 +63,23 @@
     {% if tags %}<p class="hint" style="margin-top:8px;"><strong>Tags:</strong> {{ tags }}</p>{% endif %}
   </div>
 
-  <div class="card" style="background:var(--surface);">
-    <h3 style="font-size:14px;">Category</h3>
-    <p class="hint">{{ vendor.category }}</p>
-    {% if selected_segments %}
-    <h3 style="font-size:14px; margin-top:12px;">Sub-categories / segments</h3>
-    <div>{% for s in selected_segments %}<span class="tag">{{ s }}</span>{% endfor %}</div>
+  <div>
+    <div class="card" style="background:var(--surface);">
+      <h3 style="font-size:14px;">Category</h3>
+      <p class="hint">{{ vendor.category }}</p>
+      {% if selected_segments %}
+      <h3 style="font-size:14px; margin-top:12px;">Sub-categories / segments</h3>
+      <div>{% for s in selected_segments %}<span class="tag">{{ s }}</span>{% endfor %}</div>
+      {% endif %}
+    </div>
+    {% if registered_users %}
+    <div class="card" style="margin-top:16px;">
+      <h3 style="font-size:14px;">Registered on BuyersForce</h3>
+      <p class="hint" style="margin-bottom:8px;">Everyone with an active account at {{ vendor.company_name }}.</p>
+      {% for ru in registered_users %}
+      <div class="hint" style="margin-bottom:4px;">{{ ru.name }} <span style="color:var(--ink-muted);">· {{ ru.email }}</span></div>
+      {% endfor %}
+    </div>
     {% endif %}
   </div>
 </div>
@@ -159,6 +171,7 @@
         <div class="field"><label>Founded year</label><input type="number" name="founded_year" value="{{ vendor.founded_year or '' }}" min="1900" max="2100"></div>
         <div class="field"><label>HQ location</label><input type="text" name="hq_location" value="{{ vendor.hq_location or '' }}" placeholder="e.g. San Francisco, CA"></div>
       </div>
+      <div class="field"><label>Contact name</label><input type="text" name="contact_name" value="{{ vendor.contact_name or '' }}" placeholder="Full name of the primary contact"></div>
       <div class="form-row">
         <div class="field"><label>Contact email</label><input type="email" name="contact_email" value="{{ vendor.contact_email or '' }}"></div>
         <div class="field">
@@ -203,18 +216,29 @@
     </form>
   </div>
 
-  <div class="card" style="background:var(--surface);">
-    <h3 style="font-size:14px;">Live preview</h3>
-    <div class="vendor-card" style="border:1px solid var(--gridline);">
-      <div class="vendor-card-top">
-        <span class="vendor-logo" style="background:{{ vendor.accent }};">
-          {% if logo_url %}<img src="{{ logo_url }}" alt="" onerror="this.remove();">{% endif %}
-          {{ vendor.initials }}
-        </span>
-        <div><h3>{{ vendor.company_name }}</h3><span class="cat">{{ vendor.category }}</span></div>
+  <div>
+    <div class="card" style="background:var(--surface);">
+      <h3 style="font-size:14px;">Live preview</h3>
+      <div class="vendor-card" style="border:1px solid var(--gridline);">
+        <div class="vendor-card-top">
+          <span class="vendor-logo" style="background:{{ vendor.accent }};">
+            {% if logo_url %}<img src="{{ logo_url }}" alt="" onerror="this.remove();">{% endif %}
+            {{ vendor.initials }}
+          </span>
+          <div><h3>{{ vendor.company_name }}</h3><span class="cat">{{ vendor.category }}</span></div>
+        </div>
+        <p class="tagline">{{ vendor.tagline or "Add a tagline to stand out." }}</p>
       </div>
-      <p class="tagline">{{ vendor.tagline or "Add a tagline to stand out." }}</p>
     </div>
+    {% if registered_users %}
+    <div class="card" style="margin-top:16px;">
+      <h3 style="font-size:14px;">Registered on BuyersForce</h3>
+      <p class="hint" style="margin-bottom:8px;">Everyone with an active account at {{ vendor.company_name }}.</p>
+      {% for ru in registered_users %}
+      <div class="hint" style="margin-bottom:4px;">{{ ru.name }} <span style="color:var(--ink-muted);">· {{ ru.email }}</span></div>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
 </div>
 

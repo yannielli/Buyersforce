@@ -454,7 +454,14 @@ def role_required(role):
             if g.user is None:
                 flash("Please sign in to continue.", "error")
                 return redirect(url_for("login"))
-            if g.user["role"] != role:
+            # Super-admin override: Kevin's own admin account (is_admin=1)
+            # can reach any buyer/seller-gated view directly, and so can he
+            # while impersonating someone via "View as" (session's
+            # impersonator_id survives the session-user-id swap in
+            # admin_view_as) -- otherwise viewing as a buyer would still
+            # block him from seller-only pages and vice versa.
+            is_super_admin = bool(g.user["is_admin"]) or bool(session.get("impersonator_id"))
+            if g.user["role"] != role and not is_super_admin:
                 flash(f"That area is for {role}s.", "error")
                 return redirect(home_for_role(g.user["role"]))
             return view(*args, **kwargs)
@@ -1173,7 +1180,17 @@ def admin_approve_signup(user_id):
     user = dbm.query("SELECT * FROM users WHERE id=? AND account_status='pending'", (user_id,), one=True)
     if not user:
         abort(404)
-    dbm.execute("UPDATE users SET account_status='active' WHERE id=?", (user_id,))
+    # A typo in name/title/company on this request is exactly what causes
+    # a mismatched company-name match (see seller_company_vendor) -- the
+    # Approve form lets Kevin correct these before they're saved, rather
+    # than approving a typo and having to fix it after the fact.
+    name = request.form.get("name", "").strip() or user["name"]
+    company = request.form.get("company", "").strip() or user["company"]
+    title = request.form.get("title", "").strip()
+    dbm.execute(
+        "UPDATE users SET account_status='active', name=?, company=?, title=? WHERE id=?",
+        (name, company, title, user_id),
+    )
     if user["role"] == "seller":
         # Don't create a second vendor listing for a company that's already
         # listed -- exact match (case-insensitive/trimmed) on company_name,
@@ -1183,19 +1200,19 @@ def admin_approve_signup(user_id):
         # this company listing" on My Company if they should be the editor.
         existing_vendor = dbm.query(
             "SELECT id FROM vendors WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(?))",
-            (user["company"],),
+            (company,),
             one=True,
         )
         if not existing_vendor:
             dbm.execute(
                 "INSERT INTO vendors (seller_user_id, company_name, category, tagline, description, "
                 "website, accent, initials) VALUES (?, ?, 'Uncategorized', '', '', '', '#3b82f6', ?)",
-                (user_id, user["company"],
-                 "".join([w[0] for w in user["company"].split()[:2]]).upper() or "VN"),
+                (user_id, company,
+                 "".join([w[0] for w in company.split()[:2]]).upper() or "VN"),
             )
     log_activity(user_id, "account approved by admin")
     emailer.send_signup_decision(user["email"], approved=True, login_url=url_for("login", _external=True))
-    flash(f"{user['name']} approved.", "success")
+    flash(f"{name} approved.", "success")
     return redirect(url_for("admin_dashboard"))
 
 
@@ -3323,6 +3340,19 @@ def seller_company_vendor(user):
     )
 
 
+def company_registered_users(company_name):
+    """Everyone with an active BuyersForce account whose Account "Company"
+    field matches this vendor's company (case-insensitive/trimmed -- same
+    rule as seller_company_vendor), buyers and sellers alike. Shown on My
+    Company so anyone from the company (and BuyersForce admins) can see
+    who else from their company has an account."""
+    return dbm.query(
+        "SELECT name, email, role FROM users WHERE LOWER(TRIM(company)) = LOWER(TRIM(?)) "
+        "AND account_status = 'active' ORDER BY name",
+        (company_name,),
+    )
+
+
 @app.route("/app/seller")
 @role_required("seller")
 def seller_dashboard():
@@ -3366,7 +3396,12 @@ def seller_dashboard():
 @role_required("seller")
 def seller_profile():
     vendor = seller_company_vendor(g.user)
-    is_editor = bool(vendor) and vendor["seller_user_id"] == g.user["id"]
+    # Super-admin override: Kevin's admin account, or Kevin impersonating
+    # anyone via "View as" (session's impersonator_id), can edit ANY
+    # company's My Company listing -- including one someone else has
+    # already claimed -- so he can fix inappropriate content on any page.
+    is_super_admin = bool(g.user["is_admin"]) or bool(session.get("impersonator_id"))
+    is_editor = (bool(vendor) and vendor["seller_user_id"] == g.user["id"]) or is_super_admin
 
     if request.method == "POST":
         if not is_editor:
@@ -3442,13 +3477,14 @@ def seller_profile():
             # so a save never overwrites the vendor's existing accent color.
             "UPDATE vendors SET company_name=?, category=?, tagline=?, description=?, "
             "website=?, initials=?, logo_link_url=?, logo_upload_data_url=?, company_size=?, "
-            "founded_year=?, hq_location=?, contact_email=?, contact_phone=?, "
+            "founded_year=?, hq_location=?, contact_name=?, contact_email=?, contact_phone=?, "
             "contact_phone_country=? WHERE id=?",
             (
                 form["company_name"].strip(), category, form["tagline"].strip(),
                 form["description"].strip(), website,
                 initials, new_logo_link_url, new_logo_upload_data_url, company_size, founded_year,
-                form.get("hq_location", "").strip(), form.get("contact_email", "").strip(),
+                form.get("hq_location", "").strip(), form.get("contact_name", "").strip(),
+                form.get("contact_email", "").strip(),
                 form.get("contact_phone", "").strip(), contact_phone_country, vendor["id"],
             ),
         )
@@ -3484,6 +3520,11 @@ def seller_profile():
             phone_countries=PHONE_COUNTRIES,
         )
 
+    # Claim/report options are shown to everyone on the page, editor
+    # included -- Kevin wants a way to hand a listing off (e.g. the current
+    # editor leaves the company) even while someone still holds it, not
+    # just before anyone has claimed it. A pending claim only applies to
+    # whoever isn't already the editor, so it's None for the editor.
     pending_claim = None
     if not is_editor:
         pending_claim = dbm.query(
@@ -3499,6 +3540,7 @@ def seller_profile():
     listings = vendor_listings(vendor["id"])
     announcements = vendor_announcements(vendor["id"])
     awards = vendor_awards(vendor["id"])
+    registered_users = company_registered_users(vendor["company_name"])
     return render_template(
         "seller/profile.html", vendor=vendor, is_editor=is_editor, pending_claim=pending_claim,
         tags=tags, listings=listings,
@@ -3509,6 +3551,7 @@ def seller_profile():
         announcements=announcements, awards=awards,
         logo_url=vendor_display_logo_url(vendor),
         phone_countries=PHONE_COUNTRIES,
+        registered_users=registered_users,
     )
 
 
