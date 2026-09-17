@@ -3304,19 +3304,34 @@ def seller_profile():
         # row uses (_derive_vendor_accent_initials).
         initials = _derive_initials(form["company_name"].strip())
 
+        # A seller can type just the bare domain ("acme.com") -- the field
+        # is plain text now, not type="url", specifically so that isn't
+        # rejected by browser URL validation. Default the scheme to https://
+        # so the stored value is still a real, clickable URL everywhere else
+        # it's used (buyer/vendor.html's website link, etc.); a seller who
+        # explicitly types http:// gets to keep that instead.
+        website = form.get("website", "").strip()
+        if website and not re.match(r"^https?://", website, re.IGNORECASE):
+            website = "https://" + website
+
+        # Same phone_country pattern as account_profile()'s phone fields --
+        # see PHONE_COUNTRIES / static/js/phone-format.js. Defaults to US.
+        contact_phone_country = (form.get("contact_phone_country", "US").strip().upper() or "US")[:2]
+
         dbm.execute(
             # accent is no longer an editable field on this form (removed
             # per Kevin's request) -- deliberately left out of this UPDATE
             # so a save never overwrites the vendor's existing accent color.
             "UPDATE vendors SET company_name=?, category=?, tagline=?, description=?, "
             "website=?, initials=?, logo_link_url=?, logo_upload_data_url=?, company_size=?, "
-            "founded_year=?, hq_location=?, contact_email=?, contact_phone=? WHERE id=?",
+            "founded_year=?, hq_location=?, contact_email=?, contact_phone=?, "
+            "contact_phone_country=? WHERE id=?",
             (
                 form["company_name"].strip(), category, form["tagline"].strip(),
-                form["description"].strip(), form["website"].strip(),
+                form["description"].strip(), website,
                 initials, new_logo_link_url, new_logo_upload_data_url, company_size, founded_year,
                 form.get("hq_location", "").strip(), form.get("contact_email", "").strip(),
-                form.get("contact_phone", "").strip(), vendor["id"],
+                form.get("contact_phone", "").strip(), contact_phone_country, vendor["id"],
             ),
         )
         dbm.execute("DELETE FROM vendor_tags WHERE vendor_id=?", (vendor["id"],))
@@ -3354,6 +3369,7 @@ def seller_profile():
         company_sizes=COMPANY_SIZE_BANDS,
         announcements=announcements, awards=awards,
         logo_url=vendor_display_logo_url(vendor),
+        phone_countries=PHONE_COUNTRIES,
     )
 
 

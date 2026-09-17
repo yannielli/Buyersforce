@@ -155,6 +155,10 @@ CREATE TABLE vendors (
     hq_location TEXT,
     contact_email TEXT,
     contact_phone TEXT,
+    -- Which PHONE_COUNTRIES entry contact_phone is formatted/dialed for
+    -- (see app.py's phone-format.js wiring on My Company) -- mirrors
+    -- users.phone_country's role for the account phone fields.
+    contact_phone_country TEXT NOT NULL DEFAULT 'US',
     source TEXT NOT NULL DEFAULT '',
     -- A specific, verified Wikipedia/Wikimedia Commons logo image URL,
     -- set for admin-seeded vendors where one was found and quality-checked

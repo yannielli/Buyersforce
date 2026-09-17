@@ -55,6 +55,7 @@ def run_migrations():
             _add_vendor_requests_proposed_categories_column(cur)
             _add_vendor_logo_columns(cur)
             _add_vendor_announcements_and_awards_tables(cur)
+            _add_vendor_contact_phone_country_column(cur)
     finally:
         con.close()
 
@@ -874,6 +875,18 @@ def _add_vendor_announcements_and_awards_tables(cur):
         """
     )
 
+
+
+
+def _add_vendor_contact_phone_country_column(cur):
+    # Which PHONE_COUNTRIES entry contact_phone is formatted/dialed for --
+    # mirrors users.phone_country's role. Defaults every existing vendor
+    # row to 'US' so contact_phone (already free text) keeps rendering
+    # exactly as before until a seller actually picks a different country.
+    cur.execute(
+        "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contact_phone_country "
+        "TEXT NOT NULL DEFAULT 'US'"
+    )
 
 
 if __name__ == "__main__":

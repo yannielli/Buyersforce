@@ -16,7 +16,7 @@
       <div class="field"><label>Company name</label><input type="text" name="company_name" value="{{ vendor.company_name }}" required></div>
       <div class="field"><label>Tagline</label><input type="text" name="tagline" value="{{ vendor.tagline }}" placeholder="One line describing your product"></div>
       <div class="field"><label>Description</label><textarea name="description" placeholder="What does your product do, and for whom?">{{ vendor.description }}</textarea></div>
-      <div class="field"><label>Website</label><input type="url" name="website" value="{{ vendor.website }}" placeholder="https://"></div>
+      <div class="field"><label>Website</label><input type="text" name="website" value="{{ vendor.website }}" placeholder="yourcompany.com"><p class="hint" style="margin-top:4px;">Just the domain is fine — we'll add the https:// for you.</p></div>
 
       <div class="field" style="display:flex; align-items:flex-start; gap:14px;">
         <span id="logo-initials" class="vendor-logo"
@@ -77,8 +77,25 @@
       </div>
       <div class="form-row">
         <div class="field"><label>Contact email</label><input type="email" name="contact_email" value="{{ vendor.contact_email or '' }}"></div>
-        <div class="field"><label>Contact phone</label><input type="tel" name="contact_phone" value="{{ vendor.contact_phone or '' }}"></div>
+        <div class="field">
+          <label for="contact_phone">Contact phone</label>
+          <div style="display:flex; gap:8px;">
+            <select id="contact_phone_country" name="contact_phone_country" style="flex:0 0 118px; min-width:0;">
+              {% for code, name, dial in phone_countries %}
+              <option value="{{ code }}" data-dial="{{ dial }}" {% if (vendor.contact_phone_country or 'US') == code %}selected{% endif %}>
+                {{ code }}{% if dial %} +{{ dial }}{% endif %}
+              </option>
+              {% endfor %}
+            </select>
+            <input type="tel" id="contact_phone" name="contact_phone" value="{{ vendor.contact_phone or '' }}" placeholder="(555) 555-5555" style="flex:1 1 auto; min-width:0;">
+          </div>
+        </div>
       </div>
+      <script>
+        document.addEventListener("DOMContentLoaded", function () {
+          BFPhone.wire("contact_phone", "contact_phone_country");
+        });
+      </script>
 
       {% set picklist_label = "Technology Category" %}
       {% set picklist_hint = "Select every category your product fits — this is the first thing buyers search by." %}
