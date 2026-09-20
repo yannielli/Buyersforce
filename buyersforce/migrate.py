@@ -65,6 +65,7 @@ def run_migrations():
             _vendor_corrections_2026_09_20_b(cur)
             _vendor_corrections_2026_09_20_c(cur)
             _fill_vendor_websites_2026_09_20(cur)
+            _correct_authbase_profile_2026_09_20(cur)
     finally:
         con.close()
 
@@ -1212,6 +1213,39 @@ def _fill_vendor_websites_2026_09_20(cur):
         "description = description || ' Rebranded as Idira in 2026, built on "
         "CyberArk''s legacy and powered by Palo Alto Networks.' "
         "WHERE LOWER(TRIM(company_name)) = 'cyberark'"
+    )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) "
+        "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
+
+
+def _correct_authbase_profile_2026_09_20(cur):
+    # Kevin confirmed the authbasenetworks.com URL was correct -- our seed
+    # description was simply stale/wrong (described an old blockchain-auth
+    # business, not AuthBase's current AI/ML network defense product).
+    # Replaces the description and fills in company_size, hq_location, and
+    # founded_year with Kevin's supplied figures.
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches ("
+        "name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "correct_authbase_profile_2026_09_20"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    cur.execute(
+        "UPDATE vendors SET "
+        "description = 'AuthBase is a deeptech cybersecurity startup that uses "
+        "artificial intelligence and machine learning to identify and mitigate "
+        "attacks across networks.', "
+        "company_size = '11-50', "
+        "hq_location = 'Hyderabad, Telangana', "
+        "founded_year = 2016 "
+        "WHERE LOWER(TRIM(company_name)) = 'authbase'"
     )
 
     cur.execute(
