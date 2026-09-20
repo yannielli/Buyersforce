@@ -58,6 +58,7 @@ def run_migrations():
             _add_vendor_contact_phone_country_column(cur)
             _add_vendor_claim_and_report_tables(cur)
             _add_vendor_contact_name_column(cur)
+            _add_vendor_status_column(cur)
     finally:
         con.close()
 
@@ -936,6 +937,16 @@ def _add_vendor_contact_name_column(cur):
         "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contact_name "
         "TEXT NOT NULL DEFAULT ''"
     )
+
+
+def _add_vendor_status_column(cur):
+    # Soft-delete support for vendor listings (see schema.sql's comment on
+    # vendors.status) -- defaults every existing vendor to 'active' so
+    # nothing already listed disappears when this migration first runs.
+    cur.execute(
+        "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'"
+    )
+    cur.execute("ALTER TABLE vendors ADD COLUMN IF NOT EXISTS removed_at TEXT")
 
 
 if __name__ == "__main__":

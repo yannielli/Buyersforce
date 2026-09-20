@@ -1103,9 +1103,16 @@ def unblock_vendor(block_id):
 # Admin area -- invite-only access control
 # ---------------------------------------------------------------------------
 
-@app.route("/app/admin")
-@admin_required
-def admin_dashboard():
+def _viewer_is_super_admin():
+    """True for Kevin's own admin account, and for anyone he's impersonating
+    via "View as" (session's impersonator_id survives admin_view_as's
+    session-user-id swap -- see role_required's matching bypass). Used so a
+    removed vendor listing stays reachable by an admin (to review or
+    restore it) while staying hidden from everyone else."""
+    return bool(g.user["is_admin"]) or bool(session.get("impersonator_id"))
+
+
+def _admin_dashboard_context(removal_preview=None):
     users = dbm.query(
         "SELECT * FROM users WHERE is_admin = 0 AND account_status = 'active' ORDER BY company, role, name"
     )
@@ -1156,14 +1163,17 @@ def admin_dashboard():
         "LEFT JOIN users u ON u.id = lr.reported_by_user_id "
         "WHERE lr.status = 'open' ORDER BY lr.created_at DESC"
     )
+    removed_vendors = dbm.query(
+        "SELECT * FROM vendors WHERE status = 'removed' ORDER BY removed_at DESC"
+    )
     new_invite_link = None
     new_invite_id = request.args.get("new_invite", type=int)
     if new_invite_id:
         inv = dbm.query("SELECT * FROM invites WHERE id = ?", (new_invite_id,), one=True)
         if inv:
             new_invite_link = url_for("accept_invite", token=inv["token"], _external=True)
-    return render_template(
-        "admin/dashboard.html", users=users, pending_invites=pending_invites,
+    return dict(
+        users=users, pending_invites=pending_invites,
         pending_signups=pending_signups, pending_role_changes=pending_role_changes,
         open_support_requests=open_support_requests, support_category_labels=SUPPORT_CATEGORY_LABELS,
         pending_vendor_requests=pending_vendor_requests, vendor_request_kind_labels=VENDOR_REQUEST_KIND_LABELS,
@@ -1171,7 +1181,92 @@ def admin_dashboard():
         all_segments=known_segments, all_technology_categories=known_categories,
         company_sizes=COMPANY_SIZE_BANDS,
         new_invite_link=new_invite_link,
+        removed_vendors=removed_vendors,
+        removal_preview=removal_preview,
     )
+
+
+@app.route("/app/admin")
+@admin_required
+def admin_dashboard():
+    return render_template("admin/dashboard.html", **_admin_dashboard_context())
+
+
+def _parse_bulk_vendor_names(raw_text):
+    """Split a pasted list of company names on newlines or commas, trim
+    each, and drop case-insensitive duplicates (keeping the first spelling
+    seen) -- so a name pasted twice by mistake is only looked up once."""
+    seen = set()
+    names = []
+    for line in raw_text.replace(",", "\n").split("\n"):
+        name = line.strip()
+        if not name:
+            continue
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        names.append(name)
+    return names
+
+
+@app.route("/app/admin/vendors/remove", methods=("POST",))
+@admin_required
+def admin_vendors_remove():
+    """Bulk-hide vendor listings from Discover/All Vendors (soft delete --
+    see the vendors.status column). Two-step: a first submit (no
+    "confirmed" field) only previews which pasted names matched an active
+    listing and which didn't, without changing anything; the template then
+    re-shows the same list with a hidden confirmed=1 field so a second
+    submit actually removes the matched ones. Reversible any time from the
+    "Recently removed" list (admin_vendor_restore)."""
+    raw_text = request.form.get("names", "")
+    confirmed = request.form.get("confirmed") == "1"
+    names = _parse_bulk_vendor_names(raw_text)
+
+    matched = []
+    not_found = []
+    for name in names:
+        vendor = dbm.query(
+            "SELECT * FROM vendors WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(?)) AND status = 'active'",
+            (name,), one=True,
+        )
+        if vendor:
+            matched.append(vendor)
+        else:
+            not_found.append(name)
+
+    if confirmed:
+        for vendor in matched:
+            dbm.execute(
+                "UPDATE vendors SET status='removed', "
+                "removed_at=to_char(now(), 'YYYY-MM-DD HH24:MI:SS') WHERE id=?",
+                (vendor["id"],),
+            )
+            log_activity(g.user["id"], f"removed vendor listing: {vendor['company_name']}")
+        if matched:
+            flash(f"Removed {len(matched)} listing(s) from BuyersForce.", "success")
+        if not_found:
+            flash(
+                "Not found (already removed, or the name didn't match exactly): "
+                + ", ".join(not_found),
+                "error",
+            )
+        return redirect(url_for("admin_dashboard"))
+
+    removal_preview = {"raw_text": raw_text, "matched": matched, "not_found": not_found}
+    return render_template("admin/dashboard.html", **_admin_dashboard_context(removal_preview=removal_preview))
+
+
+@app.route("/app/admin/vendors/<int:vendor_id>/restore", methods=("POST",))
+@admin_required
+def admin_vendor_restore(vendor_id):
+    vendor = dbm.query("SELECT * FROM vendors WHERE id=? AND status='removed'", (vendor_id,), one=True)
+    if vendor:
+        dbm.execute("UPDATE vendors SET status='active', removed_at=NULL WHERE id=?", (vendor_id,))
+        log_activity(g.user["id"], f"restored vendor listing: {vendor['company_name']}")
+        flash(f"{vendor['company_name']} restored.", "success")
+    return redirect(url_for("admin_dashboard"))
 
 
 @app.route("/app/admin/signups/<int:user_id>/approve", methods=("POST",))
@@ -2424,7 +2519,7 @@ def buyer_discover():
     technology_categories = [
         c for c in request.args.getlist("technology_category") if c in known_categories
     ]
-    sql = "SELECT * FROM vendors WHERE 1=1"
+    sql = "SELECT * FROM vendors WHERE 1=1 AND status = 'active'"
     args = []
     if technology_categories:
         placeholders = ",".join(["?"] * len(technology_categories))
@@ -2577,6 +2672,9 @@ def buyer_vendor(vendor_id):
     vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
     if not vendor:
         abort(404)
+    if vendor["status"] == "removed" and not _viewer_is_super_admin():
+        flash("That vendor is no longer listed on BuyersForce.", "error")
+        return redirect(url_for("buyer_discover"))
     listings = vendor_listings(vendor_id)
     tags = vendor_tags(vendor_id)
     segments = vendor_segments(vendor_id)
@@ -3761,7 +3859,7 @@ def seller_all_vendors():
     technology_categories = [
         c for c in request.args.getlist("technology_category") if c in known_categories
     ]
-    sql = "SELECT * FROM vendors WHERE 1=1"
+    sql = "SELECT * FROM vendors WHERE 1=1 AND status = 'active'"
     args = []
     if technology_categories:
         placeholders = ",".join(["?"] * len(technology_categories))
@@ -3842,6 +3940,9 @@ def seller_view_vendor(vendor_id):
     vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
     if not vendor:
         abort(404)
+    if vendor["status"] == "removed" and not _viewer_is_super_admin():
+        flash("That vendor is no longer listed on BuyersForce.", "error")
+        return redirect(url_for("seller_all_vendors"))
     tags = vendor_tags(vendor_id)
     segments = vendor_segments(vendor_id)
     announcements = vendor_announcements(vendor_id)

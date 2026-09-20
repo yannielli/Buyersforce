@@ -155,6 +155,13 @@ CREATE TABLE vendors (
     company_size TEXT,
     founded_year INTEGER,
     hq_location TEXT,
+    -- Soft delete for a listing: 'removed' hides it from Discover/All
+    -- Vendors and from its own profile page for everyone but an admin, but
+    -- keeps the row (and anything referencing it -- evaluations, ratings,
+    -- shortlist entries) intact and restorable. See app.py's
+    -- admin_vendors_remove/admin_vendor_restore.
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'removed')),
+    removed_at TEXT,
     -- Primary human contact for this listing (buyers and other sellers at
     -- the same company see this alongside contact_email/contact_phone).
     contact_name TEXT NOT NULL DEFAULT '',

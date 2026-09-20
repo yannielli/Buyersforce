@@ -324,4 +324,52 @@
     {% endif %}
   </div>
 </div>
+
+<div class="section-title"><h2>Manage vendor listings</h2></div>
+<div class="card" style="margin-bottom:24px;">
+  <h3 style="font-size:14.5px;">Remove listings</h3>
+  <p class="hint" style="margin-bottom:12px;">Paste company names, one per line (or comma-separated)
+    -- this hides them from Discover and All Vendors right away. It's reversible any time from
+    "Recently removed" below.</p>
+  <form method="post" action="{{ url_for('admin_vendors_remove') }}">
+    <textarea name="names" rows="6" style="width:100%; font-size:13px; padding:8px; font-family:inherit;" placeholder="Acme Corp&#10;Old Vendor Inc.">{{ removal_preview.raw_text if removal_preview else '' }}</textarea>
+    {% if removal_preview %}
+    <input type="hidden" name="confirmed" value="1">
+    {% endif %}
+    <button class="btn btn-primary" type="submit" style="margin-top:10px;">
+      {% if removal_preview %}Confirm removal of {{ removal_preview.matched|length }} listing(s){% else %}Preview{% endif %}
+    </button>
+  </form>
+  {% if removal_preview %}
+  <div style="margin-top:16px;">
+    {% if removal_preview.matched %}
+    <p class="hint" style="font-weight:600;">Will remove {{ removal_preview.matched|length }} listing(s):</p>
+    <ul style="margin:6px 0 12px 18px; font-size:13px;">
+      {% for v in removal_preview.matched %}<li>{{ v.company_name }}{% if v.company_size %} ({{ v.company_size }}){% endif %}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% if removal_preview.not_found %}
+    <p class="hint" style="color:var(--warning-ink-vivid); font-weight:600;">Not found (check spelling) -- skipped:</p>
+    <p class="hint">{{ removal_preview.not_found|join(', ') }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if removed_vendors %}
+<div class="card" style="margin-bottom:24px;">
+  <h3 style="font-size:14.5px;">Recently removed ({{ removed_vendors|length }})</h3>
+  {% for v in removed_vendors %}
+  <div class="mock-row">
+    <span>
+      <strong style="font-size:14px;">{{ v.company_name }}</strong>
+      <div class="hint">Removed {{ v.removed_at }}</div>
+    </span>
+    <form method="post" action="{{ url_for('admin_vendor_restore', vendor_id=v.id) }}">
+      <button class="btn btn-secondary btn-sm" type="submit">Restore</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 {% endblock %}
