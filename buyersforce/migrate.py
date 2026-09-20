@@ -447,12 +447,13 @@ def _seed_vendor_directory(cur):
                 INSERT INTO vendors (
                     seller_user_id, company_name, category, tagline, description,
                     website, accent, initials, company_size, source
-                ) VALUES (NULL, %s, %s, '', %s, %s, %s, %s, %s, %s)
+                ) VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (
                     name,
                     categories[0] if categories else "Uncategorized",
+                    entry.get("tagline") or "",
                     entry.get("description") or "",
                     entry.get("website") or "",
                     accent,

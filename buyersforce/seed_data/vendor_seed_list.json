@@ -2752,5 +2752,519 @@
     "company_size": "201-500",
     "source": "manual (Kevin, Sept 2026)",
     "wiki_logo_url": null
+  },
+  {
+    "name": "7AI",
+    "categories": [
+      "SIEM/SOAR/XDR",
+      "Incident Response & Forensics",
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "tagline": "Foundational AI Security",
+    "description": "Provides an agentic AI security platform that autonomously investigates and triages security alerts end-to-end across detection, response, and threat hunting, including a federated SIEM that queries data in place.",
+    "website": "https://7ai.com",
+    "company_size": "51-200",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Abnormal",
+    "categories": [
+      "Email Security",
+      "Identity & Access Management"
+    ],
+    "tagline": "We Stop Attacks Others Can't",
+    "description": "Provides a behavioral AI security platform that detects and stops phishing, business email compromise, account takeover, and insider threats across email, identity systems, and AI tool usage.",
+    "website": "https://www.abnormal.ai",
+    "company_size": "1001-5000",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "AirMDR",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)",
+      "Incident Response & Forensics"
+    ],
+    "tagline": "Agentic MDR: AI that triages and investigates alerts end-to-end",
+    "description": "Offers an AI-powered managed detection and response (MDR) service that uses a virtual security analyst to automatically triage and investigate security alerts around the clock.",
+    "website": "https://www.airmdr.com",
+    "company_size": "11-50",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Atlant",
+    "categories": [
+      "GRC & Compliance",
+      "Penetration Testing/Offensive Security"
+    ],
+    "tagline": "Cybersecurity run by senior engineers",
+    "description": "A boutique cybersecurity consulting firm providing fixed-price security audits, SOC 2 compliance readiness, virtual CISO services, and penetration testing, primarily for B2B SaaS and fintech companies.",
+    "website": "https://atlantsecurity.com",
+    "company_size": "1-10",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Augur Security",
+    "categories": [
+      "Threat Intelligence"
+    ],
+    "tagline": "Preemptive Cybersecurity",
+    "description": "Provides an AI-driven threat intelligence platform that analyzes global internet telemetry (DNS, BGP, domain registration) to identify malicious attacker infrastructure before it is weaponized in attacks.",
+    "website": "https://www.augursecurity.com",
+    "company_size": "11-50",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Barracuda Networks",
+    "categories": [
+      "Email Security",
+      "Network Security",
+      "Backup & Ransomware Recovery"
+    ],
+    "tagline": "Complete cyber resilience for all size business",
+    "description": "Provides a broad cybersecurity portfolio spanning email protection, network security (firewalls, SASE), application security (WAF), data backup/recovery, and managed XDR services for organizations of all sizes.",
+    "website": "https://www.barracuda.com",
+    "company_size": "1001-5000",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Barracuda_Networks_logo.svg"
+  },
+  {
+    "name": "Chainguard",
+    "categories": [
+      "Supply Chain/Third-Party Risk",
+      "Application Security"
+    ],
+    "tagline": "Secure-by-default open source software",
+    "description": "Provides hardened, minimal-vulnerability open source software artifacts -- including container images, language libraries, and OS packages -- built with verified SBOMs and provenance to reduce software supply chain risk.",
+    "website": "https://www.chainguard.dev",
+    "company_size": "201-500",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Cisco Security",
+    "categories": [
+      "Network Security",
+      "Zero Trust/SASE",
+      "SIEM/SOAR/XDR"
+    ],
+    "tagline": "Protect users, devices, apps, and data with an open, network-native platform",
+    "description": "Cisco's security business unit provides network-native cybersecurity products spanning firewalls and cloud/AI workload protection, zero-trust and identity access (Duo, ISE, Secure Access/SASE), and unified threat detection via Splunk Enterprise Security and Cisco Talos threat intelligence.",
+    "website": "https://www.cisco.com/site/us/en/products/security/index.html",
+    "company_size": "10000+",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Cisco_logo_blue_2016.svg"
+  },
+  {
+    "name": "Coalfire",
+    "categories": [
+      "GRC & Compliance",
+      "Penetration Testing/Offensive Security"
+    ],
+    "tagline": "We keep businesses secured on all sides",
+    "description": "Provides cybersecurity compliance and advisory services -- including FedRAMP, CMMC, and HITRUST assessments -- along with offensive/defensive security testing and managed security services.",
+    "website": "https://coalfire.com",
+    "company_size": "1001-5000",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Corelight",
+    "categories": [
+      "Network Security",
+      "SIEM/SOAR/XDR"
+    ],
+    "tagline": "Disrupt future attacks with complete network visibility",
+    "description": "Provides an evidence-based network detection and response (NDR) platform that uses passive network monitoring and machine learning to deliver visibility, threat detection, and rapid incident investigation across on-prem, cloud, and hybrid environments.",
+    "website": "https://corelight.com",
+    "company_size": "201-500",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Cribl",
+    "categories": [
+      "SIEM/SOAR/XDR"
+    ],
+    "tagline": "Your AI Platform for Telemetry",
+    "description": "Provides a vendor-agnostic data pipeline and observability platform that collects, processes, and routes IT and security telemetry to destinations such as SIEMs, data lakes, and cloud storage, used to control telemetry costs and avoid tool lock-in.",
+    "website": "https://cribl.io",
+    "company_size": "1001-5000",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Cyera",
+    "categories": [
+      "Data Security & Privacy",
+      "Cloud Security"
+    ],
+    "tagline": "Building the Trust Layer for the Agentic Era",
+    "description": "Provides an AI-native data security platform that discovers, classifies, and governs sensitive data across cloud, SaaS, on-premises, and AI systems, including data security posture management (DSPM) and data loss prevention (DLP) capabilities.",
+    "website": "https://www.cyera.com",
+    "company_size": "1001-5000",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Fortra",
+    "categories": [
+      "Data Security & Privacy",
+      "Email Security",
+      "Penetration Testing/Offensive Security"
+    ],
+    "tagline": "Protect Your Data From AI, With AI",
+    "description": "Provides a portfolio of cybersecurity products spanning data security posture management, data classification and loss prevention, email security/anti-phishing, and offensive security testing tools. Formed from the rebranding of HelpSystems following a series of cybersecurity acquisitions.",
+    "website": "https://www.fortra.com",
+    "company_size": "1001-5000",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Google",
+    "categories": [
+      "Cloud Security",
+      "SIEM/SOAR/XDR",
+      "Threat Intelligence"
+    ],
+    "tagline": "Make Google part of your security team",
+    "description": "Google Cloud's security business offers a cloud-native SIEM/security-operations platform (Google Security Operations), threat intelligence combining Mandiant and VirusTotal data, and AI-specific security tooling to protect AI models and applications.",
+    "website": "https://cloud.google.com/security",
+    "company_size": "10000+",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Google_2026_logo.svg"
+  },
+  {
+    "name": "Horizon3.ai",
+    "categories": [
+      "Penetration Testing/Offensive Security",
+      "Vulnerability Management"
+    ],
+    "tagline": "Go hack yourself. Before they do.",
+    "description": "Develops NodeZero, an autonomous penetration-testing and attack-path validation platform that continuously simulates real-world attacks against an organization's networks, applications, cloud, data, and identity systems to find and verify remediation of exploitable weaknesses.",
+    "website": "https://horizon3.ai",
+    "company_size": "201-500",
+    "source": "official website",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Huntress",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)",
+      "Endpoint Security",
+      "Security Awareness Training"
+    ],
+    "tagline": "Hackers Wrecked. Your Enterprise Secured.",
+    "description": "Provides a managed cybersecurity platform combining managed endpoint detection and response (EDR), identity threat detection and response (ITDR), managed SIEM, and security awareness training, backed by a 24/7 human-staffed SOC, aimed primarily at small/midsize businesses and the MSPs that serve them.",
+    "website": "https://www.huntress.com",
+    "company_size": "501-1000",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Hyperproof",
+    "categories": [
+      "GRC & Compliance"
+    ],
+    "tagline": "The GRC Platform That Gets Work Done",
+    "description": "Provides a governance, risk, and compliance (GRC) SaaS platform that automates compliance workflows, evidence collection, and continuous control monitoring across 160+ regulatory frameworks and standards.",
+    "website": "https://www.hyperproof.io",
+    "company_size": "51-200",
+    "source": "official website",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Ivanti",
+    "categories": [
+      "Endpoint Security",
+      "Vulnerability Management",
+      "Network Security"
+    ],
+    "tagline": "All Your Endpoints, Proactively Protected & Managed",
+    "description": "Provides IT and security software for unified endpoint management, IT service management, and network security, including secure-access/VPN gateways (Ivanti Connect Secure) and vulnerability management tooling.",
+    "website": "https://www.ivanti.com",
+    "company_size": "1001-5000",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Ivanti_Logo_RGB_red.svg"
+  },
+  {
+    "name": "Kroll",
+    "categories": [
+      "Incident Response & Forensics",
+      "Managed Security Services (MSSP/MDR)",
+      "Penetration Testing/Offensive Security"
+    ],
+    "tagline": "Elite security expertise built on frontline incident response intelligence",
+    "description": "Kroll's cyber practice provides digital forensics and incident response, proactive threat exposure management (penetration testing and red teaming), managed detection and response, and cyber risk/compliance advisory services.",
+    "website": "https://www.kroll.com/en/services/cyber",
+    "company_size": "5001-10000",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Kroll_Inc._Logo.svg"
+  },
+  {
+    "name": "Kusari",
+    "categories": [
+      "Supply Chain/Third-Party Risk",
+      "Vulnerability Management"
+    ],
+    "tagline": "Know what's really in your software.",
+    "description": "Provides a software supply chain security platform that maps direct and transitive code dependencies from source and build systems to identify vulnerabilities at their source, prioritizing genuine risk via reachability analysis and generating automated remediation pull requests.",
+    "website": "https://kusari.dev",
+    "company_size": "11-50",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "LevelBlue",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)",
+      "Threat Intelligence",
+      "Network Security"
+    ],
+    "tagline": "Relentless defense. Global scale.",
+    "description": "Operates as a managed security services provider (MSSP) offering managed detection and response, cloud and network security, incident response, cyber advisory, and threat intelligence; formed in 2024 as an independent joint venture built on the former AT&T Cybersecurity/AlienVault business.",
+    "website": "https://www.levelblue.com",
+    "company_size": "1001-5000",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Mandiant (Google)",
+    "categories": [
+      "Incident Response & Forensics",
+      "Threat Intelligence",
+      "Penetration Testing/Offensive Security"
+    ],
+    "tagline": "Elevate your cyber defense, from incident response to business resilience",
+    "description": "Provides incident response, threat intelligence, and cybersecurity consulting services -- including compromise assessments, red team testing, and cyber risk management -- operating as Google Cloud's cybersecurity consulting brand following Google's 2022 acquisition of Mandiant.",
+    "website": "https://cloud.google.com/security/mandiant",
+    "company_size": "1001-5000",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Mandiant_logo.svg"
+  },
+  {
+    "name": "Manifold Security",
+    "categories": [
+      "Endpoint Security",
+      "Identity & Access Management"
+    ],
+    "tagline": "Endpoint Security for the Agentic Workforce",
+    "description": "Provides runtime security and visibility for autonomous AI agents operating on corporate endpoints, mapping agents' tool calls, connected resources, and privilege paths, and offering real-time detection and response for agent misuse.",
+    "website": "https://www.manifold.security",
+    "company_size": "11-50",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Microsoft",
+    "categories": [
+      "SIEM/SOAR/XDR",
+      "Identity & Access Management",
+      "Cloud Security"
+    ],
+    "tagline": "Defend continuously with AI-powered security",
+    "description": "Offers an enterprise security product portfolio including Microsoft Defender (XDR across endpoints, identities, apps, email, and cloud), Microsoft Sentinel (cloud-native SIEM), Microsoft Entra (identity and access management), Microsoft Purview (data security, governance, and compliance), and Microsoft Intune (endpoint/device management).",
+    "website": "https://www.microsoft.com/en-us/security",
+    "company_size": "10000+",
+    "source": "official website",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Microsoft_logo_(2012).svg"
+  },
+  {
+    "name": "Netwrix",
+    "categories": [
+      "Data Security & Privacy",
+      "Identity & Access Management",
+      "GRC & Compliance"
+    ],
+    "tagline": "Data Security that Starts with Identity",
+    "description": "Provides a unified data security and identity governance platform offering data discovery and classification, data access governance, identity threat detection, privileged access management, and compliance auditing.",
+    "website": "https://www.netwrix.com",
+    "company_size": "501-1000",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Netwrix_logo.png"
+  },
+  {
+    "name": "Oligo Security",
+    "categories": [
+      "Application Security",
+      "Cloud Security",
+      "Vulnerability Management"
+    ],
+    "tagline": "The Runtime Security Platform for the AI Era",
+    "description": "Provides an eBPF-based runtime application security platform that detects exploits and zero-day attacks in running processes, prioritizes vulnerabilities actually loaded in memory to cut false positives, and extends protection to AI/LLM workloads and agents.",
+    "website": "https://www.oligo.security",
+    "company_size": "51-200",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Oneleet",
+    "categories": [
+      "GRC & Compliance"
+    ],
+    "tagline": "Compliance done fast and secure",
+    "description": "Provides a compliance automation platform that helps SaaS companies obtain and maintain certifications such as SOC 2 and ISO 27001, consolidating multi-framework compliance work and automatically gathering evidence via integrations with development and business tools.",
+    "website": "https://oneleet.com",
+    "company_size": "11-50",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Optro",
+    "categories": [
+      "GRC & Compliance",
+      "Supply Chain/Third-Party Risk"
+    ],
+    "tagline": "GRC Intelligence",
+    "description": "Provides an AI-powered governance, risk, and compliance (GRC) platform covering audit management, risk oversight, information security, and regulatory compliance tracking; the company rebranded from AuditBoard to Optro in 2026.",
+    "website": "https://optro.ai",
+    "company_size": "201-500",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Radicl",
+    "categories": [
+      "Managed Security Services (MSSP/MDR)",
+      "GRC & Compliance",
+      "Vulnerability Management"
+    ],
+    "tagline": "Your dedicated vSOC and compliance partner",
+    "description": "Provides a managed cybersecurity-as-a-service platform -- a virtual security operations center combining AI-driven managed detection and response, compliance management (including CMMC and NIST 800-171), log analytics, and attack-surface management -- aimed primarily at Defense Industrial Base contractors and other regulated small/mid-sized businesses.",
+    "website": "https://www.radicl.com",
+    "company_size": "1-10",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "RegScale",
+    "categories": [
+      "GRC & Compliance"
+    ],
+    "tagline": "Streamline Your Governance, Risk, & Compliance",
+    "description": "Provides a continuous controls monitoring (CCM) platform that automates governance, risk, and compliance (GRC) workflows, including evidence collection and audit readiness across frameworks such as FedRAMP, NIST 800-53, and CMMC.",
+    "website": "https://www.regscale.com",
+    "company_size": "51-200",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "ReliaQuest",
+    "categories": [
+      "SIEM/SOAR/XDR",
+      "Managed Security Services (MSSP/MDR)"
+    ],
+    "tagline": "Make Security Possible",
+    "description": "Operates GreyMatter, an agentic AI security operations platform that unifies threat detection, investigation, and automated response across multi-cloud and multi-SIEM environments, delivered with managed detection and response services.",
+    "website": "https://reliaquest.com",
+    "company_size": "1001-5000",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/ReliaQuest_logo_2025.png"
+  },
+  {
+    "name": "Silent Push",
+    "categories": [
+      "Threat Intelligence"
+    ],
+    "tagline": "Preemptive Cyber Defense",
+    "description": "Provides an external threat intelligence platform that mines DNS, certificate, and WHOIS data to identify malicious infrastructure before it is weaponized, marketed as 'Indicators of Future Attack' (IOFA).",
+    "website": "https://www.silentpush.com",
+    "company_size": "51-200",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "StrongDM",
+    "categories": [
+      "Identity & Access Management",
+      "Zero Trust/SASE"
+    ],
+    "tagline": "Least privilege access built for infrastructure that never stops changing",
+    "description": "Provides a zero-trust privileged access management (PAM) platform that centralizes, brokers, and audits human and AI-agent access to servers, databases, Kubernetes, and cloud infrastructure through a single gateway. Acquired by Delinea, with the deal closing around March 2026.",
+    "website": "https://www.strongdm.com",
+    "company_size": "51-200",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/StrongDM_corporate_logo.png"
+  },
+  {
+    "name": "Sublime",
+    "categories": [
+      "Email Security"
+    ],
+    "tagline": "Stop advanced email attacks before they reach users",
+    "description": "Provides an AI-agent-driven email security platform that detects, adapts to, and remediates phishing and other email-based attacks while exposing detection logic to customers.",
+    "website": "https://sublime.security",
+    "company_size": "51-200",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Tailscale",
+    "categories": [
+      "Zero Trust/SASE",
+      "Network Security"
+    ],
+    "tagline": "The connectivity platform for devs, IT, and security teams",
+    "description": "Provides a zero-configuration mesh VPN built on WireGuard that creates identity-based, encrypted overlay networks connecting devices, servers, and cloud resources across on-prem, multi-cloud, and edge environments.",
+    "website": "https://tailscale.com",
+    "company_size": "201-500",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Tailscale-Logo-Black.svg"
+  },
+  {
+    "name": "Teleport",
+    "categories": [
+      "Identity & Access Management",
+      "Zero Trust/SASE"
+    ],
+    "tagline": "Unified Identity Securing Classic & AI Infrastructure",
+    "description": "Provides an infrastructure identity platform that replaces static credentials with short-lived cryptographic identity and just-in-time privileges for humans, machines, and AI agents accessing servers, databases, Kubernetes, and cloud applications.",
+    "website": "https://goteleport.com",
+    "company_size": "201-500",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Twingate",
+    "categories": [
+      "Zero Trust/SASE",
+      "Network Security"
+    ],
+    "tagline": "Security, Performance, Simplicity. Pick Three.",
+    "description": "Provides a zero-trust network access (ZTNA) platform that replaces traditional corporate VPNs with identity-based access controls, plus DNS-based internet content filtering and an identity firewall.",
+    "website": "https://www.twingate.com",
+    "company_size": "51-200",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Upwind",
+    "categories": [
+      "Cloud Security",
+      "Vulnerability Management"
+    ],
+    "tagline": "Cloud & AI Security from the Inside-Out",
+    "description": "Provides a cloud-native application protection platform (CNAPP) that combines agentless scanning with runtime sensors to deliver near-real-time cloud asset inventory, exposure/vulnerability prioritization, and threat detection.",
+    "website": "https://www.upwind.io",
+    "company_size": "201-500",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
+  },
+  {
+    "name": "Zero Networks",
+    "categories": [
+      "Network Security",
+      "Zero Trust/SASE"
+    ],
+    "tagline": "We contain it. You keep running.",
+    "description": "Provides an automated microsegmentation and zero-trust platform that discovers assets, identities, and AI agents on a network and enforces least-privilege policies to block lateral movement and contain breaches, including secure remote access.",
+    "website": "https://zeronetworks.com",
+    "company_size": "51-200",
+    "source": "official website + public reporting",
+    "wiki_logo_url": null
   }
 ]
