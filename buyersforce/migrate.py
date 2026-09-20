@@ -62,6 +62,7 @@ def run_migrations():
             _remove_discontinued_vendor_listings_2026_09_20(cur)
             _remove_discontinued_vendor_listings_2026_09_20_addendum(cur)
             _rename_symantec_to_broadcom_2026_09_20(cur)
+            _vendor_corrections_2026_09_20_b(cur)
     finally:
         con.close()
 
@@ -1061,6 +1062,64 @@ def _rename_symantec_to_broadcom_2026_09_20(cur):
         "website = 'https://www.broadcom.com/products/cybersecurity' "
         "WHERE LOWER(TRIM(company_name)) = 'symantec'"
     )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) "
+        "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
+
+
+def _vendor_corrections_2026_09_20_b(cur):
+    # Kevin's follow-up correction batch (2026-09-20): description notes
+    # for 8 existing listings (acquisitions, mergers, rebrands), and 5
+    # soft-removals for listings now superseded by another listing (their
+    # solutions are folded into that listing's own description instead).
+    # Same reversible status='removed' flag as admin_vendors_remove /
+    # _remove_discontinued_vendor_listings_2026_09_20. Guarded by
+    # _data_patches so this runs exactly once.
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches ("
+        "name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "vendor_corrections_2026_09_20_b"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    description_appends = [
+        ("Delinea (Thycotic)", " Includes acquired StrongDM solution(s)."),
+        ("Augur Security", " The company rebranded from SecLytics to Augur Security in 2025."),
+        ("LevelBlue", " Formerly AT&T Cybersecurity; includes acquired Cybereason, AlienVault, "
+                      "Trustwave, and Alert Logic solution(s)."),
+        ("Aegis Shield", " Acquired by Suncio."),
+        ("Wiz", " Acquired by Google."),
+        ("Exabeam", " Includes merger of LogRhythm solution(s)."),
+        ("Mimecast (EdgeWave)", " Acquired by Permira private equity."),
+        ("Proofpoint", " Acquired by Thoma Bravo private equity."),
+    ]
+    for name, suffix in description_appends:
+        cur.execute(
+            "UPDATE vendors SET description = description || %s "
+            "WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(%s))",
+            (suffix, name),
+        )
+
+    removed_names = [
+        "StrongDM",
+        "Cybereason",
+        "AT&T Cybersecurity (AlienVault)",
+        "FireEye",
+        "LogRhythm",
+    ]
+    for name in removed_names:
+        cur.execute(
+            "UPDATE vendors SET status = 'removed', "
+            "removed_at = to_char(now(), 'YYYY-MM-DD HH24:MI:SS') "
+            "WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(%s)) "
+            "AND status = 'active'",
+            (name,),
+        )
 
     cur.execute(
         "INSERT INTO _data_patches (name, applied_at) "

@@ -3266,5 +3266,60 @@
     "company_size": "51-200",
     "source": "official website + public reporting",
     "wiki_logo_url": null
+  },
+  {
+    "name": "Datadog",
+    "categories": [
+      "Cloud Security",
+      "Application Security",
+      "SIEM/SOAR/XDR"
+    ],
+    "tagline": "AI-Powered Observability and Security",
+    "description": "Offers Cloud Security Management (cloud security posture management, cloud infrastructure entitlement management, and cloud workload protection) and Application Security Management (runtime application self-protection and vulnerability detection) as security modules on its observability platform, plus Cloud SIEM for threat detection using telemetry already ingested by the platform.",
+    "website": "https://www.datadoghq.com",
+    "company_size": "5001-10000",
+    "source": "official website + Wikipedia",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Datadog.png"
+  },
+  {
+    "name": "New Relic",
+    "categories": [
+      "Vulnerability Management",
+      "Cloud Security"
+    ],
+    "tagline": "Observability built to understand AI",
+    "description": "Provides an observability and application performance monitoring (APM) platform for cloud and web/mobile applications, with security-adjacent capabilities including vulnerability management integrations and Kubernetes monitoring for containerized environments.",
+    "website": "https://newrelic.com",
+    "company_size": "1001-5000",
+    "source": "official website + Wikipedia + press coverage",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/New_Relic_logo.svg"
+  },
+  {
+    "name": "Trellix",
+    "categories": [
+      "SIEM/SOAR/XDR",
+      "Endpoint Security",
+      "Email Security"
+    ],
+    "tagline": "Intelligence-led Cyber Resilience",
+    "description": "Delivers an extended detection and response (XDR) platform spanning endpoint, network, email, data, and cloud security, unified with AI-powered threat detection and a security operations console; includes former FireEye and McAfee Enterprise solution(s), following Symphony Technology Group's 2021 combination of the two companies' enterprise security businesses.",
+    "website": "https://www.trellix.com",
+    "company_size": "1001-5000",
+    "source": "official website + Wikipedia + press coverage",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Trellix_Logo.svg"
+  },
+  {
+    "name": "Skyhigh Security",
+    "categories": [
+      "Zero Trust/SASE",
+      "Data Security & Privacy",
+      "Cloud Security"
+    ],
+    "tagline": "AI-Powered, Data-First Security Service Edge",
+    "description": "Provides a Security Service Edge (SSE) platform combining cloud access security broker (CASB), secure web gateway, and data loss prevention (DLP) capabilities, along with data security posture management, to protect data across cloud, web, and private application access.",
+    "website": "https://www.skyhighsecurity.com",
+    "company_size": "501-1000",
+    "source": "official website + Wikipedia + press coverage",
+    "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Skyhigh_Security_png_logo.png"
   }
 ]
