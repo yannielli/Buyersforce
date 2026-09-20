@@ -64,6 +64,7 @@ def run_migrations():
             _rename_symantec_to_broadcom_2026_09_20(cur)
             _vendor_corrections_2026_09_20_b(cur)
             _vendor_corrections_2026_09_20_c(cur)
+            _fill_vendor_websites_2026_09_20(cur)
     finally:
         con.close()
 
@@ -1158,6 +1159,60 @@ def _vendor_corrections_2026_09_20_c(cur):
             "WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(%s))",
             (suffix, name),
         )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) "
+        "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
+
+
+def _fill_vendor_websites_2026_09_20(cur):
+    # Kevin supplied website URLs for several listings that had none (all
+    # verified to resolve and belong to the named company). Also corrects
+    # "Seklarity" to its real spelling "Seclarity" (confirmed via the
+    # company's own site), and updates CyberArk's website/description now
+    # that its 2026 rebrand to "Idira" under Palo Alto Networks checked
+    # out as real (independently confirmed via press coverage) rather than
+    # the unverifiable claim it looked like in the prior batch.
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches ("
+        "name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "fill_vendor_websites_2026_09_20"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    websites = [
+        ("Authbase", "https://www.authbasenetworks.com"),
+        ("Cryptosense", "https://cryptosense.com"),
+        ("Haystax", "https://app.haystax.com"),
+        ("Seklarity", "https://seclarity.net"),
+        ("Simulint", "https://www.simulint.com"),
+        ("Virgil Security", "https://virgilsecurity.com"),
+    ]
+    for name, website in websites:
+        cur.execute(
+            "UPDATE vendors SET website = %s "
+            "WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(%s)) "
+            "AND (website IS NULL OR website = '')",
+            (website, name),
+        )
+
+    # Fix the misspelled company name now that "Seclarity" is confirmed.
+    cur.execute(
+        "UPDATE vendors SET company_name = 'Seclarity' "
+        "WHERE LOWER(TRIM(company_name)) = 'seklarity'"
+    )
+
+    # CyberArk: point at its new Idira product page and note the rebrand.
+    cur.execute(
+        "UPDATE vendors SET website = 'https://www.paloaltonetworks.com/idira', "
+        "description = description || ' Rebranded as Idira in 2026, built on "
+        "CyberArk''s legacy and powered by Palo Alto Networks.' "
+        "WHERE LOWER(TRIM(company_name)) = 'cyberark'"
+    )
 
     cur.execute(
         "INSERT INTO _data_patches (name, applied_at) "
