@@ -63,6 +63,7 @@ def run_migrations():
             _remove_discontinued_vendor_listings_2026_09_20_addendum(cur)
             _rename_symantec_to_broadcom_2026_09_20(cur)
             _vendor_corrections_2026_09_20_b(cur)
+            _vendor_corrections_2026_09_20_c(cur)
     finally:
         con.close()
 
@@ -1119,6 +1120,43 @@ def _vendor_corrections_2026_09_20_b(cur):
             "WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(%s)) "
             "AND status = 'active'",
             (name,),
+        )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) "
+        "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
+
+
+def _vendor_corrections_2026_09_20_c(cur):
+    # Kevin's next follow-up (2026-09-20): 2 more description appends.
+    # CyberArk already exists with a description that already notes the
+    # Palo Alto Networks acquisition, so it needed no new listing or edit
+    # here -- the "rebranded Indira" detail Kevin mentioned couldn't be
+    # verified against any public source, so it's intentionally left out
+    # pending confirmation (possibly meant "CyberArk Identity", one of its
+    # actual product lines).
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches ("
+        "name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "vendor_corrections_2026_09_20_c"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    description_appends = [
+        ("Sophos", " Includes acquired Secureworks solution(s)."),
+        ("Palo Alto Networks", " Includes many acquired brands such as Demisto, CyberArk, "
+                                "Dig Security, Talon Cyber Security, CloudGenix, QRadar, and "
+                                "Protect AI, among others."),
+    ]
+    for name, suffix in description_appends:
+        cur.execute(
+            "UPDATE vendors SET description = description || %s "
+            "WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(%s))",
+            (suffix, name),
         )
 
     cur.execute(
