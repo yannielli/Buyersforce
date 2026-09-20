@@ -66,6 +66,7 @@ def run_migrations():
             _vendor_corrections_2026_09_20_c(cur)
             _fill_vendor_websites_2026_09_20(cur)
             _correct_authbase_profile_2026_09_20(cur)
+            _vendor_corrections_2026_09_20_d(cur)
     finally:
         con.close()
 
@@ -450,8 +451,9 @@ def _seed_vendor_directory(cur):
                 """
                 INSERT INTO vendors (
                     seller_user_id, company_name, category, tagline, description,
-                    website, accent, initials, company_size, source
-                ) VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    website, accent, initials, company_size, source, hq_location,
+                    founded_year
+                ) VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (
@@ -464,6 +466,8 @@ def _seed_vendor_directory(cur):
                     initials,
                     entry.get("company_size"),
                     entry.get("source") or "",
+                    entry.get("hq_location"),
+                    entry.get("founded_year"),
                 ),
             )
             vendor_id = cur.fetchone()[0]
@@ -1246,6 +1250,43 @@ def _correct_authbase_profile_2026_09_20(cur):
         "hq_location = 'Hyderabad, Telangana', "
         "founded_year = 2016 "
         "WHERE LOWER(TRIM(company_name)) = 'authbase'"
+    )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) "
+        "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
+
+
+def _vendor_corrections_2026_09_20_d(cur):
+    # Kevin (2026-09-20): VChain Technology isn't a relevant B2B
+    # cybersecurity company -- remove it. Zivver was acquired by Kiteworks;
+    # remove the Zivver listing and note the acquisition on Kiteworks'
+    # own description instead. Same reversible soft-delete pattern as
+    # earlier removal batches.
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches ("
+        "name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "vendor_corrections_2026_09_20_d"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    for name in ["VChain Technology", "Zivver"]:
+        cur.execute(
+            "UPDATE vendors SET status = 'removed', "
+            "removed_at = to_char(now(), 'YYYY-MM-DD HH24:MI:SS') "
+            "WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(%s)) "
+            "AND status = 'active'",
+            (name,),
+        )
+
+    cur.execute(
+        "UPDATE vendors SET description = description || "
+        "' Includes acquisition of Zivver email security solution(s).' "
+        "WHERE LOWER(TRIM(company_name)) = 'kiteworks'"
     )
 
     cur.execute(

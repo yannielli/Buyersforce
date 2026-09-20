@@ -3321,5 +3321,20 @@
     "company_size": "501-1000",
     "source": "official website + Wikipedia + press coverage",
     "wiki_logo_url": "https://en.wikipedia.org/wiki/Special:FilePath/Skyhigh_Security_png_logo.png"
+  },
+  {
+    "name": "Torq",
+    "categories": [
+      "SIEM/SOAR/XDR",
+      "Incident Response & Forensics"
+    ],
+    "tagline": "",
+    "description": "Torq is the AI SOC platform that combines agentic insights and automation so that enterprises can triage, investigate, and respond to actual risks, faster. Working alongside your SecOps team, Torq streamlines every step from alert through resolution. The platform analyzes your risk context to identify your biggest threats and integrates with your entire security stack to turn alerts into action. Focus areas: AI SOC, Hyperautomation, and Agentic SecOps.",
+    "website": "https://torq.io",
+    "company_size": "201-500",
+    "hq_location": "New York, NY",
+    "founded_year": 2020,
+    "source": "provided by Kevin, Sept 2026",
+    "wiki_logo_url": null
   }
 ]
