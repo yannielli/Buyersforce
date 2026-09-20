@@ -59,6 +59,7 @@ def run_migrations():
             _add_vendor_claim_and_report_tables(cur)
             _add_vendor_contact_name_column(cur)
             _add_vendor_status_column(cur)
+            _remove_discontinued_vendor_listings_2026_09_20(cur)
     finally:
         con.close()
 
@@ -947,6 +948,59 @@ def _add_vendor_status_column(cur):
         "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'"
     )
     cur.execute("ALTER TABLE vendors ADD COLUMN IF NOT EXISTS removed_at TEXT")
+
+
+# Kevin's removal list (2026-09-20): companies that have been acquired, gone
+# defunct, or are no longer relevant to keep listed. Every name here was
+# checked against seed_data/vendor_seed_list.json for an exact
+# case-insensitive match before this shipped.
+_DISCONTINUED_VENDOR_NAMES_2026_09_20 = [
+    "AC System Consulting", "Appthority", "Avecto", "Bitglass", "CensorNet",
+    "Confident Technologies", "CyberX", "Cyence", "Cylance", "Cyphort", "Cyral",
+    "Demisto", "Dome9", "E8 Security", "Endgame", "Fortscale",
+    "Guardian Analytics", "Heliaq", "Henninger Corporation", "Illusive Networks",
+    "indeni", "Interset", "JASK", "Javelin Networks", "LogicHub", "Metapacket",
+    "PatternEx", "Protect AI", "Radar (ID Experts)", "SecBI", "Seclytics",
+    "SecuredTouch", "Sentegrity", "Simility", "Skeyecode", "Skycure", "Smyte",
+    "Sqrrl", "Stack Identity", "Veridu", "Vulcan Cyber", "Zenedge",
+    "Zilla Security",
+]
+
+
+def _remove_discontinued_vendor_listings_2026_09_20(cur):
+    # One-time cleanup, not a recurring rule: soft-removes the vendor
+    # listings named above using the same status='removed' flag as
+    # app.py's admin_vendors_remove, so any of them stay restorable from
+    # the admin dashboard's "Recently removed" list at any time.
+    #
+    # Guarded by _data_patches so this runs exactly once, ever. Without
+    # that guard, a normal migration re-running on every deploy would
+    # silently re-remove any of these the next time an admin restored
+    # one -- this table lets a migrations file built for repeatable
+    # schema changes also carry a one-shot data fix safely.
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches ("
+        "name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "remove_discontinued_vendors_2026_09_20"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    for name in _DISCONTINUED_VENDOR_NAMES_2026_09_20:
+        cur.execute(
+            "UPDATE vendors SET status = 'removed', "
+            "removed_at = to_char(now(), 'YYYY-MM-DD HH24:MI:SS') "
+            "WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(%s)) "
+            "AND status = 'active'",
+            (name,),
+        )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) "
+        "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
 
 
 if __name__ == "__main__":
