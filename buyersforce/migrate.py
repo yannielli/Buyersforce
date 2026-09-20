@@ -61,6 +61,7 @@ def run_migrations():
             _add_vendor_status_column(cur)
             _remove_discontinued_vendor_listings_2026_09_20(cur)
             _remove_discontinued_vendor_listings_2026_09_20_addendum(cur)
+            _rename_symantec_to_broadcom_2026_09_20(cur)
     finally:
         con.close()
 
@@ -1025,6 +1026,40 @@ def _remove_discontinued_vendor_listings_2026_09_20_addendum(cur):
             "AND status = 'active'",
             (name,),
         )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) "
+        "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
+
+
+def _rename_symantec_to_broadcom_2026_09_20(cur):
+    # Kevin's correction (2026-09-20): Symantec was acquired by Broadcom,
+    # so this seeded listing gets renamed rather than removed, with a
+    # short note on the acquisition appended to its existing description.
+    # The website Kevin gave had a duplicated "https://" prefix
+    # (https://https://www.broadcom.com/...), which would have been a
+    # broken link, so this uses the corrected single-protocol form --
+    # also the URL this listing already carried before the rename.
+    # Guarded by _data_patches (see _remove_discontinued_vendor_listings_
+    # 2026_09_20) so this doesn't get silently reapplied over a later
+    # admin edit to the same listing.
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches ("
+        "name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "rename_symantec_to_broadcom_2026_09_20"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    cur.execute(
+        "UPDATE vendors SET company_name = 'Broadcom', "
+        "description = description || ' Includes acquired Symantec portfolio.', "
+        "website = 'https://www.broadcom.com/products/cybersecurity' "
+        "WHERE LOWER(TRIM(company_name)) = 'symantec'"
+    )
 
     cur.execute(
         "INSERT INTO _data_patches (name, applied_at) "
