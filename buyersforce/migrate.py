@@ -67,6 +67,7 @@ def run_migrations():
             _fill_vendor_websites_2026_09_20(cur)
             _correct_authbase_profile_2026_09_20(cur)
             _vendor_corrections_2026_09_20_d(cur)
+            _set_tines_hq_2026_09_20(cur)
     finally:
         con.close()
 
@@ -1287,6 +1288,29 @@ def _vendor_corrections_2026_09_20_d(cur):
         "UPDATE vendors SET description = description || "
         "' Includes acquisition of Zivver email security solution(s).' "
         "WHERE LOWER(TRIM(company_name)) = 'kiteworks'"
+    )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) "
+        "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
+
+
+def _set_tines_hq_2026_09_20(cur):
+    # Kevin confirmed Tines' headquarters: Boston, MA.
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches ("
+        "name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "set_tines_hq_2026_09_20"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    cur.execute(
+        "UPDATE vendors SET hq_location = 'Boston, MA' "
+        "WHERE LOWER(TRIM(company_name)) = 'tines'"
     )
 
     cur.execute(
