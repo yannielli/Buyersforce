@@ -60,6 +60,7 @@ def run_migrations():
             _add_vendor_contact_name_column(cur)
             _add_vendor_status_column(cur)
             _remove_discontinued_vendor_listings_2026_09_20(cur)
+            _remove_discontinued_vendor_listings_2026_09_20_addendum(cur)
     finally:
         con.close()
 
@@ -988,6 +989,35 @@ def _remove_discontinued_vendor_listings_2026_09_20(cur):
         return
 
     for name in _DISCONTINUED_VENDOR_NAMES_2026_09_20:
+        cur.execute(
+            "UPDATE vendors SET status = 'removed', "
+            "removed_at = to_char(now(), 'YYYY-MM-DD HH24:MI:SS') "
+            "WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(%s)) "
+            "AND status = 'active'",
+            (name,),
+        )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) "
+        "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
+
+
+def _remove_discontinued_vendor_listings_2026_09_20_addendum(cur):
+    # Kevin caught two more companies he'd left off the first removal list
+    # (2026-09-20): Centrify, root9B. Same reversible soft-delete, same
+    # one-shot guard via _data_patches (created by the migration above).
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches ("
+        "name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "remove_discontinued_vendors_2026_09_20_addendum"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    for name in ["Centrify", "root9B"]:
         cur.execute(
             "UPDATE vendors SET status = 'removed', "
             "removed_at = to_char(now(), 'YYYY-MM-DD HH24:MI:SS') "
