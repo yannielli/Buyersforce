@@ -3336,5 +3336,20 @@
     "founded_year": 2020,
     "source": "provided by Kevin, Sept 2026",
     "wiki_logo_url": null
+  },
+  {
+    "name": "Island",
+    "categories": [
+      "Zero Trust/SASE",
+      "Data Security & Privacy"
+    ],
+    "tagline": "The Enterprise Browser",
+    "description": "Island's Enterprise Browser is a Chromium-based browser purpose-built for the enterprise, embedding security and governance controls -- data loss prevention, web isolation, Zero Trust access, and granular control over actions like copy/paste, download, upload, and screenshots -- directly into the browsing experience used every day, rather than layering security tools on top of a consumer browser.",
+    "website": "https://www.island.io",
+    "company_size": "1001-5000",
+    "hq_location": "Dallas, TX",
+    "founded_year": 2020,
+    "source": "official website + Tracxn, Sept 2026",
+    "wiki_logo_url": null
   }
 ]
