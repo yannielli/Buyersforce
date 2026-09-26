@@ -2679,10 +2679,24 @@ def suggest_vendor():
 # suggestion.
 # ---------------------------------------------------------------------------
 
-def _ai_search_vendors(query=None, categories=None, segments=None, company_size=None, limit=8):
+def _ai_search_vendors(query=None, categories=None, segments=None, company_size=None, limit=12):
     """Same shape of query as buyer_discover's filtering, trimmed down to
     what the AI tool needs: a handful of best-guess filters and a small
-    result count (this feeds a chat reply, not a full page of results)."""
+    result count (this feeds a chat reply, not a full page of results).
+
+    `categories`/`segments`/`company_size` are precise, AND'd filters --
+    only worth passing when Bob is confident about the exact controlled
+    value (see CYBERSECURITY_SEGMENTS / all_technology_categories()).
+    `query` is deliberately much broader: Kevin's report was that asking
+    Bob for "top endpoint security vendors" missed vendors that had
+    Endpoint Security as a *sub-category* tag, because Bob doesn't always
+    map a buyer's own phrase onto the exact enum string on a first pass,
+    and the old query search only ever checked company_name/tagline/
+    description/hq_location -- never segments, technology categories, or
+    tags. So `query` now also matches against every one of those, via OR,
+    so a buyer's own words alone are enough to surface a vendor that's
+    tagged with a matching sub-category/category/tag, whether or not Bob
+    also passed the equivalent exact `segments`/`categories` filter."""
     sql = "SELECT * FROM vendors WHERE status = 'active'"
     args = []
     categories = [c.strip() for c in (categories or []) if c and c.strip()]
@@ -2701,10 +2715,16 @@ def _ai_search_vendors(query=None, categories=None, segments=None, company_size=
         sql += " AND company_size = ?"
         args.append(company_size)
     if query:
-        sql += " AND (company_name ILIKE ? OR tagline ILIKE ? OR description ILIKE ? OR hq_location ILIKE ?)"
-        args += [f"%{query}%"] * 4
+        sql += (
+            " AND (company_name ILIKE ? OR tagline ILIKE ? OR description ILIKE ? "
+            "OR hq_location ILIKE ? OR category ILIKE ? "
+            "OR id IN (SELECT vendor_id FROM vendor_segments WHERE segment ILIKE ?) "
+            "OR id IN (SELECT vendor_id FROM vendor_technology_categories WHERE category ILIKE ?) "
+            "OR id IN (SELECT vendor_id FROM vendor_tags WHERE tag ILIKE ?))"
+        )
+        args += [f"%{query}%"] * 7
     sql += " ORDER BY company_name ASC LIMIT ?"
-    args.append(limit)
+    args.append(max(1, min(int(limit or 12), 20)))
     rows = dbm.query(sql, args)
     results = []
     for v in rows:
@@ -2774,8 +2794,19 @@ def _ai_discover_system_prompt(user, mode):
         f"can check right now. Only ever call a result \"on BuyersForce\" if it "
         f"actually came back from that tool -- never claim or assume a listing "
         f"exists. Valid technology categories: {categories}. Valid segments: "
-        f"{segments}. Valid company-size bands: {sizes}. Use these exact values "
-        f"when filtering.\n\n"
+        f"{segments}. Valid company-size bands: {sizes}.\n\n"
+        f"SEARCH THOROUGHLY\n"
+        f"Always pass `query` with the buyer's own topic/phrase (e.g. \"endpoint "
+        f"security\") -- it matches every field on a vendor's listing, including "
+        f"its sub-category/segment tags, technology categories, and freeform "
+        f"tags, not just its written description. Also pass technology_categories/"
+        f"segments using the exact values above when you're confident which one "
+        f"applies, as an extra precise filter -- but never rely on that guess "
+        f"alone; `query` is what catches a vendor whose match lives only in a "
+        f"sub-category tag. For a broad ask (\"top vendors for X\", \"what are "
+        f"all the X options\"), pass a higher `limit` (up to 20) so a category "
+        f"with more than the default handful of matches doesn't get silently "
+        f"cut short.\n\n"
         f"AFTER SEARCHING\n"
         f"The app already displays the full result cards (or a clear \"nothing "
         f"found\" note) right below your reply, plus a follow-up prompt asking "
@@ -2816,11 +2847,16 @@ def buyer_discover_chat():
         return jsonify({"error": "empty_message"}), 400
 
     def handle_search_vendors(tool_input):
+        try:
+            requested_limit = int(tool_input.get("limit") or 12)
+        except (TypeError, ValueError):
+            requested_limit = 12
         vendors = _ai_search_vendors(
             query=tool_input.get("query"),
             categories=tool_input.get("technology_categories") or [],
             segments=tool_input.get("segments") or [],
             company_size=tool_input.get("company_size"),
+            limit=requested_limit,
         )
         summary = [{
             "id": v["id"],

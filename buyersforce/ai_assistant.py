@@ -107,28 +107,51 @@ def build_directory_tools(technology_categories, technology_segments, company_si
                 "as you have enough sense of what the buyer is looking for -- you can "
                 "call it more than once in a conversation, refining the filters as the "
                 "buyer says more. Only ever describe a company as 'on BuyersForce' if "
-                "it came back from this tool; never invent or assume a listing."
+                "it came back from this tool; never invent or assume a listing. ALWAYS "
+                "pass `query` with the buyer's own topic/phrase, even when you also pass "
+                "`technology_categories`/`segments` -- `query` matches broadly (including "
+                "each vendor's sub-category/segment tags, not just its written "
+                "description), so it's what catches a vendor tagged with the right "
+                "sub-category even if your exact `segments` guess doesn't match the "
+                "stored value verbatim."
             ),
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Free-text search across company name, tagline, description, and HQ location.",
+                        "description": (
+                            "Free-text search -- matches company name, tagline, "
+                            "description, HQ location, AND every vendor's assigned "
+                            "technology categories, sub-category/segment tags, and "
+                            "freeform tags. Put the buyer's own topic here (e.g. "
+                            "'endpoint security') on every search, even one where you "
+                            "also set technology_categories/segments below."
+                        ),
                     },
                     "technology_categories": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Zero or more of BuyersForce's technology categories, matched exactly (see system prompt for the valid list).",
+                        "description": "Zero or more of BuyersForce's technology categories, matched exactly (see system prompt for the valid list). An extra, precise filter on top of `query` -- not a replacement for it.",
                     },
                     "segments": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Zero or more sub-category/segment tags, matched exactly (see system prompt for the valid list).",
+                        "description": "Zero or more sub-category/segment tags, matched exactly (see system prompt for the valid list). An extra, precise filter on top of `query` -- not a replacement for it.",
                     },
                     "company_size": {
                         "type": "string",
                         "description": "A vendor employee-count band, matched exactly (see system prompt for the valid list).",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": (
+                            "How many results to return (default 12, max 20). Raise "
+                            "this when the buyer asks for 'all' the vendors in a "
+                            "category, a specific top-N count, or a broad survey "
+                            "question -- don't let the default silently truncate a "
+                            "category that has more matches than that."
+                        ),
                     },
                 },
             },
