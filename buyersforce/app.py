@@ -2679,14 +2679,16 @@ def suggest_vendor():
 # suggestion.
 # ---------------------------------------------------------------------------
 
-def _ai_search_vendors(query=None, categories=None, segments=None, company_size=None, limit=12):
+def _ai_search_vendors(query=None, categories=None, segments=None, company_size=None,
+                       ownership_status=None, limit=12):
     """Same shape of query as buyer_discover's filtering, trimmed down to
     what the AI tool needs: a handful of best-guess filters and a small
     result count (this feeds a chat reply, not a full page of results).
 
-    `categories`/`segments`/`company_size` are precise, AND'd filters --
-    only worth passing when Bob is confident about the exact controlled
-    value (see CYBERSECURITY_SEGMENTS / all_technology_categories()).
+    `categories`/`segments`/`company_size`/`ownership_status` are precise,
+    AND'd filters -- only worth passing when Bob is confident about the
+    exact controlled value (see CYBERSECURITY_SEGMENTS /
+    all_technology_categories() / 'public'|'private').
     `query` is deliberately much broader: Kevin's report was that asking
     Bob for "top endpoint security vendors" missed vendors that had
     Endpoint Security as a *sub-category* tag, because Bob doesn't always
@@ -2714,15 +2716,18 @@ def _ai_search_vendors(query=None, categories=None, segments=None, company_size=
     if company_size:
         sql += " AND company_size = ?"
         args.append(company_size)
+    if ownership_status in ("public", "private"):
+        sql += " AND ownership_status = ?"
+        args.append(ownership_status)
     if query:
         sql += (
             " AND (company_name ILIKE ? OR tagline ILIKE ? OR description ILIKE ? "
-            "OR hq_location ILIKE ? OR category ILIKE ? "
+            "OR hq_location ILIKE ? OR category ILIKE ? OR stock_ticker ILIKE ? "
             "OR id IN (SELECT vendor_id FROM vendor_segments WHERE segment ILIKE ?) "
             "OR id IN (SELECT vendor_id FROM vendor_technology_categories WHERE category ILIKE ?) "
             "OR id IN (SELECT vendor_id FROM vendor_tags WHERE tag ILIKE ?))"
         )
-        args += [f"%{query}%"] * 7
+        args += [f"%{query}%"] * 8
     sql += " ORDER BY company_name ASC LIMIT ?"
     args.append(max(1, min(int(limit or 12), 20)))
     rows = dbm.query(sql, args)
@@ -2807,6 +2812,14 @@ def _ai_discover_system_prompt(user, mode):
         f"all the X options\"), pass a higher `limit` (up to 20) so a category "
         f"with more than the default handful of matches doesn't get silently "
         f"cut short.\n\n"
+        f"WHAT EACH MATCH TELLS YOU\n"
+        f"Every result includes founded year, HQ location, company size, and "
+        f"whether it's publicly traded or private (plus its stock ticker if "
+        f"public) -- use these to actually answer what the buyer asked (\"is "
+        f"this one public?\", \"which are the biggest?\", \"anything based in "
+        f"the US?\") instead of only naming companies. You can also pass "
+        f"`ownership_status` to filter to just public or just private vendors "
+        f"when the buyer specifically asks for one.\n\n"
         f"AFTER SEARCHING\n"
         f"The app already displays the full result cards (or a clear \"nothing "
         f"found\" note) right below your reply, plus a follow-up prompt asking "
@@ -2856,8 +2869,14 @@ def buyer_discover_chat():
             categories=tool_input.get("technology_categories") or [],
             segments=tool_input.get("segments") or [],
             company_size=tool_input.get("company_size"),
+            ownership_status=tool_input.get("ownership_status"),
             limit=requested_limit,
         )
+        # Every field a buyer might ask about -- founded year, HQ, company
+        # size, and public/private + ticker -- goes to Bob here, not just
+        # the ones used for filtering, so he can actually answer "is this
+        # one public?" or "which of these are the biggest" instead of only
+        # being able to name vendors he found.
         summary = [{
             "id": v["id"],
             "company_name": v["company_name"],
@@ -2865,6 +2884,9 @@ def buyer_discover_chat():
             "tagline": v.get("tagline") or (v.get("description") or "")[:160],
             "company_size": v.get("company_size"),
             "hq_location": v.get("hq_location"),
+            "founded_year": v.get("founded_year"),
+            "ownership_status": v.get("ownership_status"),
+            "stock_ticker": v.get("stock_ticker"),
             "segments": v["segments"],
         } for v in vendors]
         # Trimmed, frontend-facing shape -- deliberately leaves out
@@ -2879,6 +2901,9 @@ def buyer_discover_chat():
             "tagline": v.get("tagline") or (v.get("description") or "")[:160],
             "company_size": v.get("company_size"),
             "hq_location": v.get("hq_location"),
+            "founded_year": v.get("founded_year"),
+            "ownership_status": v.get("ownership_status"),
+            "stock_ticker": v.get("stock_ticker"),
             "segments": v["segments"],
             "accent": v.get("accent"),
             "initials": v.get("initials"),

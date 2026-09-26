@@ -143,6 +143,11 @@ def build_directory_tools(technology_categories, technology_segments, company_si
                         "type": "string",
                         "description": "A vendor employee-count band, matched exactly (see system prompt for the valid list).",
                     },
+                    "ownership_status": {
+                        "type": "string",
+                        "enum": ["public", "private"],
+                        "description": "Filter to only publicly traded or only private vendors, when the buyer specifically asks for one.",
+                    },
                     "limit": {
                         "type": "integer",
                         "description": (

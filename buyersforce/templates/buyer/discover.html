@@ -272,7 +272,19 @@
       name.textContent = v.company_name;
       var meta = document.createElement('span');
       meta.className = 'ai-vendor-mini-meta';
-      meta.textContent = [v.category, v.company_size ? (v.company_size + ' employees') : null].filter(Boolean).join(' · ');
+      var ownershipBit = null;
+      if (v.ownership_status === 'public') {
+        ownershipBit = 'Public' + (v.stock_ticker ? ' (' + v.stock_ticker + ')' : '');
+      } else if (v.ownership_status === 'private') {
+        ownershipBit = 'Private';
+      }
+      meta.textContent = [
+        v.category,
+        v.hq_location || null,
+        v.company_size ? (v.company_size + ' employees') : null,
+        v.founded_year ? ('Founded ' + v.founded_year) : null,
+        ownershipBit,
+      ].filter(Boolean).join(' · ');
       body.appendChild(name);
       body.appendChild(document.createElement('br'));
       body.appendChild(meta);
