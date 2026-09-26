@@ -2727,7 +2727,13 @@ def _ai_search_vendors(query=None, categories=None, segments=None, company_size=
             "OR id IN (SELECT vendor_id FROM vendor_technology_categories WHERE category ILIKE ?) "
             "OR id IN (SELECT vendor_id FROM vendor_tags WHERE tag ILIKE ?))"
         )
-        args += [f"%{query}%"] * 8
+        # 9 ILIKE placeholders above (company_name, tagline, description,
+        # hq_location, category, stock_ticker, segments, technology
+        # categories, tags) -- this count MUST match the '?' count in the
+        # clause just built, or psycopg2 raises on a param-count mismatch
+        # and the search silently errors out for every query (this bit us
+        # once already: adding stock_ticker above without bumping this).
+        args += [f"%{query}%"] * 9
     sql += " ORDER BY company_name ASC LIMIT ?"
     args.append(max(1, min(int(limit or 12), 20)))
     rows = dbm.query(sql, args)
