@@ -70,6 +70,7 @@ def run_migrations():
             _set_tines_hq_2026_09_20(cur)
             _add_vendor_ownership_columns(cur)
             _backfill_vendor_ownership_2026_09_26(cur)
+            _reclassify_acquired_vendors_under_public_parents_2026_09_27(cur)
     finally:
         con.close()
 
@@ -1424,6 +1425,61 @@ def _backfill_vendor_ownership_2026_09_26(cur):
     )
 
     for name, ticker in _CONFIRMED_PUBLIC_VENDORS_2026_09_26:
+        cur.execute(
+            "UPDATE vendors SET ownership_status = 'public', stock_ticker = %s "
+            "WHERE status = 'active' AND LOWER(TRIM(company_name)) = LOWER(TRIM(%s))",
+            (ticker, name),
+        )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) "
+        "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
+
+
+# Kevin's correction (2026-09-27) to the initial ownership backfill above:
+# an acquired company that is now a wholly-owned subsidiary/brand of a
+# PUBLICLY TRADED parent should show as public, under the PARENT's ticker
+# -- not 'private' just because the specific acquired brand isn't
+# separately listed anymore. (A company taken private by a private-equity
+# firm -- McAfee, Sophos, Barracuda, New Relic, SolarWinds, Darktrace,
+# Proofpoint, Ping Identity, Veracode, Ivanti, Forcepoint, WatchGuard,
+# Tufin, Zimperium, and the rest -- is unaffected: a PE firm isn't a public
+# parent, so those stay 'private'.) Verified via web search which parent
+# actually owns each one today, and that parent's current ticker.
+_ACQUIRED_UNDER_PUBLIC_PARENT_2026_09_27 = [
+    ("CyberArk", "PANW"),            # acquired by Palo Alto Networks
+    ("Wiz", "GOOGL"),                # acquired by Google (Alphabet)
+    ("Juniper Networks", "HPE"),      # acquired by Hewlett Packard Enterprise
+    ("Splunk", "CSCO"),               # acquired by Cisco
+    ("Duo Security", "CSCO"),         # acquired by Cisco
+    ("Arbor Networks", "NTCT"),       # part of NETSCOUT Systems
+    ("Auth0", "OKTA"),                # acquired by Okta
+    ("Mandiant (Google)", "GOOGL"),   # acquired by Google (Alphabet)
+    ("Prisma Cloud (RedLock)", "PANW"),  # acquired by Palo Alto Networks
+    ("Imperva", "HO"),                # acquired by Thales (Euronext Paris)
+    ("Avast", "GEN"),                 # merged into Gen Digital (ex-NortonLifeLock)
+    ("Webroot", "OTEX"),              # acquired by OpenText
+    ("Recorded Future", "MA"),        # acquired by Mastercard
+    ("ThreatMetrix", "RELX"),         # part of LexisNexis Risk Solutions (RELX)
+    ("BehavioSec", "RELX"),           # acquired by LexisNexis Risk Solutions (RELX)
+    ("Minsait Payments", "IDR"),      # part of Indra Sistemas (BME Madrid)
+    ("NTT Security", "9432"),         # part of NTT, Inc. (Tokyo Stock Exchange)
+]
+
+
+def _reclassify_acquired_vendors_under_public_parents_2026_09_27(cur):
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches ("
+        "name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "reclassify_acquired_vendors_under_public_parents_2026_09_27"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    for name, ticker in _ACQUIRED_UNDER_PUBLIC_PARENT_2026_09_27:
         cur.execute(
             "UPDATE vendors SET ownership_status = 'public', stock_ticker = %s "
             "WHERE status = 'active' AND LOWER(TRIM(company_name)) = LOWER(TRIM(%s))",
