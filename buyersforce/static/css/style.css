@@ -751,6 +751,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .ai-choice-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .ai-choice-done { opacity: 0.5; pointer-events: none; }
 
+.ai-websearch-bar { display: flex; justify-content: center; padding: 7px 12px; border-top: 1px solid var(--gridline); flex-shrink: 0; }
+.ai-websearch-bar .btn { width: 100%; }
 .ai-panel-form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--gridline); flex-shrink: 0; }
 .ai-panel-form input { flex: 1; }
 

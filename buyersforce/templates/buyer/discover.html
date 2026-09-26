@@ -136,6 +136,11 @@
     <button id="aiAssistantClose" class="ai-panel-close" type="button" aria-label="Close assistant">&times;</button>
   </div>
   <div id="aiAssistantMessages" class="ai-panel-messages"></div>
+  <div class="ai-websearch-bar">
+    <button id="aiWebSearchBtn" class="btn btn-ghost btn-sm" type="button">
+      &#127760; Search outside BuyersForce
+    </button>
+  </div>
   <form id="aiAssistantForm" class="ai-panel-form">
     <input id="aiAssistantInput" type="text" placeholder="e.g. SOC 2 tool for a 50-person startup" autocomplete="off" maxlength="2000">
     <button class="btn btn-primary btn-sm" type="submit">Send</button>
@@ -176,6 +181,7 @@
   var messagesEl = document.getElementById('aiAssistantMessages');
   var form = document.getElementById('aiAssistantForm');
   var input = document.getElementById('aiAssistantInput');
+  var webSearchBtn = document.getElementById('aiWebSearchBtn');
   if (!toggleBtn || !panel || !form) { return; }
 
   var transcript = [];   // Anthropic-format history, round-tripped with the server each turn
@@ -407,6 +413,7 @@
     if (sending) { return; }
     sending = true;
     input.disabled = true;
+    if (webSearchBtn) { webSearchBtn.disabled = true; }
     if (opts.showUserBubble !== false) { addUserBubble(message); }
     var typingRow = addTypingBubble();
 
@@ -437,6 +444,7 @@
       .finally(function () {
         sending = false;
         input.disabled = false;
+        if (webSearchBtn) { webSearchBtn.disabled = false; }
         input.focus();
       });
   }
@@ -449,6 +457,18 @@
     disablePendingChoice();
     sendToFrankie(text, 'directory', { showUserBubble: true });
   });
+
+  // Always-available way to trigger a web search, not just right after a
+  // directory result -- Kevin's ask: a buyer should be able to reach for
+  // this at any point in the conversation, not only the one-time choice
+  // prompt shown right after search_vendors runs.
+  if (webSearchBtn) {
+    webSearchBtn.addEventListener('click', function () {
+      if (sending) { return; }
+      disablePendingChoice();
+      sendToFrankie("Please also run a live web search outside of BuyersForce for what I'm looking for.", 'web', { showUserBubble: false });
+    });
+  }
 })();
 </script>
 {% endblock %}
