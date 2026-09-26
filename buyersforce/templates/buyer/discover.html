@@ -117,6 +117,26 @@
 
 <button id="backToTop" class="back-to-top" type="button" aria-label="Back to top" title="Back to top">&uarr;</button>
 
+<button id="aiAssistantToggle" class="ai-launcher-btn" type="button" aria-expanded="false" aria-controls="aiAssistantPanel">
+  <span class="ai-launcher-icon">&#10024;</span>
+  <span>Ask the AI Assistant</span>
+</button>
+
+<div id="aiAssistantPanel" class="ai-panel" hidden>
+  <div class="ai-panel-header">
+    <div>
+      <strong>BuyersForce Directory Assistant</strong>
+      <span class="ai-panel-sub">Tell me what you're looking for -- I'll search BuyersForce, and the web if I need to.</span>
+    </div>
+    <button id="aiAssistantClose" class="ai-panel-close" type="button" aria-label="Close assistant">&times;</button>
+  </div>
+  <div id="aiAssistantMessages" class="ai-panel-messages"></div>
+  <form id="aiAssistantForm" class="ai-panel-form">
+    <input id="aiAssistantInput" type="text" placeholder="e.g. SOC 2 tool for a 50-person startup" autocomplete="off" maxlength="2000">
+    <button class="btn btn-primary btn-sm" type="submit">Send</button>
+  </form>
+</div>
+
 <script>
 (function () {
   var letterInput = document.getElementById('letterInput');
@@ -140,6 +160,194 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
   onScroll();
+})();
+</script>
+
+<script>
+(function () {
+  var toggleBtn = document.getElementById('aiAssistantToggle');
+  var closeBtn = document.getElementById('aiAssistantClose');
+  var panel = document.getElementById('aiAssistantPanel');
+  var messagesEl = document.getElementById('aiAssistantMessages');
+  var form = document.getElementById('aiAssistantForm');
+  var input = document.getElementById('aiAssistantInput');
+  if (!toggleBtn || !panel || !form) { return; }
+
+  var transcript = [];   // Anthropic-format history, round-tripped with the server each turn
+  var greeted = false;
+  var sending = false;
+
+  function openPanel() {
+    panel.hidden = false;
+    toggleBtn.setAttribute('aria-expanded', 'true');
+    if (!greeted) {
+      greeted = true;
+      addAssistantBubble("Hi! Tell me a bit about what you're trying to solve -- the kind of tool, roughly how big your team is, anything that's a must-have -- and I'll look for a fit on BuyersForce.");
+    }
+    input.focus();
+  }
+  function closePanel() {
+    panel.hidden = true;
+    toggleBtn.setAttribute('aria-expanded', 'false');
+  }
+  toggleBtn.addEventListener('click', function () {
+    if (panel.hidden) { openPanel(); } else { closePanel(); }
+  });
+  closeBtn.addEventListener('click', closePanel);
+
+  function addUserBubble(text) {
+    var row = document.createElement('div');
+    row.className = 'ai-msg ai-msg-user';
+    var bubble = document.createElement('div');
+    bubble.className = 'ai-msg-bubble';
+    bubble.textContent = text;
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    scrollToBottom();
+  }
+
+  function addAssistantBubble(text, opts) {
+    opts = opts || {};
+    var row = document.createElement('div');
+    row.className = 'ai-msg ai-msg-assistant' + (opts.system ? ' ai-msg-system' : '');
+    var bubble = document.createElement('div');
+    bubble.className = 'ai-msg-bubble';
+    bubble.textContent = text;
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    scrollToBottom();
+    return row;
+  }
+
+  function addTypingBubble() {
+    var row = document.createElement('div');
+    row.className = 'ai-msg ai-msg-assistant ai-msg-typing';
+    var bubble = document.createElement('div');
+    bubble.className = 'ai-msg-bubble';
+    bubble.textContent = 'Thinking…';
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    scrollToBottom();
+    return row;
+  }
+
+  function addVendorResults(vendors) {
+    if (!vendors || !vendors.length) { return; }
+    var wrap = document.createElement('div');
+    wrap.className = 'ai-vendor-results';
+    vendors.forEach(function (v) {
+      var card = document.createElement('a');
+      card.className = 'ai-vendor-mini-card';
+      card.href = '/app/buyer/vendor/' + v.id;
+      var logo = document.createElement('span');
+      logo.className = 'ai-vendor-mini-logo';
+      logo.style.background = v.accent || '#17948f';
+      if (v.logo_url) {
+        var img = document.createElement('img');
+        img.src = v.logo_url;
+        img.alt = '';
+        img.onerror = function () { img.remove(); logo.textContent = v.initials || ''; };
+        logo.appendChild(img);
+      } else {
+        logo.textContent = v.initials || '';
+      }
+      var body = document.createElement('span');
+      body.className = 'ai-vendor-mini-body';
+      var name = document.createElement('span');
+      name.className = 'ai-vendor-mini-name';
+      name.textContent = v.company_name;
+      var meta = document.createElement('span');
+      meta.className = 'ai-vendor-mini-meta';
+      meta.textContent = [v.category, v.company_size ? (v.company_size + ' employees') : null].filter(Boolean).join(' · ');
+      body.appendChild(name);
+      body.appendChild(document.createElement('br'));
+      body.appendChild(meta);
+      card.appendChild(logo);
+      card.appendChild(body);
+      wrap.appendChild(card);
+    });
+    messagesEl.appendChild(wrap);
+    scrollToBottom();
+  }
+
+  function addWebSources(sources) {
+    if (!sources || !sources.length) { return; }
+    var seen = {};
+    var uniq = sources.filter(function (s) {
+      if (seen[s.url]) { return false; }
+      seen[s.url] = true;
+      return true;
+    });
+    var box = document.createElement('div');
+    box.className = 'ai-web-sources';
+    var label = document.createElement('div');
+    label.className = 'ai-web-sources-label';
+    label.textContent = '🌐 From the web -- not verified by BuyersForce';
+    box.appendChild(label);
+    uniq.forEach(function (s) {
+      var a = document.createElement('a');
+      a.href = s.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = s.title || s.url;
+      box.appendChild(a);
+    });
+    messagesEl.appendChild(box);
+    scrollToBottom();
+  }
+
+  function addSuggestionChip(suggestion) {
+    if (!suggestion) { return; }
+    var chip = document.createElement('span');
+    chip.className = 'ai-suggestion-chip';
+    chip.textContent = '✓ Submitted ' + suggestion.company_name + ' for BuyersForce review';
+    messagesEl.appendChild(chip);
+    scrollToBottom();
+  }
+
+  function scrollToBottom() {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (sending) { return; }
+    var text = input.value.trim();
+    if (!text) { return; }
+    input.value = '';
+    addUserBubble(text);
+    sending = true;
+    input.disabled = true;
+    var typingRow = addTypingBubble();
+
+    fetch('/app/buyer/discover/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: transcript, message: text }),
+    })
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) {
+        typingRow.remove();
+        if (data.error === 'empty_message') {
+          addAssistantBubble("Looks like that came through blank -- could you try again?", { system: true });
+          return;
+        }
+        transcript = data.messages || transcript;
+        addAssistantBubble(data.reply || "Sorry, I didn't get a response -- could you try again?", { system: !!data.error });
+        addVendorResults(data.vendor_results);
+        addWebSources(data.web_sources);
+        addSuggestionChip(data.suggestion);
+      })
+      .catch(function () {
+        typingRow.remove();
+        addAssistantBubble("Sorry, something went wrong reaching the assistant. Please try again.", { system: true });
+      })
+      .finally(function () {
+        sending = false;
+        input.disabled = false;
+        input.focus();
+      });
+  });
 })();
 </script>
 {% endblock %}

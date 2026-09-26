@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import sqlite3
 import secrets
 from functools import wraps
@@ -8,12 +9,13 @@ from urllib.parse import quote as urlquote
 
 import pytz
 from flask import (
-    Flask, g, render_template, request, redirect, url_for, session, flash, abort
+    Flask, g, render_template, request, redirect, url_for, session, flash, abort, jsonify
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import db as dbm
 import emailer
+import ai_assistant
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "buyersforce-dev-secret-key-demo-only")
@@ -2664,6 +2666,202 @@ def suggest_vendor():
     return render_template(
         "buyer/suggest_vendor.html", all_segments=all_technology_segments(), company_sizes=COMPANY_SIZE_BANDS,
     )
+
+
+# ---------------------------------------------------------------------------
+# AI Directory Assistant -- conversational vendor search embedded on the
+# Discover page (buyer/discover.html). See ai_assistant.py for the Claude
+# API loop itself; everything here is BuyersForce-specific: the vendor
+# search query, the system prompt, and how a chat-sourced vendor
+# suggestion gets filed into the exact same vendor_requests review queue
+# that suggest_vendor() above uses (kind='buyer_referral') -- an admin
+# always has to approve it before it goes live, same as any other
+# suggestion.
+# ---------------------------------------------------------------------------
+
+def _ai_search_vendors(query=None, categories=None, segments=None, company_size=None, limit=8):
+    """Same shape of query as buyer_discover's filtering, trimmed down to
+    what the AI tool needs: a handful of best-guess filters and a small
+    result count (this feeds a chat reply, not a full page of results)."""
+    sql = "SELECT * FROM vendors WHERE status = 'active'"
+    args = []
+    categories = [c.strip() for c in (categories or []) if c and c.strip()]
+    segments = [s.strip() for s in (segments or []) if s and s.strip()]
+    if categories:
+        placeholders = ",".join(["?"] * len(categories))
+        sql += (
+            f" AND id IN (SELECT vendor_id FROM vendor_technology_categories WHERE category IN ({placeholders}))"
+        )
+        args += categories
+    if segments:
+        placeholders = ",".join(["?"] * len(segments))
+        sql += f" AND id IN (SELECT vendor_id FROM vendor_segments WHERE segment IN ({placeholders}))"
+        args += segments
+    if company_size:
+        sql += " AND company_size = ?"
+        args.append(company_size)
+    if query:
+        sql += " AND (company_name ILIKE ? OR tagline ILIKE ? OR description ILIKE ? OR hq_location ILIKE ?)"
+        args += [f"%{query}%"] * 4
+    sql += " ORDER BY company_name ASC LIMIT ?"
+    args.append(limit)
+    rows = dbm.query(sql, args)
+    results = []
+    for v in rows:
+        results.append({
+            **dict(v),
+            "tags": vendor_tags(v["id"]),
+            "segments": vendor_segments(v["id"]),
+            "logo_url": vendor_display_logo_url(v),
+        })
+    return results
+
+
+def _ai_discover_system_prompt(user):
+    categories = ", ".join(all_technology_categories())
+    segments = ", ".join(all_technology_segments())
+    sizes = ", ".join(COMPANY_SIZE_BANDS)
+    return (
+        f"You are the BuyersForce Directory Assistant, embedded on the buyer-facing "
+        f"Discover page. You're helping {user['name']} from {user['company']}, a "
+        f"signed-in buyer -- find the right vendor conversationally. Ask brief, "
+        f"specific qualifying questions about what they need (the problem they're "
+        f"solving, rough company size, must-have features) rather than everything at "
+        f"once, then search as soon as you have enough to go on.\n\n"
+        f"VERIFIED DIRECTORY SEARCH\n"
+        f"Use the search_vendors tool to look up BuyersForce's own vetted vendor "
+        f"directory. Only ever call a result \"on BuyersForce\" if it actually came "
+        f"back from that tool -- never claim or assume a listing exists. Valid "
+        f"technology categories: {categories}. Valid segments: {segments}. Valid "
+        f"company-size bands: {sizes}. Use these exact values when filtering.\n\n"
+        f"WEB SEARCH (WILDCARD)\n"
+        f"If BuyersForce's own directory doesn't have a good match, you may use the "
+        f"web_search tool to look further afield. Every time you share something that "
+        f"came from the web rather than from search_vendors, say so plainly and "
+        f"distinctly in your reply -- e.g. \"I didn't find this on BuyersForce, but "
+        f"here's what I found on the web (unverified):\" -- so it's never confused "
+        f"with a vetted BuyersForce listing.\n\n"
+        f"SUGGESTING A NEW VENDOR\n"
+        f"If, after a web search, the buyer wants a company added to BuyersForce, "
+        f"confirm the company name and website with them, then call suggest_vendor. "
+        f"This only submits it to BuyersForce's admin review queue -- it does not "
+        f"publish immediately -- and you should say that plainly (\"I've submitted "
+        f"it for BuyersForce's team to review\"). Never call suggest_vendor without "
+        f"the buyer's explicit go-ahead on that specific company.\n\n"
+        f"STYLE\n"
+        f"Be concise, warm, and consultative -- a few sentences per turn, not a wall "
+        f"of text."
+    )
+
+
+# A generous but firm ceiling on request size: this is a chat transcript
+# a browser tab is round-tripping every turn, not a file upload. Well
+# past what even a long, multi-search conversation should reach -- this
+# is here to stop a runaway client from turning into a runaway API bill.
+_AI_CHAT_MAX_REQUEST_BYTES = 400_000
+
+
+@app.route("/app/buyer/discover/chat", methods=("POST",))
+@role_required("buyer")
+def buyer_discover_chat():
+    if request.content_length and request.content_length > _AI_CHAT_MAX_REQUEST_BYTES:
+        return jsonify({
+            "reply": "This conversation has gotten pretty long -- could you start a fresh one?",
+            "messages": [], "vendor_results": [], "web_sources": [], "suggestion": None,
+            "error": "too_large",
+        }), 200
+
+    data = request.get_json(silent=True) or {}
+    history = data.get("messages")
+    if not isinstance(history, list):
+        history = []
+    user_message = (data.get("message") or "").strip()[:2000]
+    if not user_message:
+        return jsonify({"error": "empty_message"}), 400
+
+    def handle_search_vendors(tool_input):
+        vendors = _ai_search_vendors(
+            query=tool_input.get("query"),
+            categories=tool_input.get("technology_categories") or [],
+            segments=tool_input.get("segments") or [],
+            company_size=tool_input.get("company_size"),
+        )
+        summary = [{
+            "id": v["id"],
+            "company_name": v["company_name"],
+            "category": v["category"],
+            "tagline": v.get("tagline") or (v.get("description") or "")[:160],
+            "company_size": v.get("company_size"),
+            "hq_location": v.get("hq_location"),
+            "segments": v["segments"],
+        } for v in vendors]
+        # Trimmed, frontend-facing shape -- deliberately leaves out
+        # contact_email/contact_phone/seller_user_id/source and the raw
+        # logo_* columns (vendor_display_logo_url already resolved the
+        # one that matters into logo_url); no reason for any of that to
+        # ride along in a chat response.
+        frontend_vendors = [{
+            "id": v["id"],
+            "company_name": v["company_name"],
+            "category": v["category"],
+            "tagline": v.get("tagline") or (v.get("description") or "")[:160],
+            "company_size": v.get("company_size"),
+            "hq_location": v.get("hq_location"),
+            "segments": v["segments"],
+            "accent": v.get("accent"),
+            "initials": v.get("initials"),
+            "logo_url": v.get("logo_url"),
+        } for v in vendors]
+        return json.dumps(summary), frontend_vendors
+
+    def handle_suggest_vendor(tool_input):
+        company_name = (tool_input.get("company_name") or "").strip()
+        website = (tool_input.get("website") or "").strip()
+        notes = (tool_input.get("notes") or "").strip()
+        if not company_name or not website:
+            return "Missing company name or website -- cannot submit.", None
+
+        admin = get_admin_user()
+        if not admin:
+            return "There's no BuyersForce admin account configured to receive this yet.", None
+
+        thread = get_or_create_direct_thread(g.user["id"], admin["id"])
+        ensure_contact(g.user["id"], contact_user_id=admin["id"])
+        ensure_contact(admin["id"], contact_user_id=g.user["id"])
+
+        summary_lines = [f"New vendor suggestion (via AI Directory Assistant): {company_name} ({website})"]
+        if notes:
+            summary_lines.append(notes)
+        dbm.execute(
+            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
+            (thread["id"], g.user["id"], "\n".join(summary_lines)),
+        )
+        dbm.execute(
+            "INSERT INTO vendor_requests (kind, requested_by_user_id, company_name, website, notes, thread_id) "
+            "VALUES ('buyer_referral', ?, ?, ?, ?, ?)",
+            (g.user["id"], company_name, website,
+             ("Sourced via AI Directory Assistant.\n" + notes) if notes else "Sourced via AI Directory Assistant.",
+             thread["id"]),
+        )
+        log_activity(g.user["id"], f"suggested a vendor via AI chat ({company_name})")
+        return (
+            f"Submitted {company_name} to BuyersForce's review queue.",
+            {"company_name": company_name, "website": website},
+        )
+
+    tools = ai_assistant.build_tools(all_technology_categories(), all_technology_segments(), COMPANY_SIZE_BANDS)
+    system_prompt = _ai_discover_system_prompt(g.user)
+    result = ai_assistant.run_chat_turn(
+        system_prompt=system_prompt,
+        tools=tools,
+        tool_handlers={
+            "search_vendors": handle_search_vendors,
+            "suggest_vendor": handle_suggest_vendor,
+        },
+        history=history,
+        user_message=user_message,
+    )
+    return jsonify(result)
 
 
 @app.route("/app/buyer/vendor/<int:vendor_id>")

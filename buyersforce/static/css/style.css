@@ -648,3 +648,99 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
   display: flex; gap: 10px; background: var(--brand-tint); border-radius: 10px; padding: 12px 14px; font-size: 13px;
   color: var(--brand-dark); align-items: flex-start;
 }
+
+
+/* ---------------------------------------------------------------------
+   AI Directory Assistant -- floating launcher + slide-over chat panel
+   on the buyer Discover page. Uses the same tokens as the rest of the
+   app (brand/surface/ink/warning) so it reads as part of BuyersForce,
+   not a bolted-on widget.
+--------------------------------------------------------------------- */
+.ai-launcher-btn {
+  position: fixed; right: 24px; bottom: 24px; z-index: 60;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 20px; border: none; border-radius: 999px;
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  color: #fff; font-size: 14.5px; font-weight: 600;
+  box-shadow: 0 10px 30px rgba(13,95,92,0.35);
+  cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.ai-launcher-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 36px rgba(13,95,92,0.42); }
+.ai-launcher-btn .ai-launcher-icon { font-size: 16px; }
+.ai-launcher-btn[hidden] { display: none; }
+
+.ai-panel {
+  position: fixed; right: 24px; bottom: 24px; z-index: 70;
+  width: 392px; max-width: calc(100vw - 32px);
+  height: min(640px, calc(100vh - 48px));
+  background: var(--surface-raised); border: 1px solid var(--gridline);
+  border-radius: var(--radius-lg); box-shadow: 0 24px 64px rgba(0,0,0,0.28);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.ai-panel[hidden] { display: none; }
+.ai-panel-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  padding: 16px 16px 14px; background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  color: #fff; flex-shrink: 0;
+}
+.ai-panel-header strong { display: block; font-size: 15px; }
+.ai-panel-sub { display: block; font-size: 12.5px; opacity: 0.88; margin-top: 3px; line-height: 1.4; }
+.ai-panel-close {
+  border: none; background: rgba(255,255,255,0.16); color: #fff; width: 26px; height: 26px;
+  border-radius: 50%; font-size: 16px; line-height: 1; cursor: pointer; flex-shrink: 0;
+}
+.ai-panel-close:hover { background: rgba(255,255,255,0.28); }
+.ai-panel-messages {
+  flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;
+  background: var(--surface);
+}
+.ai-msg { max-width: 88%; font-size: 14px; line-height: 1.5; }
+.ai-msg-bubble { padding: 10px 13px; border-radius: 14px; white-space: pre-wrap; word-wrap: break-word; }
+.ai-msg-user { align-self: flex-end; }
+.ai-msg-user .ai-msg-bubble { background: var(--brand); color: #fff; border-bottom-right-radius: 4px; }
+.ai-msg-assistant { align-self: flex-start; }
+.ai-msg-assistant .ai-msg-bubble {
+  background: var(--surface-raised); border: 1px solid var(--gridline); color: var(--ink-primary);
+  border-bottom-left-radius: 4px;
+}
+.ai-msg-system .ai-msg-bubble {
+  background: var(--warning-tint); border: 1px solid var(--warning-border); color: var(--warning-ink-strong);
+}
+.ai-msg-typing .ai-msg-bubble { color: var(--ink-muted); font-style: italic; }
+
+.ai-vendor-results { align-self: stretch; display: flex; flex-direction: column; gap: 8px; margin-top: -2px; }
+.ai-vendor-mini-card {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  background: var(--surface-raised); border: 1px solid var(--gridline); border-radius: var(--radius-md);
+  text-decoration: none; color: inherit;
+}
+.ai-vendor-mini-card:hover { border-color: var(--brand); }
+.ai-vendor-mini-logo {
+  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center;
+  justify-content: center; color: #fff; font-size: 12px; font-weight: 700; overflow: hidden;
+}
+.ai-vendor-mini-logo img { width: 100%; height: 100%; object-fit: contain; }
+.ai-vendor-mini-body { min-width: 0; }
+.ai-vendor-mini-name { font-size: 13.5px; font-weight: 600; color: var(--ink-primary); }
+.ai-vendor-mini-meta { font-size: 12px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.ai-web-sources {
+  align-self: stretch; background: var(--warning-tint); border: 1px solid var(--warning-border);
+  border-radius: var(--radius-md); padding: 10px 12px; font-size: 12.5px; color: var(--warning-ink-strong);
+}
+.ai-web-sources-label { font-weight: 700; display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
+.ai-web-sources a { color: var(--warning-ink-strong); display: block; margin-top: 3px; word-break: break-all; }
+
+.ai-suggestion-chip {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 6px;
+  background: var(--brand-tint); color: var(--brand-dark); border-radius: 999px;
+  padding: 6px 12px; font-size: 12.5px; font-weight: 600;
+}
+
+.ai-panel-form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--gridline); flex-shrink: 0; }
+.ai-panel-form input { flex: 1; }
+
+@media (max-width: 480px) {
+  .ai-panel { right: 8px; left: 8px; bottom: 8px; width: auto; height: min(72vh, calc(100vh - 16px)); }
+  .ai-launcher-btn { right: 12px; bottom: 12px; }
+}
