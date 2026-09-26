@@ -188,6 +188,12 @@ def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
                 messages=messages,
             )
         except anthropic.APIError as exc:
+            # Not a secret -- an APIError's str() is a status/type/message
+            # from Anthropic's side (auth, billing, rate limit, etc.), never
+            # the key itself. Logged so a failure here shows up in Railway's
+            # deploy logs instead of only reaching the buyer as a vague
+            # "try again" message.
+            print(f"[ai_assistant] Anthropic API error: {type(exc).__name__}: {exc}", flush=True)
             return {
                 "reply": "Sorry, I had trouble reaching the AI assistant just now. Please try again in a moment.",
                 "messages": history,
