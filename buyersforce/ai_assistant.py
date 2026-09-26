@@ -87,7 +87,7 @@ _SUGGEST_VENDOR_TOOL = {
 
 
 def build_directory_tools(technology_categories, technology_segments, company_size_bands):
-    """Tool schema for a 'directory' turn -- Bob (see app.py's
+    """Tool schema for a 'directory' turn -- Frankie (see app.py's
     _ai_discover_system_prompt) can ONLY search BuyersForce's own vendor
     directory in this mode; there's no web_search here at all. That's
     deliberate, not an oversight: Kevin wants every buyer question to hit
@@ -167,7 +167,7 @@ def build_directory_tools(technology_categories, technology_segments, company_si
 def build_web_tools():
     """Tool schema for the 'web' follow-up turn -- only reached after the
     buyer has already seen BuyersForce's own results and explicitly asked
-    (by clicking the "Search outside BuyersForce" choice, not because Bob
+    (by clicking the "Search outside BuyersForce" choice, not because Frankie
     decided to on its own) to also look at the open web. suggest_vendor
     lives here, not in build_directory_tools(), for the same reason --
     it should only ever follow a web search the buyer asked for."""

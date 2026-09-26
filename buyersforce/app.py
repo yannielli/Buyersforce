@@ -2686,18 +2686,18 @@ def _ai_search_vendors(query=None, categories=None, segments=None, company_size=
     result count (this feeds a chat reply, not a full page of results).
 
     `categories`/`segments`/`company_size`/`ownership_status` are precise,
-    AND'd filters -- only worth passing when Bob is confident about the
+    AND'd filters -- only worth passing when Frankie is confident about the
     exact controlled value (see CYBERSECURITY_SEGMENTS /
     all_technology_categories() / 'public'|'private').
     `query` is deliberately much broader: Kevin's report was that asking
-    Bob for "top endpoint security vendors" missed vendors that had
-    Endpoint Security as a *sub-category* tag, because Bob doesn't always
+    Frankie for "top endpoint security vendors" missed vendors that had
+    Endpoint Security as a *sub-category* tag, because Frankie doesn't always
     map a buyer's own phrase onto the exact enum string on a first pass,
     and the old query search only ever checked company_name/tagline/
     description/hq_location -- never segments, technology categories, or
     tags. So `query` now also matches against every one of those, via OR,
     so a buyer's own words alone are enough to surface a vendor that's
-    tagged with a matching sub-category/category/tag, whether or not Bob
+    tagged with a matching sub-category/category/tag, whether or not Frankie
     also passed the equivalent exact `segments`/`categories` filter."""
     sql = "SELECT * FROM vendors WHERE status = 'active'"
     args = []
@@ -2749,13 +2749,13 @@ def _ai_search_vendors(query=None, categories=None, segments=None, company_size=
 
 
 def _ai_discover_system_prompt(user, mode):
-    """Bob has two distinct modes, each with its own (deliberately
+    """Frankie has two distinct modes, each with its own (deliberately
     narrower) tool access -- see ai_assistant.build_directory_tools() /
     build_web_tools(). 'directory' is every buyer question's first stop,
-    every time: Bob can only search BuyersForce's own vendor directory in
+    every time: Frankie can only search BuyersForce's own vendor directory in
     that mode, full stop. Only once the buyer has seen those results and
     explicitly clicked "Search outside BuyersForce" (buyer_discover_chat
-    passes mode='web' for that one follow-up call) can Bob use web_search
+    passes mode='web' for that one follow-up call) can Frankie use web_search
     or suggest_vendor at all. This is Kevin's requested flow: BuyersForce
     first, always, with the *buyer* deciding whether to go further -- not
     left to the model's own judgment call mid-conversation."""
@@ -2763,7 +2763,7 @@ def _ai_discover_system_prompt(user, mode):
     segments = ", ".join(all_technology_segments())
     sizes = ", ".join(COMPANY_SIZE_BANDS)
     intro = (
-        f"You are Bob, BuyersForce's AI Directory Assistant, embedded on the "
+        f"You are Frankie, BuyersForce's AI Directory Assistant, embedded on the "
         f"buyer-facing Discover page. You're helping {user['name']} from "
         f"{user['company']}, a signed-in buyer, find the right vendor "
         f"conversationally."
@@ -2879,7 +2879,7 @@ def buyer_discover_chat():
             limit=requested_limit,
         )
         # Every field a buyer might ask about -- founded year, HQ, company
-        # size, and public/private + ticker -- goes to Bob here, not just
+        # size, and public/private + ticker -- goes to Frankie here, not just
         # the ones used for filtering, so he can actually answer "is this
         # one public?" or "which of these are the biggest" instead of only
         # being able to name vendors he found.
@@ -2932,7 +2932,7 @@ def buyer_discover_chat():
         ensure_contact(g.user["id"], contact_user_id=admin["id"])
         ensure_contact(admin["id"], contact_user_id=g.user["id"])
 
-        summary_lines = [f"New vendor suggestion (via Bob, BuyersForce's AI Directory Assistant): {company_name} ({website})"]
+        summary_lines = [f"New vendor suggestion (via Frankie, BuyersForce's AI Directory Assistant): {company_name} ({website})"]
         if notes:
             summary_lines.append(notes)
         dbm.execute(
@@ -2943,17 +2943,17 @@ def buyer_discover_chat():
             "INSERT INTO vendor_requests (kind, requested_by_user_id, company_name, website, notes, thread_id) "
             "VALUES ('buyer_referral', ?, ?, ?, ?, ?)",
             (g.user["id"], company_name, website,
-             ("Sourced via Bob (AI Directory Assistant).\n" + notes) if notes else "Sourced via Bob (AI Directory Assistant).",
+             ("Sourced via Frankie (AI Directory Assistant).\n" + notes) if notes else "Sourced via Frankie (AI Directory Assistant).",
              thread["id"]),
         )
-        log_activity(g.user["id"], f"suggested a vendor via Bob ({company_name})")
+        log_activity(g.user["id"], f"suggested a vendor via Frankie ({company_name})")
         return (
             f"Submitted {company_name} to BuyersForce's review queue.",
             {"company_name": company_name, "website": website},
         )
 
     # 'directory' (default) is every question's mandatory first stop --
-    # Bob can only search BuyersForce in that mode. 'web' is reached only
+    # Frankie can only search BuyersForce in that mode. 'web' is reached only
     # from the frontend's "Search outside BuyersForce" button, sent after
     # the buyer has already seen BuyersForce's own results for this ask.
     # Any other value collapses to the safe default rather than 500ing on
