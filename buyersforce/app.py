@@ -2717,40 +2717,76 @@ def _ai_search_vendors(query=None, categories=None, segments=None, company_size=
     return results
 
 
-def _ai_discover_system_prompt(user):
+def _ai_discover_system_prompt(user, mode):
+    """Bob has two distinct modes, each with its own (deliberately
+    narrower) tool access -- see ai_assistant.build_directory_tools() /
+    build_web_tools(). 'directory' is every buyer question's first stop,
+    every time: Bob can only search BuyersForce's own vendor directory in
+    that mode, full stop. Only once the buyer has seen those results and
+    explicitly clicked "Search outside BuyersForce" (buyer_discover_chat
+    passes mode='web' for that one follow-up call) can Bob use web_search
+    or suggest_vendor at all. This is Kevin's requested flow: BuyersForce
+    first, always, with the *buyer* deciding whether to go further -- not
+    left to the model's own judgment call mid-conversation."""
     categories = ", ".join(all_technology_categories())
     segments = ", ".join(all_technology_segments())
     sizes = ", ".join(COMPANY_SIZE_BANDS)
+    intro = (
+        f"You are Bob, BuyersForce's AI Directory Assistant, embedded on the "
+        f"buyer-facing Discover page. You're helping {user['name']} from "
+        f"{user['company']}, a signed-in buyer, find the right vendor "
+        f"conversationally."
+    )
+
+    if mode == "web":
+        return (
+            f"{intro} {user['name']} already searched BuyersForce's own vetted "
+            f"directory for what they need, saw those results, and explicitly "
+            f"asked you to also look outside BuyersForce on the open web -- this "
+            f"is a deliberate buyer choice, not something you decided on your "
+            f"own. Reconstruct what they're looking for from the conversation so "
+            f"far and use the web_search tool to find real options.\n\n"
+            f"Always caveat clearly and distinctly that this came from the open "
+            f"web and hasn't been vetted by BuyersForce -- e.g. \"Here's what I "
+            f"found on the web (unverified):\" -- so it's never confused with a "
+            f"vetted BuyersForce listing.\n\n"
+            f"SUGGESTING A NEW VENDOR\n"
+            f"If the buyer wants a company you found added to BuyersForce, "
+            f"confirm the company name and website with them, then call "
+            f"suggest_vendor. This only submits it to BuyersForce's admin review "
+            f"queue -- it does not publish immediately -- and you should say "
+            f"that plainly (\"I've submitted it for BuyersForce's team to "
+            f"review\"). Never call suggest_vendor without the buyer's explicit "
+            f"go-ahead on that specific company.\n\n"
+            f"STYLE\n"
+            f"Be concise, warm, and consultative -- a few sentences per turn, not "
+            f"a wall of text."
+        )
+
     return (
-        f"You are the BuyersForce Directory Assistant, embedded on the buyer-facing "
-        f"Discover page. You're helping {user['name']} from {user['company']}, a "
-        f"signed-in buyer -- find the right vendor conversationally. Ask brief, "
-        f"specific qualifying questions about what they need (the problem they're "
-        f"solving, rough company size, must-have features) rather than everything at "
-        f"once, then search as soon as you have enough to go on.\n\n"
-        f"VERIFIED DIRECTORY SEARCH\n"
-        f"Use the search_vendors tool to look up BuyersForce's own vetted vendor "
-        f"directory. Only ever call a result \"on BuyersForce\" if it actually came "
-        f"back from that tool -- never claim or assume a listing exists. Valid "
-        f"technology categories: {categories}. Valid segments: {segments}. Valid "
-        f"company-size bands: {sizes}. Use these exact values when filtering.\n\n"
-        f"WEB SEARCH (WILDCARD)\n"
-        f"If BuyersForce's own directory doesn't have a good match, you may use the "
-        f"web_search tool to look further afield. Every time you share something that "
-        f"came from the web rather than from search_vendors, say so plainly and "
-        f"distinctly in your reply -- e.g. \"I didn't find this on BuyersForce, but "
-        f"here's what I found on the web (unverified):\" -- so it's never confused "
-        f"with a vetted BuyersForce listing.\n\n"
-        f"SUGGESTING A NEW VENDOR\n"
-        f"If, after a web search, the buyer wants a company added to BuyersForce, "
-        f"confirm the company name and website with them, then call suggest_vendor. "
-        f"This only submits it to BuyersForce's admin review queue -- it does not "
-        f"publish immediately -- and you should say that plainly (\"I've submitted "
-        f"it for BuyersForce's team to review\"). Never call suggest_vendor without "
-        f"the buyer's explicit go-ahead on that specific company.\n\n"
+        f"{intro} Ask brief, specific qualifying questions about what they need "
+        f"(the problem they're solving, rough company size, must-have features) "
+        f"one or two at a time rather than everything at once, then call "
+        f"search_vendors as soon as you have enough to go on.\n\n"
+        f"VERIFIED DIRECTORY SEARCH ONLY\n"
+        f"You do NOT have web search in this mode -- BuyersForce's own vetted "
+        f"vendor directory, via the search_vendors tool, is the only thing you "
+        f"can check right now. Only ever call a result \"on BuyersForce\" if it "
+        f"actually came back from that tool -- never claim or assume a listing "
+        f"exists. Valid technology categories: {categories}. Valid segments: "
+        f"{segments}. Valid company-size bands: {sizes}. Use these exact values "
+        f"when filtering.\n\n"
+        f"AFTER SEARCHING\n"
+        f"The app already displays the full result cards (or a clear \"nothing "
+        f"found\" note) right below your reply, plus a follow-up prompt asking "
+        f"the buyer whether to also search the open web -- so keep your reply to "
+        f"a short, warm sentence or two of context (e.g. what you searched for, "
+        f"or that nothing matched) rather than re-listing every vendor by name, "
+        f"and don't offer a web search yourself; that choice belongs to the app's "
+        f"UI, not to you.\n\n"
         f"STYLE\n"
-        f"Be concise, warm, and consultative -- a few sentences per turn, not a wall "
-        f"of text."
+        f"Be concise, warm, and consultative -- a few sentences per turn, not a "
+        f"wall of text."
     )
 
 
@@ -2829,7 +2865,7 @@ def buyer_discover_chat():
         ensure_contact(g.user["id"], contact_user_id=admin["id"])
         ensure_contact(admin["id"], contact_user_id=g.user["id"])
 
-        summary_lines = [f"New vendor suggestion (via AI Directory Assistant): {company_name} ({website})"]
+        summary_lines = [f"New vendor suggestion (via Bob, BuyersForce's AI Directory Assistant): {company_name} ({website})"]
         if notes:
             summary_lines.append(notes)
         dbm.execute(
@@ -2840,24 +2876,36 @@ def buyer_discover_chat():
             "INSERT INTO vendor_requests (kind, requested_by_user_id, company_name, website, notes, thread_id) "
             "VALUES ('buyer_referral', ?, ?, ?, ?, ?)",
             (g.user["id"], company_name, website,
-             ("Sourced via AI Directory Assistant.\n" + notes) if notes else "Sourced via AI Directory Assistant.",
+             ("Sourced via Bob (AI Directory Assistant).\n" + notes) if notes else "Sourced via Bob (AI Directory Assistant).",
              thread["id"]),
         )
-        log_activity(g.user["id"], f"suggested a vendor via AI chat ({company_name})")
+        log_activity(g.user["id"], f"suggested a vendor via Bob ({company_name})")
         return (
             f"Submitted {company_name} to BuyersForce's review queue.",
             {"company_name": company_name, "website": website},
         )
 
-    tools = ai_assistant.build_tools(all_technology_categories(), all_technology_segments(), COMPANY_SIZE_BANDS)
-    system_prompt = _ai_discover_system_prompt(g.user)
+    # 'directory' (default) is every question's mandatory first stop --
+    # Bob can only search BuyersForce in that mode. 'web' is reached only
+    # from the frontend's "Search outside BuyersForce" button, sent after
+    # the buyer has already seen BuyersForce's own results for this ask.
+    # Any other value collapses to the safe default rather than 500ing on
+    # a malformed request.
+    mode = data.get("mode") if data.get("mode") in ("directory", "web") else "directory"
+    system_prompt = _ai_discover_system_prompt(g.user, mode)
+    if mode == "web":
+        tools = ai_assistant.build_web_tools()
+        tool_handlers = {"suggest_vendor": handle_suggest_vendor}
+    else:
+        tools = ai_assistant.build_directory_tools(
+            all_technology_categories(), all_technology_segments(), COMPANY_SIZE_BANDS
+        )
+        tool_handlers = {"search_vendors": handle_search_vendors}
+
     result = ai_assistant.run_chat_turn(
         system_prompt=system_prompt,
         tools=tools,
-        tool_handlers={
-            "search_vendors": handle_search_vendors,
-            "suggest_vendor": handle_suggest_vendor,
-        },
+        tool_handlers=tool_handlers,
         history=history,
         user_message=user_message,
     )

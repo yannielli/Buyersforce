@@ -124,14 +124,14 @@
 
 <button id="aiAssistantToggle" class="ai-launcher-btn" type="button" aria-expanded="false" aria-controls="aiAssistantPanel">
   <span class="ai-launcher-icon">&#10024;</span>
-  <span>Ask the AI Assistant</span>
+  <span>Ask Bob</span>
 </button>
 
 <div id="aiAssistantPanel" class="ai-panel" hidden>
   <div class="ai-panel-header">
     <div>
-      <strong>BuyersForce Directory Assistant</strong>
-      <span class="ai-panel-sub">Tell me what you're looking for -- I'll search BuyersForce, and the web if I need to.</span>
+      <strong>Bob</strong>
+      <span class="ai-panel-sub">BuyersForce's AI Directory Assistant -- I'll check BuyersForce first, then you can ask me to look further.</span>
     </div>
     <button id="aiAssistantClose" class="ai-panel-close" type="button" aria-label="Close assistant">&times;</button>
   </div>
@@ -181,13 +181,14 @@
   var transcript = [];   // Anthropic-format history, round-tripped with the server each turn
   var greeted = false;
   var sending = false;
+  var pendingChoiceButtons = null;  // buttons from the most recent "did this answer it?" prompt, if any
 
   function openPanel() {
     panel.hidden = false;
     toggleBtn.setAttribute('aria-expanded', 'true');
     if (!greeted) {
       greeted = true;
-      addAssistantBubble("Hi! Tell me a bit about what you're trying to solve -- the kind of tool, roughly how big your team is, anything that's a must-have -- and I'll look for a fit on BuyersForce.");
+      addAssistantBubble("Hi, I'm Bob! Tell me a bit about what you're trying to solve -- the kind of tool, roughly how big your team is, anything that's a must-have -- and I'll check BuyersForce for a fit.");
     }
     input.focus();
   }
@@ -236,6 +237,14 @@
     return row;
   }
 
+  function addFoundHeader(text) {
+    var row = document.createElement('div');
+    row.className = 'ai-found-header';
+    row.textContent = text;
+    messagesEl.appendChild(row);
+    scrollToBottom();
+  }
+
   function addVendorResults(vendors) {
     if (!vendors || !vendors.length) { return; }
     var wrap = document.createElement('div');
@@ -272,6 +281,68 @@
       wrap.appendChild(card);
     });
     messagesEl.appendChild(wrap);
+    scrollToBottom();
+  }
+
+  // Renders the mandatory "search BuyersForce first" result block: a
+  // fixed header (never left to the model to phrase -- Kevin's exact
+  // ask was "this is what we found in BuyersForce"), the matching
+  // vendor cards or a clear "nothing found" note, and -- right below it
+  // -- the two-button choice, so the buyer (not Bob) decides whether to
+  // look further.
+  function addDirectoryResultsAndChoice(vendorResults) {
+    if (vendorResults && vendorResults.length) {
+      addFoundHeader("Here's what we found in BuyersForce:");
+      addVendorResults(vendorResults);
+    } else {
+      addFoundHeader("We didn't find a match for this in BuyersForce.");
+    }
+    addChoicePrompt();
+  }
+
+  function disablePendingChoice() {
+    if (!pendingChoiceButtons) { return; }
+    pendingChoiceButtons.forEach(function (btn) { btn.disabled = true; });
+    pendingChoiceButtons = null;
+  }
+
+  function addChoicePrompt() {
+    disablePendingChoice();
+    var row = document.createElement('div');
+    row.className = 'ai-choice';
+    var question = document.createElement('div');
+    question.className = 'ai-choice-question';
+    question.textContent = "Did this answer your question, or would you like me to run a live search outside of BuyersForce?";
+    row.appendChild(question);
+
+    var actions = document.createElement('div');
+    actions.className = 'ai-choice-actions';
+
+    var yesBtn = document.createElement('button');
+    yesBtn.type = 'button';
+    yesBtn.className = 'btn btn-ghost btn-sm';
+    yesBtn.textContent = 'Yes, that answers it';
+    yesBtn.addEventListener('click', function () {
+      disablePendingChoice();
+      row.classList.add('ai-choice-done');
+      addAssistantBubble("Great -- let me know if there's anything else I can help you find.");
+    });
+
+    var webBtn = document.createElement('button');
+    webBtn.type = 'button';
+    webBtn.className = 'btn btn-secondary btn-sm';
+    webBtn.textContent = 'Search outside BuyersForce';
+    webBtn.addEventListener('click', function () {
+      disablePendingChoice();
+      row.classList.add('ai-choice-done');
+      sendToBob("Please also run a live web search outside of BuyersForce for what I'm looking for.", 'web', { showUserBubble: false });
+    });
+
+    actions.appendChild(yesBtn);
+    actions.appendChild(webBtn);
+    row.appendChild(actions);
+    messagesEl.appendChild(row);
+    pendingChoiceButtons = [yesBtn, webBtn];
     scrollToBottom();
   }
 
@@ -314,21 +385,23 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  form.addEventListener('submit', function (e) {
-    e.preventDefault();
+  // Shared by both the buyer's own typed questions (mode 'directory',
+  // which only ever lets Bob search BuyersForce) and the "Search outside
+  // BuyersForce" choice button (mode 'web'). One function for both means
+  // the request/response handling -- typing indicator, error cases,
+  // rendering whatever came back -- only lives in one place.
+  function sendToBob(message, mode, opts) {
+    opts = opts || {};
     if (sending) { return; }
-    var text = input.value.trim();
-    if (!text) { return; }
-    input.value = '';
-    addUserBubble(text);
     sending = true;
     input.disabled = true;
+    if (opts.showUserBubble !== false) { addUserBubble(message); }
     var typingRow = addTypingBubble();
 
     fetch('/app/buyer/discover/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: transcript, message: text }),
+      body: JSON.stringify({ messages: transcript, message: message, mode: mode }),
     })
       .then(function (resp) { return resp.json(); })
       .then(function (data) {
@@ -339,19 +412,30 @@
         }
         transcript = data.messages || transcript;
         addAssistantBubble(data.reply || "Sorry, I didn't get a response -- could you try again?", { system: !!data.error });
-        addVendorResults(data.vendor_results);
+        if (data.searched) {
+          addDirectoryResultsAndChoice(data.vendor_results);
+        }
         addWebSources(data.web_sources);
         addSuggestionChip(data.suggestion);
       })
       .catch(function () {
         typingRow.remove();
-        addAssistantBubble("Sorry, something went wrong reaching the assistant. Please try again.", { system: true });
+        addAssistantBubble("Sorry, something went wrong reaching Bob. Please try again.", { system: true });
       })
       .finally(function () {
         sending = false;
         input.disabled = false;
         input.focus();
       });
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var text = input.value.trim();
+    if (!text || sending) { return; }
+    input.value = '';
+    disablePendingChoice();
+    sendToBob(text, 'directory', { showUserBubble: true });
   });
 })();
 </script>

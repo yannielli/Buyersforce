@@ -708,6 +708,11 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 }
 .ai-msg-typing .ai-msg-bubble { color: var(--ink-muted); font-style: italic; }
 
+.ai-found-header {
+  align-self: flex-start; font-size: 12px; font-weight: 700; color: var(--ink-secondary);
+  text-transform: uppercase; letter-spacing: 0.03em; margin: 2px 0 -2px;
+}
+
 .ai-vendor-results { align-self: stretch; display: flex; flex-direction: column; gap: 8px; margin-top: -2px; }
 .ai-vendor-mini-card {
   display: flex; align-items: center; gap: 10px; padding: 10px 12px;
@@ -736,6 +741,15 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
   background: var(--brand-tint); color: var(--brand-dark); border-radius: 999px;
   padding: 6px 12px; font-size: 12.5px; font-weight: 600;
 }
+
+.ai-choice {
+  align-self: stretch; background: var(--surface-raised); border: 1px solid var(--gridline);
+  border-radius: var(--radius-md); padding: 10px 12px; display: flex; flex-direction: column; gap: 9px;
+  transition: opacity 0.15s ease;
+}
+.ai-choice-question { font-size: 13px; color: var(--ink-secondary); line-height: 1.45; }
+.ai-choice-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ai-choice-done { opacity: 0.5; pointer-events: none; }
 
 .ai-panel-form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--gridline); flex-shrink: 0; }
 .ai-panel-form input { flex: 1; }

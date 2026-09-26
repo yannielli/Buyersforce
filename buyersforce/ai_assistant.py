@@ -61,12 +61,44 @@ def get_client():
     return _client
 
 
-def build_tools(technology_categories, technology_segments, company_size_bands):
-    """Tool schemas for one chat turn. `technology_categories` /
-    `technology_segments` / `company_size_bands` are only used to shape
-    the input_schema descriptions -- the *system prompt* (built in
-    app.py) is what actually tells Claude the valid values, since a huge
-    enum list on every array item is more schema than this needs."""
+_SUGGEST_VENDOR_TOOL = {
+    "name": "suggest_vendor",
+    "description": (
+        "Submit a company you found on the open web -- NOT BuyersForce's own "
+        "directory -- into BuyersForce's admin review queue, so a human can "
+        "decide whether to add it as a real, vetted listing. This never "
+        "publishes anything immediately. Only call this after the buyer has "
+        "explicitly confirmed they want that specific company submitted; never "
+        "call it just because a company came up in a web search."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "company_name": {"type": "string"},
+            "website": {"type": "string"},
+            "notes": {
+                "type": "string",
+                "description": "A short summary of what this company does and why it might fit, based on what you found on the web.",
+            },
+        },
+        "required": ["company_name", "website"],
+    },
+}
+
+
+def build_directory_tools(technology_categories, technology_segments, company_size_bands):
+    """Tool schema for a 'directory' turn -- Bob (see app.py's
+    _ai_discover_system_prompt) can ONLY search BuyersForce's own vendor
+    directory in this mode; there's no web_search here at all. That's
+    deliberate, not an oversight: Kevin wants every buyer question to hit
+    BuyersForce first, with the buyer -- not the model's own judgment --
+    deciding whether to escalate to a live web search afterward (see the
+    separate build_web_tools() below, used only for that follow-up turn).
+    `technology_categories` / `technology_segments` / `company_size_bands`
+    are only used to shape the input_schema descriptions -- the *system
+    prompt* (built in app.py) is what actually tells Claude the valid
+    values, since a huge enum list on every array item is more schema
+    than this needs."""
     return [
         {
             "name": "search_vendors",
@@ -101,34 +133,23 @@ def build_tools(technology_categories, technology_segments, company_size_bands):
                 },
             },
         },
+    ]
+
+
+def build_web_tools():
+    """Tool schema for the 'web' follow-up turn -- only reached after the
+    buyer has already seen BuyersForce's own results and explicitly asked
+    (by clicking the "Search outside BuyersForce" choice, not because Bob
+    decided to on its own) to also look at the open web. suggest_vendor
+    lives here, not in build_directory_tools(), for the same reason --
+    it should only ever follow a web search the buyer asked for."""
+    return [
         {
             "type": "web_search_20250305",
             "name": "web_search",
             "max_uses": 3,
         },
-        {
-            "name": "suggest_vendor",
-            "description": (
-                "Submit a company you found on the open web -- NOT BuyersForce's own "
-                "directory -- into BuyersForce's admin review queue, so a human can "
-                "decide whether to add it as a real, vetted listing. This never "
-                "publishes anything immediately. Only call this after the buyer has "
-                "explicitly confirmed they want that specific company submitted; never "
-                "call it just because a company came up in a web search."
-            ),
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "company_name": {"type": "string"},
-                    "website": {"type": "string"},
-                    "notes": {
-                        "type": "string",
-                        "description": "A short summary of what this company does and why it might fit, based on what you found on the web.",
-                    },
-                },
-                "required": ["company_name", "website"],
-            },
-        },
+        _SUGGEST_VENDOR_TOOL,
     ]
 
 
@@ -148,6 +169,7 @@ def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
             "vendor_results": [...],       # full vendor dicts from the most recent search_vendors call, if any
             "web_sources": [{"title", "url"}, ...],  # pages cited via web_search, if any
             "suggestion": {...} or None,   # set when suggest_vendor was called this turn
+            "searched": bool,              # True iff search_vendors was actually invoked this turn
             "error": str or None,
         }
 
@@ -170,6 +192,7 @@ def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
             "vendor_results": [],
             "web_sources": [],
             "suggestion": None,
+            "searched": False,
             "error": "no_api_key",
         }
 
@@ -177,6 +200,7 @@ def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
     vendor_results = []
     web_sources = []
     suggestion = None
+    searched = False
 
     for _ in range(MAX_TOOL_ITERATIONS):
         try:
@@ -200,6 +224,7 @@ def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
                 "vendor_results": [],
                 "web_sources": [],
                 "suggestion": None,
+                "searched": searched,
                 "error": str(exc),
             }
 
@@ -221,6 +246,7 @@ def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
                 "vendor_results": vendor_results,
                 "web_sources": web_sources,
                 "suggestion": suggestion,
+                "searched": searched,
                 "error": None,
             }
 
@@ -235,6 +261,8 @@ def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
 
         tool_results = []
         for block in pending_client_tools:
+            if block.name == "search_vendors":
+                searched = True
             handler = tool_handlers.get(block.name)
             if handler is None:
                 tool_results.append({
@@ -272,5 +300,6 @@ def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
         "vendor_results": vendor_results,
         "web_sources": web_sources,
         "suggestion": suggestion,
+        "searched": searched,
         "error": "max_iterations",
     }
