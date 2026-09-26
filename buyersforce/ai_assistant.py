@@ -18,6 +18,18 @@ import os
 
 import anthropic
 
+# One-time, secret-safe boot diagnostic: confirms whether the sealed
+# ANTHROPIC_API_KEY variable is actually reaching this process, and its
+# length, without ever logging the value itself. Shows up once per
+# gunicorn worker in Railway's deploy logs -- if this is ever chased
+# again, delete these four lines once it's resolved.
+_boot_key = os.environ.get("ANTHROPIC_API_KEY")
+print(
+    "[ai_assistant] ANTHROPIC_API_KEY at boot: "
+    + ("present, length=" + str(len(_boot_key)) if _boot_key else "MISSING or empty"),
+    flush=True,
+)
+
 # Sonnet is the right cost/latency tier for a conversational directory
 # search assistant -- it doesn't need Opus's heavier reasoning budget.
 MODEL = "claude-sonnet-5"
