@@ -14,6 +14,7 @@
       {% if vendor.hq_location %}📍 {{ vendor.hq_location }}{% endif %}
       {% if vendor.company_size %}{% if vendor.hq_location %} · {% endif %}👥 {{ vendor.company_size }} employees{% endif %}
       {% if vendor.founded_year %}{% if vendor.hq_location or vendor.company_size %} · {% endif %}Founded {{ vendor.founded_year }}{% endif %}
+      {% if vendor.ownership_status %}{% if vendor.hq_location or vendor.company_size or vendor.founded_year %} · {% endif %}{% if vendor.ownership_status == 'public' %}📈 Publicly traded{% if vendor.stock_ticker %} ({{ vendor.stock_ticker }}){% endif %}{% else %}🔒 Private{% endif %}{% endif %}
     </p>
     <div>{% for s in segments %}<span class="tag">{{ s }}</span>{% endfor %}{% for t in tags %}<span class="tag">{{ t }}</span>{% endfor %}</div>
   </div>

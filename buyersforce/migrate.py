@@ -68,6 +68,8 @@ def run_migrations():
             _correct_authbase_profile_2026_09_20(cur)
             _vendor_corrections_2026_09_20_d(cur)
             _set_tines_hq_2026_09_20(cur)
+            _add_vendor_ownership_columns(cur)
+            _backfill_vendor_ownership_2026_09_26(cur)
     finally:
         con.close()
 
@@ -1312,6 +1314,121 @@ def _set_tines_hq_2026_09_20(cur):
         "UPDATE vendors SET hq_location = 'Boston, MA' "
         "WHERE LOWER(TRIM(company_name)) = 'tines'"
     )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) "
+        "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
+
+
+def _add_vendor_ownership_columns(cur):
+    # Public/private ownership + stock ticker (see schema.sql's comment on
+    # vendors.ownership_status/stock_ticker). Both nullable at the column
+    # level -- seller_profile's editor form is what makes ownership_status
+    # mandatory (and stock_ticker mandatory when public) once a seller
+    # actually saves the form -- so existing rows don't get rejected the
+    # moment this migration runs; _backfill_vendor_ownership_2026_09_26
+    # right below fills them in with a best-effort starting value.
+    cur.execute(
+        "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS ownership_status TEXT"
+    )
+    cur.execute(
+        "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS stock_ticker TEXT"
+    )
+    cur.execute(
+        "SELECT 1 FROM pg_constraint WHERE conname = 'vendors_ownership_status_check'"
+    )
+    if not cur.fetchone():
+        cur.execute(
+            "ALTER TABLE vendors ADD CONSTRAINT vendors_ownership_status_check "
+            "CHECK (ownership_status IN ('public', 'private'))"
+        )
+
+
+# One-time research pass (2026-09-26), at Kevin's request: every vendor
+# should show a public/private status, and public ones should show their
+# stock ticker. Verified via web search against each company's current
+# (2026) ownership -- several well-known names have gone private, been
+# acquired, or (re-)IPO'd recently, so this is NOT simply "big name =
+# public": e.g. CyberArk (acquired by Palo Alto Networks), Wiz (acquired by
+# Google), Splunk/Juniper Networks (acquired by Cisco/HPE), New Relic/
+# SolarWinds/Darktrace/Sophos/Barracuda/Proofpoint/Ping Identity (taken
+# private by PE), and brand names now folded into a parent that isn't
+# separately traded under that name (Auth0 -> Okta, Duo Security -> Cisco,
+# Arbor Networks -> NETSCOUT, Mandiant -> Google, Imperva -> Thales) are
+# all classified 'private' here even though the underlying business is
+# large or has a well-known (former) public parent -- the ticker on file
+# should only ever be one that actually prices *this* listed company.
+# Tickers include their listing venue implicitly (mixed exchanges: NASDAQ,
+# NYSE, Nasdaq Helsinki, Nasdaq Stockholm, Euronext Paris, NSE India).
+_CONFIRMED_PUBLIC_VENDORS_2026_09_26 = [
+    ("IBM Security", "IBM"),
+    ("Check Point Software", "CHKP"),
+    ("CrowdStrike", "CRWD"),
+    ("Broadcom", "AVGO"),
+    ("F-Secure", "FSECURE"),
+    ("Tenable", "TENB"),
+    ("Akamai", "AKAM"),
+    ("OVHcloud", "OVH"),
+    ("Fortinet", "FTNT"),
+    ("Radware", "RDWR"),
+    ("AWS Shield", "AMZN"),
+    ("Fastly", "FSLY"),
+    ("Hewlett Packard Enterprise", "HPE"),
+    ("OpenText (NetIQ)", "OTEX"),
+    ("Rejlers", "REJL B"),
+    ("Netskope", "NTSK"),
+    ("SentinelOne", "S"),
+    ("Jamf", "JAMF"),
+    ("Zscaler", "ZS"),
+    ("Cloudflare", "NET"),
+    ("SailPoint", "SAIL"),
+    ("Palo Alto Networks", "PANW"),
+    ("Rapid7", "RPD"),
+    ("Okta", "OKTA"),
+    ("A10 Networks", "ATEN"),
+    ("Varonis", "VRNS"),
+    ("Google", "GOOGL"),
+    ("Cisco Security", "CSCO"),
+    ("Microsoft", "MSFT"),
+    ("Datadog", "DDOG"),
+    ("Clavister", "CLAV"),
+    ("Orient Technologies", "ORIENTTECH"),
+]
+
+
+def _backfill_vendor_ownership_2026_09_26(cur):
+    # Guarded by _data_patches -- see _remove_discontinued_vendor_listings_
+    # 2026_09_20 above for why this pattern is needed: without it, a normal
+    # migration re-running on every deploy would stomp on a seller's own
+    # later edit to their claimed listing's ownership_status/stock_ticker.
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches ("
+        "name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "backfill_vendor_ownership_2026_09_26"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    # Starting default for every active vendor: private. Kevin's own
+    # framing ("default to what are known to be public or private... as a
+    # starting point") plus the seed data's own provenance (mostly startups
+    # sourced from CB Insights / the Momentum Cyber Almanac / an
+    # awesome-cybersecurity list) makes private the right base rate --
+    # confirmed-public names are then corrected below.
+    cur.execute(
+        "UPDATE vendors SET ownership_status = 'private' "
+        "WHERE status = 'active' AND ownership_status IS NULL"
+    )
+
+    for name, ticker in _CONFIRMED_PUBLIC_VENDORS_2026_09_26:
+        cur.execute(
+            "UPDATE vendors SET ownership_status = 'public', stock_ticker = %s "
+            "WHERE status = 'active' AND LOWER(TRIM(company_name)) = LOWER(TRIM(%s))",
+            (ticker, name),
+        )
 
     cur.execute(
         "INSERT INTO _data_patches (name, applied_at) "

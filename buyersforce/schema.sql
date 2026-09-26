@@ -191,6 +191,15 @@ CREATE TABLE vendors (
     -- this is the column the Discover page's top-level category filter
     -- reads, ahead of the existing segment filter underneath it.
     technology_category TEXT NOT NULL DEFAULT 'cybersecurity',
+    -- Public/private ownership, and (only when public) the stock ticker --
+    -- see seller_profile's editor form. Mandatory fields there once a
+    -- seller has claimed a listing (ownership_status always; stock_ticker
+    -- only if ownership_status = 'public'), but left nullable at the
+    -- schema level since ~235 admin-seeded, unclaimed vendors predate this
+    -- column (backfilled by migrate.py's _backfill_vendor_ownership data
+    -- patch, defaulting to 'private' except for a confirmed-public list).
+    ownership_status TEXT CHECK (ownership_status IN ('public', 'private')),
+    stock_ticker TEXT,
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
 );
 

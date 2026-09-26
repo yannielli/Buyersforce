@@ -88,7 +88,12 @@
         </span>
         <div>
           <h3><a href="{{ url_for('buyer_vendor', vendor_id=v.id) }}">{{ v.company_name }}</a></h3>
-          <span class="cat">{{ v.category }}{% if v.company_size %} · {{ v.company_size }} employees{% endif %}</span>
+          <span class="cat">
+            {{ v.category }}
+            {%- if v.hq_location %} · 📍 {{ v.hq_location }}{% endif -%}
+            {%- if v.company_size %} · {{ v.company_size }} employees{% endif -%}
+            {%- if v.founded_year %} · Founded {{ v.founded_year }}{% endif -%}
+          </span>
         </div>
         {% if v.status %}<span class="badge {{ 'badge-good' if v.status in ['shortlisted','selected'] else ('badge-brand' if v.status == 'evaluating' else 'badge-neutral') }}" style="margin-left:auto;">{{ v.status|capitalize }}</span>{% endif %}
       </div>

@@ -3767,6 +3767,25 @@ def seller_profile():
         # see PHONE_COUNTRIES / static/js/phone-format.js. Defaults to US.
         contact_phone_country = (form.get("contact_phone_country", "US").strip().upper() or "US")[:2]
 
+        # Public/private + ticker (Kevin's request): mandatory once a
+        # seller is actually editing a claimed listing -- ownership_status
+        # always, stock_ticker only when the company is public. Admin-
+        # seeded/unclaimed vendors get a best-effort default from
+        # migrate.py's one-time backfill instead (see
+        # _backfill_vendor_ownership_2026_09_26), so this validation only
+        # ever bites on a real save from this form.
+        ownership_status = form.get("ownership_status", "").strip().lower()
+        if ownership_status not in ("public", "private"):
+            flash("Please select whether this company is publicly traded or private.", "error")
+            return redirect(url_for("seller_profile"))
+        stock_ticker = form.get("stock_ticker", "").strip().upper()
+        if ownership_status == "public":
+            if not stock_ticker:
+                flash("Please enter the stock ticker symbol for a publicly traded company.", "error")
+                return redirect(url_for("seller_profile"))
+        else:
+            stock_ticker = None
+
         dbm.execute(
             # accent is no longer an editable field on this form (removed
             # per Kevin's request) -- deliberately left out of this UPDATE
@@ -3774,14 +3793,15 @@ def seller_profile():
             "UPDATE vendors SET company_name=?, category=?, tagline=?, description=?, "
             "website=?, initials=?, logo_link_url=?, logo_upload_data_url=?, company_size=?, "
             "founded_year=?, hq_location=?, contact_name=?, contact_email=?, contact_phone=?, "
-            "contact_phone_country=? WHERE id=?",
+            "contact_phone_country=?, ownership_status=?, stock_ticker=? WHERE id=?",
             (
                 form["company_name"].strip(), category, form["tagline"].strip(),
                 form["description"].strip(), website,
                 initials, new_logo_link_url, new_logo_upload_data_url, company_size, founded_year,
                 form.get("hq_location", "").strip(), form.get("contact_name", "").strip(),
                 form.get("contact_email", "").strip(),
-                form.get("contact_phone", "").strip(), contact_phone_country, vendor["id"],
+                form.get("contact_phone", "").strip(), contact_phone_country,
+                ownership_status, stock_ticker, vendor["id"],
             ),
         )
         dbm.execute("DELETE FROM vendor_tags WHERE vendor_id=?", (vendor["id"],))

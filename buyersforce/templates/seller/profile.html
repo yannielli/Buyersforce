@@ -60,6 +60,11 @@
       {% if vendor.company_size %}{% if vendor.hq_location %} · {% endif %}👥 {{ vendor.company_size }} employees{% endif %}
       {% if vendor.founded_year %}{% if vendor.hq_location or vendor.company_size %} · {% endif %}Founded {{ vendor.founded_year }}{% endif %}
     </p>
+    {% if vendor.ownership_status %}
+    <p class="hint" style="margin-top:2px;">
+      {% if vendor.ownership_status == 'public' %}📈 Publicly traded{% if vendor.stock_ticker %} ({{ vendor.stock_ticker }}){% endif %}{% else %}🔒 Private company{% endif %}
+    </p>
+    {% endif %}
     {% if tags %}<p class="hint" style="margin-top:8px;"><strong>Tags:</strong> {{ tags }}</p>{% endif %}
   </div>
 
@@ -171,6 +176,34 @@
         <div class="field"><label>Founded year</label><input type="number" name="founded_year" value="{{ vendor.founded_year or '' }}" min="1900" max="2100"></div>
         <div class="field"><label>HQ location</label><input type="text" name="hq_location" value="{{ vendor.hq_location or '' }}" placeholder="e.g. San Francisco, CA"></div>
       </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="ownership_status">Public or private <span class="hint">(required)</span></label>
+          <select id="ownership_status" name="ownership_status" required>
+            <option value="" {{ 'selected' if not vendor.ownership_status }}>Select one</option>
+            <option value="public" {{ 'selected' if vendor.ownership_status == 'public' }}>Publicly traded</option>
+            <option value="private" {{ 'selected' if vendor.ownership_status == 'private' }}>Private</option>
+          </select>
+        </div>
+        <div class="field" id="stock_ticker_field" style="{{ 'display:none;' if vendor.ownership_status != 'public' else '' }}">
+          <label for="stock_ticker">Stock ticker</label>
+          <input type="text" id="stock_ticker" name="stock_ticker" value="{{ vendor.stock_ticker or '' }}" placeholder="e.g. CRWD" maxlength="20" {{ 'required' if vendor.ownership_status == 'public' }}>
+        </div>
+      </div>
+      <script>
+        document.addEventListener("DOMContentLoaded", function () {
+          var sel = document.getElementById("ownership_status");
+          var field = document.getElementById("stock_ticker_field");
+          var input = document.getElementById("stock_ticker");
+          function sync() {
+            var isPublic = sel.value === "public";
+            field.style.display = isPublic ? "" : "none";
+            input.required = isPublic;
+          }
+          sel.addEventListener("change", sync);
+          sync();
+        });
+      </script>
       <div class="field"><label>Contact name</label><input type="text" name="contact_name" value="{{ vendor.contact_name or '' }}" placeholder="Full name of the primary contact"></div>
       <div class="form-row">
         <div class="field"><label>Contact email</label><input type="email" name="contact_email" value="{{ vendor.contact_email or '' }}"></div>
