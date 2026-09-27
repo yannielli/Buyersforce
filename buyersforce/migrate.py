@@ -71,6 +71,7 @@ def run_migrations():
             _add_vendor_ownership_columns(cur)
             _backfill_vendor_ownership_2026_09_26(cur)
             _reclassify_acquired_vendors_under_public_parents_2026_09_27(cur)
+            _add_revoked_account_status_2026_09_28(cur)
     finally:
         con.close()
 
@@ -1490,6 +1491,29 @@ def _reclassify_acquired_vendors_under_public_parents_2026_09_27(cur):
         "INSERT INTO _data_patches (name, applied_at) "
         "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
         (patch_name,),
+    )
+
+
+def _add_revoked_account_status_2026_09_28(cur):
+    # Kevin's request: let an admin remove an already-active user's access
+    # from the new Buyers/Sellers/Access Control admin pages, without
+    # deleting the account outright -- reversible any time (see
+    # admin_users_revoke/admin_users_restore in app.py), same philosophy
+    # as vendors.status = 'removed' / admin_vendor_restore. The original
+    # CHECK only allowed ('pending', 'active', 'denied'); Postgres names
+    # an inline column CHECK constraint '<table>_<column>_check' unless
+    # told otherwise, so that's the name dropped and recreated here.
+    cur.execute(
+        "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+        "WHERE conname = 'users_account_status_check'"
+    )
+    row = cur.fetchone()
+    if row and "revoked" in row[0]:
+        return  # already migrated
+    cur.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_account_status_check")
+    cur.execute(
+        "ALTER TABLE users ADD CONSTRAINT users_account_status_check "
+        "CHECK (account_status IN ('pending', 'active', 'denied', 'revoked'))"
     )
 
 

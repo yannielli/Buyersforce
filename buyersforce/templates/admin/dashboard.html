@@ -10,6 +10,25 @@
   </div>
 </div>
 
+<div class="grid grid-4" style="grid-template-columns:repeat(4, 1fr); gap:14px; margin-bottom:24px;">
+  <div class="card" style="text-align:center; padding:16px 10px;">
+    <div style="font-size:26px; font-weight:700;">{{ vendor_company_count }}</div>
+    <div class="hint">Vendor companies</div>
+  </div>
+  <div class="card" style="text-align:center; padding:16px 10px;">
+    <div style="font-size:26px; font-weight:700;">{{ buyer_company_count }}</div>
+    <div class="hint">Buyer companies</div>
+  </div>
+  <div class="card" style="text-align:center; padding:16px 10px;">
+    <div style="font-size:26px; font-weight:700;">{{ buyer_user_count }}</div>
+    <div class="hint">Buyer users</div>
+  </div>
+  <div class="card" style="text-align:center; padding:16px 10px;">
+    <div style="font-size:26px; font-weight:700;">{{ seller_user_count }}</div>
+    <div class="hint">Seller users</div>
+  </div>
+</div>
+
 {% if pending_signups %}
 <div class="card" style="border-color:var(--warning-border); background:var(--warning-tint); margin-bottom:24px;">
   <h3 style="font-size:14.5px;">Pending self-signup requests ({{ pending_signups|length }})</h3>
@@ -292,27 +311,46 @@
     {% endif %}
 
     <div class="section-title"><h2>All accounts</h2></div>
+    <form class="toolbar" method="get" id="accounts-form" style="margin-bottom:10px;">
+      <input type="hidden" name="letter" id="letterInput" value="{{ letter }}">
+      <input type="text" name="q" value="{{ q }}" placeholder="Search by name, email, or company…">
+      <select name="sort" onchange="this.form.submit()" aria-label="Sort accounts">
+        {% for value, label in sort_options %}
+        <option value="{{ value }}" {{ 'selected' if value == sort }}>Sort: {{ label }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-secondary" type="submit">Search</button>
+    </form>
+    <div class="letter-jump" role="group" aria-label="Jump to accounts by first letter" style="margin-bottom:10px;">
+      <button type="button" class="jump-letter-btn{{ ' active' if not letter }}" data-letter="">All</button>
+      {% for l in jump_letters %}
+      <button type="button" class="jump-letter-btn{{ ' active' if l == letter }}" data-letter="{{ l }}">{{ l }}</button>
+      {% endfor %}
+    </div>
     {% if users %}
     <table class="table">
       <tr><th>Name</th><th>Email</th><th>Type</th><th>Company</th><th></th></tr>
       {% for u in users %}
       <tr>
-        <td>{{ u.name }}</td>
+        <td><a href="{{ url_for('admin_user_detail', user_id=u.id) }}">{{ u.name }}</a></td>
         <td>{{ u.email }}</td>
         <td><span class="badge badge-neutral">{{ u.role|capitalize }}</span></td>
         <td>
-          <form method="post" action="{{ url_for('admin_change_company', user_id=u.id) }}" style="display:flex; gap:4px;">
-            <input type="text" name="company" value="{{ u.company }}" style="width:130px; padding:4px 6px; font-size:13px;">
-            <button class="btn btn-ghost btn-sm" type="submit">Save</button>
-          </form>
+          {{ u.company }}
+          {% if company_counts.get(u.company, 0) > 1 %}<span class="badge badge-neutral" style="margin-left:4px;">{{ company_counts[u.company] }}</span>{% endif %}
         </td>
         <td>
-          <span style="display:flex; gap:6px; justify-content:flex-end;">
+          <span style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
+            <a class="btn btn-secondary btn-sm" href="{{ url_for('admin_user_edit', user_id=u.id) }}">Edit</a>
             <form method="post" action="{{ url_for('admin_view_as', user_id=u.id) }}">
               <button class="btn btn-secondary btn-sm" type="submit">View as</button>
             </form>
             <form method="post" action="{{ url_for('admin_grant_access', user_id=u.id) }}">
               <button class="btn btn-secondary btn-sm" type="submit">Reset access</button>
+            </form>
+            <form method="post" action="{{ url_for('admin_users_revoke', user_id=u.id) }}"
+                  onsubmit="return confirm('Remove BuyersForce access for {{ u.name }}? Reversible any time from the Revoked access list below.');">
+              <button class="btn btn-ghost btn-sm" type="submit" style="color:var(--danger-ink, #b3261e);">Revoke</button>
             </form>
           </span>
         </td>
@@ -320,56 +358,41 @@
       {% endfor %}
     </table>
     {% else %}
-    <div class="card empty-state"><div class="icon">👤</div>No accounts yet — invite someone above.</div>
+    <div class="card empty-state"><div class="icon">👤</div>No accounts match that search.</div>
+    {% endif %}
+
+    {% if revoked_users %}
+    <div class="section-title" style="margin-top:24px;"><h2>Revoked access ({{ revoked_users|length }})</h2></div>
+    <div class="card" style="padding:8px 22px;">
+      {% for u in revoked_users %}
+      <div class="mock-row">
+        <span>
+          <strong style="font-size:14px;">{{ u.name }}</strong>
+          <span class="badge badge-neutral" style="margin-left:6px;">{{ u.role|capitalize }}</span>
+          <div class="hint">{{ u.email }} · {{ u.company }}</div>
+        </span>
+        <form method="post" action="{{ url_for('admin_users_restore', user_id=u.id) }}">
+          <button class="btn btn-secondary btn-sm" type="submit">Restore</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
     {% endif %}
   </div>
 </div>
 
-<div class="section-title"><h2>Manage vendor listings</h2></div>
-<div class="card" style="margin-bottom:24px;">
-  <h3 style="font-size:14.5px;">Remove listings</h3>
-  <p class="hint" style="margin-bottom:12px;">Paste company names, one per line (or comma-separated)
-    -- this hides them from Discover and All Vendors right away. It's reversible any time from
-    "Recently removed" below.</p>
-  <form method="post" action="{{ url_for('admin_vendors_remove') }}">
-    <textarea name="names" rows="6" style="width:100%; font-size:13px; padding:8px; font-family:inherit;" placeholder="Acme Corp&#10;Old Vendor Inc.">{{ removal_preview.raw_text if removal_preview else '' }}</textarea>
-    {% if removal_preview %}
-    <input type="hidden" name="confirmed" value="1">
-    {% endif %}
-    <button class="btn btn-primary" type="submit" style="margin-top:10px;">
-      {% if removal_preview %}Confirm removal of {{ removal_preview.matched|length }} listing(s){% else %}Preview{% endif %}
-    </button>
-  </form>
-  {% if removal_preview %}
-  <div style="margin-top:16px;">
-    {% if removal_preview.matched %}
-    <p class="hint" style="font-weight:600;">Will remove {{ removal_preview.matched|length }} listing(s):</p>
-    <ul style="margin:6px 0 12px 18px; font-size:13px;">
-      {% for v in removal_preview.matched %}<li>{{ v.company_name }}{% if v.company_size %} ({{ v.company_size }}){% endif %}</li>{% endfor %}
-    </ul>
-    {% endif %}
-    {% if removal_preview.not_found %}
-    <p class="hint" style="color:var(--warning-ink-vivid); font-weight:600;">Not found (check spelling) -- skipped:</p>
-    <p class="hint">{{ removal_preview.not_found|join(', ') }}</p>
-    {% endif %}
-  </div>
-  {% endif %}
-</div>
-
-{% if removed_vendors %}
-<div class="card" style="margin-bottom:24px;">
-  <h3 style="font-size:14.5px;">Recently removed ({{ removed_vendors|length }})</h3>
-  {% for v in removed_vendors %}
-  <div class="mock-row">
-    <span>
-      <strong style="font-size:14px;">{{ v.company_name }}</strong>
-      <div class="hint">Removed {{ v.removed_at }}</div>
-    </span>
-    <form method="post" action="{{ url_for('admin_vendor_restore', vendor_id=v.id) }}">
-      <button class="btn btn-secondary btn-sm" type="submit">Restore</button>
-    </form>
-  </div>
-  {% endfor %}
-</div>
-{% endif %}
+<script>
+(function () {
+  var letterInput = document.getElementById('letterInput');
+  var accountsForm = document.getElementById('accounts-form');
+  document.querySelectorAll('.jump-letter-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var val = btn.getAttribute('data-letter') || '';
+      if (val && val === letterInput.value) { val = ''; } // click active letter again to clear
+      letterInput.value = val;
+      accountsForm.submit();
+    });
+  });
+})();
+</script>
 {% endblock %}

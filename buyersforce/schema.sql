@@ -76,7 +76,8 @@ CREATE TABLE users (
     outreach_marketing_events INTEGER NOT NULL DEFAULT 0,
     outreach_none INTEGER NOT NULL DEFAULT 0,
     photo_data_url TEXT,
-    account_status TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('pending', 'active', 'denied')),
+    -- 'revoked' (added 2026-09-28): an admin removed this user's access after it was active -- see app.py's admin_users_revoke/admin_users_restore. Reversible, same as vendors.status = 'removed'.
+    account_status TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('pending', 'active', 'denied', 'revoked')),
     -- Per-account light/dark toggle, set from Account > Profile >
     -- Appearance. Defaults to 'light' so nobody's view changes until they
     -- opt in. See migrate.py's _add_theme_preference_column for the

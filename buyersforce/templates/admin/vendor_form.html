@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}{{ "Add vendor" if mode == "new" else vendor.company_name ~ " · Edit" }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Administrator</span>
+    <h1>{{ "Add a new vendor" if mode == "new" else "Edit vendor listing" }}</h1>
+    <p class="lede">
+      {% if mode == "new" %}
+      Creates an unclaimed listing right away -- a seller from this company can claim it later, or you can keep
+      managing it here.
+      {% else %}
+      Changes save immediately and show up on Discover, All Vendors, and this company's profile page right away.
+      {% endif %}
+    </p>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+    <a href="{{ url_for('admin_vendors_page') }}" class="btn btn-ghost btn-sm">&larr; Back to Vendors</a>
+    {% if mode == "edit" %}
+    <form method="post" action="{{ url_for('admin_vendor_remove_one', vendor_id=vendor.id) }}"
+          onsubmit="return confirm('Remove {{ vendor.company_name }} from BuyersForce? This hides it from Discover and All Vendors -- reversible any time from the Vendors page.');">
+      <button class="btn btn-ghost btn-sm" type="submit" style="color:var(--danger-ink, #b3261e);">Remove listing</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid grid-2" style="grid-template-columns:1.2fr 1fr; align-items:start;">
+  <div class="card">
+    <h3 style="font-size:15px;">Profile details</h3>
+    <form method="post" enctype="multipart/form-data" action="{{ url_for('admin_vendor_edit', vendor_id=vendor.id) if mode == 'edit' else url_for('admin_vendor_new') }}">
+      <div class="field"><label>Company name</label><input type="text" name="company_name" value="{{ vendor.company_name }}" required></div>
+      <div class="field"><label>Tagline</label><input type="text" name="tagline" value="{{ vendor.tagline }}" placeholder="One line describing the product"></div>
+      <div class="field"><label>Description</label><textarea name="description" placeholder="What does the product do, and for whom?">{{ vendor.description }}</textarea></div>
+      <div class="field"><label>Website</label><input type="text" name="website" value="{{ vendor.website }}" placeholder="company.com"><p class="hint" style="margin-top:4px;">Just the domain is fine -- https:// is added automatically.</p></div>
+
+      <div class="field" style="display:flex; align-items:flex-start; gap:14px;">
+        <span id="logo-initials" class="vendor-logo"
+              style="background:{{ vendor.accent }}; {% if vendor.logo_upload_data_url or vendor.logo_link_url %}display:none;{% endif %}">
+          {{ vendor.initials }}
+        </span>
+        <img id="logo-preview" alt=""
+             style="width:46px; height:46px; border-radius:10px; object-fit:contain; background:#fff; border:1px solid var(--gridline); flex-shrink:0; {% if not (vendor.logo_upload_data_url or vendor.logo_link_url) %}display:none;{% endif %}"
+             src="{{ logo_url or '' }}">
+        <div style="flex:1;">
+          <label style="display:block;">Company logo</label>
+          <p class="hint" style="margin:2px 0 6px;">Shows the company's initials if you skip this. Paste a link to a logo already hosted somewhere, or upload an image directly -- an upload takes priority if you add both. Max 2MB.</p>
+          <input type="url" name="logo_link_url" value="{{ vendor.logo_link_url or '' }}" placeholder="https://company.com/logo.png" style="margin-bottom:8px;">
+          <input type="file" id="logo_upload" name="logo_upload" accept="image/*">
+          <label id="remove-logo-label" style="font-size:13px; font-weight:400; display:flex; align-items:center; gap:6px; margin-top:6px; {% if not (vendor.logo_upload_data_url or vendor.logo_link_url) %}display:none;{% endif %}">
+            <input type="checkbox" name="remove_logo"> Remove current logo
+          </label>
+        </div>
+      </div>
+      <script>
+        (function () {
+          var fileInput = document.getElementById("logo_upload");
+          var preview = document.getElementById("logo-preview");
+          var initials = document.getElementById("logo-initials");
+          var removeLabel = document.getElementById("remove-logo-label");
+          fileInput.addEventListener("change", function () {
+            var file = fileInput.files && fileInput.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function (e) {
+              preview.src = e.target.result;
+              preview.style.display = "";
+              initials.style.display = "none";
+              if (removeLabel) {
+                removeLabel.style.display = "none";
+                var cb = removeLabel.querySelector("input[type=checkbox]");
+                if (cb) cb.checked = false;
+              }
+            };
+            reader.readAsDataURL(file);
+          });
+        })();
+      </script>
+      <div class="field"><label>Tags (comma-separated)</label><input type="text" name="tags" value="{{ tags }}" placeholder="e.g. CNAPP, Kubernetes, Threat Detection"></div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>Company size</label>
+          <select name="company_size">
+            <option value="">Not specified</option>
+            {% for size in company_sizes %}
+            <option value="{{ size }}" {{ 'selected' if size == vendor.company_size }}>{{ size }} employees</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field"><label>Founded year</label><input type="number" name="founded_year" value="{{ vendor.founded_year or '' }}" min="1900" max="2100"></div>
+        <div class="field"><label>HQ location</label><input type="text" name="hq_location" value="{{ vendor.hq_location or '' }}" placeholder="e.g. San Francisco, CA"></div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="ownership_status">Public or private <span class="hint">(required)</span></label>
+          <select id="ownership_status" name="ownership_status" required>
+            <option value="" {{ 'selected' if not vendor.ownership_status }}>Select one</option>
+            <option value="public" {{ 'selected' if vendor.ownership_status == 'public' }}>Publicly traded</option>
+            <option value="private" {{ 'selected' if vendor.ownership_status == 'private' }}>Private</option>
+          </select>
+        </div>
+        <div class="field" id="stock_ticker_field" style="{{ 'display:none;' if vendor.ownership_status != 'public' else '' }}">
+          <label for="stock_ticker">Stock ticker</label>
+          <input type="text" id="stock_ticker" name="stock_ticker" value="{{ vendor.stock_ticker or '' }}" placeholder="e.g. CRWD" maxlength="20" {{ 'required' if vendor.ownership_status == 'public' }}>
+        </div>
+      </div>
+      <script>
+        document.addEventListener("DOMContentLoaded", function () {
+          var sel = document.getElementById("ownership_status");
+          var field = document.getElementById("stock_ticker_field");
+          var input = document.getElementById("stock_ticker");
+          function sync() {
+            var isPublic = sel.value === "public";
+            field.style.display = isPublic ? "" : "none";
+            input.required = isPublic;
+          }
+          sel.addEventListener("change", sync);
+          sync();
+        });
+      </script>
+      <div class="field"><label>Contact name</label><input type="text" name="contact_name" value="{{ vendor.contact_name or '' }}" placeholder="Full name of the primary contact"></div>
+      <div class="form-row">
+        <div class="field"><label>Contact email</label><input type="email" name="contact_email" value="{{ vendor.contact_email or '' }}"></div>
+        <div class="field">
+          <label for="contact_phone">Contact phone</label>
+          <div style="display:flex; gap:8px;">
+            <select id="contact_phone_country" name="contact_phone_country" style="flex:0 0 118px; min-width:0;">
+              {% for code, name, dial in phone_countries %}
+              <option value="{{ code }}" data-dial="{{ dial }}" {% if (vendor.contact_phone_country or 'US') == code %}selected{% endif %}>
+                {{ code }}{% if dial %} +{{ dial }}{% endif %}
+              </option>
+              {% endfor %}
+            </select>
+            <input type="tel" id="contact_phone" name="contact_phone" value="{{ vendor.contact_phone or '' }}" placeholder="(555) 555-5555" style="flex:1 1 auto; min-width:0;">
+          </div>
+        </div>
+      </div>
+      <script>
+        document.addEventListener("DOMContentLoaded", function () {
+          BFPhone.wire("contact_phone", "contact_phone_country");
+        });
+      </script>
+
+      {% set picklist_label = "Technology Category" %}
+      {% set picklist_hint = "Select every category this product fits -- the first thing buyers search by." %}
+      {% set picklist_field_name = "technology_categories" %}
+      {% set picklist_options = all_technology_categories %}
+      {% set picklist_selected = selected_technology_categories %}
+      {% set picklist_new_field_name = "new_technology_category" %}
+      {% set picklist_add_placeholder = "Add a new technology category…" %}
+      {% include "_picklist_field.html" %}
+
+      {% set picklist_label = "Sub-Categories / Segments" %}
+      {% set picklist_hint = "The more specific classification buyers search by second." %}
+      {% set picklist_field_name = "segments" %}
+      {% set picklist_options = all_segments %}
+      {% set picklist_selected = selected_segments %}
+      {% set picklist_new_field_name = "new_segment" %}
+      {% set picklist_add_placeholder = "Add a new sub-category / segment…" %}
+      {% include "_picklist_field.html" %}
+
+      <button class="btn btn-primary" type="submit">{{ "Create vendor" if mode == "new" else "Save changes" }}</button>
+    </form>
+  </div>
+
+  <div>
+    <div class="card" style="background:var(--surface);">
+      <h3 style="font-size:14px;">Live preview</h3>
+      <div class="vendor-card" style="border:1px solid var(--gridline);">
+        <div class="vendor-card-top">
+          <span class="vendor-logo" style="background:{{ vendor.accent }};">
+            {% if logo_url %}<img src="{{ logo_url }}" alt="" onerror="this.remove();">{% endif %}
+            {{ vendor.initials }}
+          </span>
+          <div><h3>{{ vendor.company_name or "New vendor" }}</h3><span class="cat">{{ vendor.category or "" }}</span></div>
+        </div>
+        <p class="tagline">{{ vendor.tagline or "Add a tagline to stand out." }}</p>
+      </div>
+    </div>
+    {% if mode == "edit" %}
+    <div class="card" style="margin-top:16px;">
+      <h3 style="font-size:14px;">Who can see this</h3>
+      <p class="hint">This listing is live to buyers on Discover and to sellers on All Vendors right now (unless removed above).</p>
+      <a href="{{ url_for('buyer_vendor', vendor_id=vendor.id) }}" class="btn btn-secondary btn-sm" style="margin-top:6px;" target="_blank">View public profile →</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

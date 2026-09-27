@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Administrator</span>
+    <h1>{{ page_title }}</h1>
+    <p class="lede">
+      {% if role == "seller" %}Everyone signed up as a seller, across every vendor company.
+      {% else %}Everyone signed up as a buyer, across every company.{% endif %}
+      Search by name or company, sort, or jump to a letter.
+    </p>
+  </div>
+</div>
+
+<form class="toolbar" method="get" id="user-list-form">
+  <input type="hidden" name="letter" id="letterInput" value="{{ letter }}">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search by name, email, or company…">
+  <select name="sort" onchange="this.form.submit()" aria-label="Sort {{ page_title|lower }}">
+    {% for value, label in sort_options %}
+    <option value="{{ value }}" {{ 'selected' if value == sort }}>Sort: {{ label }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-secondary" type="submit">Search</button>
+</form>
+
+<div class="letter-jump" role="group" aria-label="Jump to {{ page_title|lower }} by first letter">
+  <button type="button" class="jump-letter-btn{{ ' active' if not letter }}" data-letter="">All</button>
+  {% for l in jump_letters %}
+  <button type="button" class="jump-letter-btn{{ ' active' if l == letter }}" data-letter="{{ l }}">{{ l }}</button>
+  {% endfor %}
+</div>
+
+<p class="hint" style="margin-bottom:12px;">{{ users|length }} {{ page_title|lower }}{% if q or letter %} matching{% endif %}, across {{ company_counts|length }} {{ "company" if company_counts|length == 1 else "companies" }}.</p>
+
+{% if users %}
+<table class="table">
+  <tr><th>Name</th><th>Email</th><th>Company</th><th>Title</th><th></th></tr>
+  {% for u in users %}
+  <tr>
+    <td><a href="{{ url_for('admin_user_detail', user_id=u.id) }}">{{ u.name }}</a></td>
+    <td>{{ u.email }}</td>
+    <td>
+      {{ u.company }}
+      {% if company_counts.get(u.company, 0) > 1 %}<span class="badge badge-neutral" style="margin-left:4px;">{{ company_counts[u.company] }} at this company</span>{% endif %}
+      {% if role == "seller" and vendor_by_company %}
+        {% set vendor = vendor_by_company.get((u.company or "").strip().lower()) %}
+        {% if vendor %}<div class="hint"><a href="{{ url_for('admin_vendor_edit', vendor_id=vendor.id) }}">Vendor listing →</a></div>{% endif %}
+      {% endif %}
+    </td>
+    <td>{{ u.title }}</td>
+    <td>
+      <span style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
+        <a href="{{ url_for('admin_user_detail', user_id=u.id) }}" class="btn btn-secondary btn-sm">View</a>
+        <a href="{{ url_for('admin_user_edit', user_id=u.id) }}" class="btn btn-secondary btn-sm">Edit</a>
+        <form method="post" action="{{ url_for('admin_view_as', user_id=u.id) }}">
+          <button class="btn btn-secondary btn-sm" type="submit">View as</button>
+        </form>
+        <form method="post" action="{{ url_for('admin_users_revoke', user_id=u.id) }}"
+              onsubmit="return confirm('Remove BuyersForce access for {{ u.name }}? Reversible any time from their account page.');">
+          <button class="btn btn-ghost btn-sm" type="submit" style="color:var(--danger-ink, #b3261e);">Revoke</button>
+        </form>
+      </span>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<div class="card empty-state"><div class="icon">👤</div>No {{ page_title|lower }} match that search.</div>
+{% endif %}
+
+<script>
+(function () {
+  var letterInput = document.getElementById('letterInput');
+  var listForm = document.getElementById('user-list-form');
+  document.querySelectorAll('.jump-letter-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var val = btn.getAttribute('data-letter') || '';
+      if (val && val === letterInput.value) { val = ''; } // click active letter again to clear
+      letterInput.value = val;
+      listForm.submit();
+    });
+  });
+})();
+</script>
+{% endblock %}

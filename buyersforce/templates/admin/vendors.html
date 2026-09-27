@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Vendors{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Administrator</span>
+    <h1>Vendors</h1>
+    <p class="lede">Every vendor listing on BuyersForce — add a new one, edit any field, or remove a listing. Changes go live immediately, no approval needed.</p>
+  </div>
+  <a href="{{ url_for('admin_vendor_new') }}" class="btn btn-primary">+ Add vendor</a>
+</div>
+
+<form class="toolbar" method="get" id="discover-form">
+  <input type="hidden" name="letter" id="letterInput" value="{{ letter }}">
+  <input type="hidden" name="show_removed" id="showRemovedInput" value="{{ '1' if show_removed else '' }}">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search by name, description, category, or location…">
+  <select name="sort" onchange="this.form.submit()" aria-label="Sort vendors">
+    {% for value, label in sort_options %}
+    <option value="{{ value }}" {{ 'selected' if value == sort }}>Sort: {{ label }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-secondary" type="submit">Search</button>
+  {% if show_removed %}
+  <a class="btn btn-ghost" href="{{ url_for('admin_vendors_page', q=q, sort=sort, letter=letter) }}">← Back to active listings</a>
+  {% else %}
+  <a class="btn btn-ghost" href="{{ url_for('admin_vendors_page', q=q, sort=sort, letter=letter, show_removed=1) }}">View removed listings</a>
+  {% endif %}
+</form>
+
+<div class="letter-jump" role="group" aria-label="Jump to vendors by first letter">
+  <button type="button" class="jump-letter-btn{{ ' active' if not letter }}" data-letter="">All</button>
+  {% for l in jump_letters %}
+  <button type="button" class="jump-letter-btn{{ ' active' if l == letter }}" data-letter="{{ l }}">{{ l }}</button>
+  {% endfor %}
+</div>
+
+{% if show_removed %}
+<div class="card" style="border-color:var(--warning-border); background:var(--warning-tint); margin-bottom:16px;">
+  <p style="font-size:13px; margin:0;">Showing removed listings ({{ vendors|length }}). These are hidden from Discover and All Vendors — restore any of them below.</p>
+</div>
+{% endif %}
+
+<div class="vendor-grid">
+  {% for v in vendors %}
+  <div class="vendor-card">
+    <div class="vendor-card-top">
+      <span class="vendor-logo" style="background:{{ v.accent }};">
+        {% if v.logo_url %}<img src="{{ v.logo_url }}" alt="" onerror="this.remove();">{% endif %}
+        {{ v.initials }}
+      </span>
+      <div>
+        <h3>{{ v.company_name }}</h3>
+        <span class="cat">{{ v.category }}{% if v.company_size %} · {{ v.company_size }} employees{% endif %}</span>
+      </div>
+    </div>
+    <p class="tagline">{{ v.description or v.tagline }}</p>
+    <div>
+      {% for s in v.segments[:3] %}<span class="tag">{{ s }}</span>{% endfor %}
+      {% if v.segments|length > 3 %}<span class="tag">+{{ v.segments|length - 3 }} more</span>{% endif %}
+    </div>
+    {% if show_removed %}
+    <p class="hint" style="margin-top:6px;">Removed {{ v.removed_at }}</p>
+    {% endif %}
+    <div class="actions">
+      {% if show_removed %}
+      <form method="post" action="{{ url_for('admin_vendor_restore', vendor_id=v.id) }}">
+        <button class="btn btn-secondary btn-sm" type="submit">Restore</button>
+      </form>
+      {% else %}
+      <a href="{{ url_for('admin_vendor_edit', vendor_id=v.id) }}" class="btn btn-secondary btn-sm">Edit</a>
+      <a href="{{ url_for('buyer_vendor', vendor_id=v.id) }}" class="btn btn-ghost btn-sm" target="_blank">View public profile</a>
+      <form method="post" action="{{ url_for('admin_vendor_remove_one', vendor_id=v.id) }}"
+            onsubmit="return confirm('Remove {{ v.company_name }} from BuyersForce? Reversible any time from &quot;View removed listings&quot; above.');">
+        <button class="btn btn-ghost btn-sm" type="submit" style="color:var(--danger-ink, #b3261e);">Remove</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state" style="grid-column:1/-1;"><div class="icon">🔎</div>{% if show_removed %}No removed listings.{% else %}No vendors match that search.{% endif %}</div>
+  {% endfor %}
+</div>
+
+{% if not show_removed %}
+<div class="section-title"><h2>Bulk remove by name</h2></div>
+<div class="card" style="margin-bottom:24px;">
+  <p class="hint" style="margin-bottom:12px;">Paste company names, one per line (or comma-separated) —
+    this hides them from Discover and All Vendors right away. It's reversible any time from
+    "View removed listings" above.</p>
+  <form method="post" action="{{ url_for('admin_vendors_remove') }}">
+    <textarea name="names" rows="6" style="width:100%; font-size:13px; padding:8px; font-family:inherit;" placeholder="Acme Corp&#10;Old Vendor Inc.">{{ removal_preview.raw_text if removal_preview else '' }}</textarea>
+    {% if removal_preview %}
+    <input type="hidden" name="confirmed" value="1">
+    {% endif %}
+    <button class="btn btn-primary" type="submit" style="margin-top:10px;">
+      {% if removal_preview %}Confirm removal of {{ removal_preview.matched|length }} listing(s){% else %}Preview{% endif %}
+    </button>
+  </form>
+  {% if removal_preview %}
+  <div style="margin-top:16px;">
+    {% if removal_preview.matched %}
+    <p class="hint" style="font-weight:600;">Will remove {{ removal_preview.matched|length }} listing(s):</p>
+    <ul style="margin:6px 0 12px 18px; font-size:13px;">
+      {% for v in removal_preview.matched %}<li>{{ v.company_name }}{% if v.company_size %} ({{ v.company_size }}){% endif %}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% if removal_preview.not_found %}
+    <p class="hint" style="color:var(--warning-ink-vivid); font-weight:600;">Not found (check spelling) -- skipped:</p>
+    <p class="hint">{{ removal_preview.not_found|join(', ') }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<button id="backToTop" class="back-to-top" type="button" aria-label="Back to top" title="Back to top">&uarr;</button>
+
+<script>
+(function () {
+  var letterInput = document.getElementById('letterInput');
+  var discoverForm = document.getElementById('discover-form');
+  document.querySelectorAll('.jump-letter-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var val = btn.getAttribute('data-letter') || '';
+      if (val && val === letterInput.value) { val = ''; } // click active letter again to clear
+      letterInput.value = val;
+      discoverForm.submit();
+    });
+  });
+
+  var backToTop = document.getElementById('backToTop');
+  function onScroll() {
+    if (window.scrollY > 400) backToTop.classList.add('visible');
+    else backToTop.classList.remove('visible');
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  backToTop.addEventListener('click', function () {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  onScroll();
+})();
+</script>
+{% endblock %}

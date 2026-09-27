@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ u.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Administrator · {{ u.role|capitalize }}</span>
+    <h1>{{ u.name }}</h1>
+    <p class="lede">{{ u.title }}{% if u.title and u.company %} at {% endif %}{{ u.company }}</p>
+  </div>
+  <div style="display:flex; gap:8px; align-items:flex-start;">
+    <a href="{{ url_for('admin_user_edit', user_id=u.id) }}" class="btn btn-secondary btn-sm">Edit details</a>
+    {% if u.role == "buyer" %}
+    <a href="{{ url_for('admin_buyers_page') }}" class="btn btn-ghost btn-sm">← Back to Buyers</a>
+    {% elif u.role == "seller" %}
+    <a href="{{ url_for('admin_sellers_page') }}" class="btn btn-ghost btn-sm">← Back to Sellers</a>
+    {% else %}
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">← Back to Access control</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid grid-2" style="grid-template-columns:1fr 1fr; align-items:start;">
+  <div class="card">
+    <h3 style="font-size:15px;">Account details</h3>
+    <table class="table" style="margin-top:6px;">
+      <tr><td class="hint">Email</td><td>{{ u.email }}</td></tr>
+      <tr><td class="hint">Account type</td><td><span class="badge badge-neutral">{{ u.role|capitalize }}</span></td></tr>
+      <tr><td class="hint">Company</td><td>{{ u.company }}</td></tr>
+      <tr><td class="hint">Title</td><td>{{ u.title or "—" }}</td></tr>
+      <tr><td class="hint">Phone</td><td>{{ u.phone or "—" }}</td></tr>
+      <tr><td class="hint">Location</td><td>{{ [u.city, u.state]|select|join(', ') or "—" }}</td></tr>
+      <tr><td class="hint">LinkedIn</td><td>{% if u.linkedin_url %}<a href="{{ u.linkedin_url }}" target="_blank" rel="noopener">{{ u.linkedin_url }}</a>{% elif u.no_linkedin %}None on file{% else %}—{% endif %}</td></tr>
+      <tr><td class="hint">Status</td>
+        <td>
+          {% if u.account_status == "revoked" %}<span class="badge badge-warning">Revoked</span>
+          {% elif u.account_status == "active" %}<span class="badge badge-good">Active</span>
+          {% else %}<span class="badge badge-neutral">{{ u.account_status|capitalize }}</span>{% endif %}
+        </td>
+      </tr>
+      <tr><td class="hint">Joined</td><td>{{ u.created_at|fmt_time }}</td></tr>
+    </table>
+
+    <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
+      <form method="post" action="{{ url_for('admin_view_as', user_id=u.id) }}">
+        <button class="btn btn-secondary btn-sm" type="submit">View as {{ u.name }}</button>
+      </form>
+      <form method="post" action="{{ url_for('admin_grant_access', user_id=u.id) }}">
+        <button class="btn btn-secondary btn-sm" type="submit">Reset access</button>
+      </form>
+      {% if u.account_status == "revoked" %}
+      <form method="post" action="{{ url_for('admin_users_restore', user_id=u.id) }}">
+        <button class="btn btn-primary btn-sm" type="submit">Restore access</button>
+      </form>
+      {% else %}
+      <form method="post" action="{{ url_for('admin_users_revoke', user_id=u.id) }}"
+            onsubmit="return confirm('Remove BuyersForce access for {{ u.name }}? Reversible any time from this page.');">
+        <button class="btn btn-ghost btn-sm" type="submit" style="color:var(--danger-ink, #b3261e);">Revoke access</button>
+      </form>
+      {% endif %}
+    </div>
+
+    {% if vendor %}
+    <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--gridline);">
+      <p class="hint" style="margin-bottom:6px;">This company has a vendor listing on BuyersForce.</p>
+      <a href="{{ url_for('admin_vendor_edit', vendor_id=vendor.id) }}" class="btn btn-secondary btn-sm">Edit {{ vendor.company_name }}'s listing →</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    <div class="section-title"><h2>Recent activity</h2></div>
+    {% if recent_activity %}
+    <div class="card" style="padding:8px 22px;">
+      {% for a in recent_activity %}
+      <div class="mock-row">
+        <span>
+          <span style="font-size:13.5px;">{{ a.verb }}{% if a.detail %} — {{ a.detail }}{% endif %}</span>
+          <div class="hint">{{ a.created_at|fmt_time }}</div>
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="card empty-state"><div class="icon">📋</div>No recorded activity yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -706,6 +706,8 @@ def login():
             )
         elif user["account_status"] == "denied":
             flash("This account request wasn't approved. Contact BuyersForce if you believe this is an error.", "error")
+        elif user["account_status"] == "revoked":
+            flash("Your BuyersForce access has been removed. Contact your BuyersForce admin if you believe this is an error.", "error")
         else:
             session.clear()
             session["user_id"] = user["id"]
@@ -1114,10 +1116,36 @@ def _viewer_is_super_admin():
     return bool(g.user["is_admin"]) or bool(session.get("impersonator_id"))
 
 
-def _admin_dashboard_context(removal_preview=None):
-    users = dbm.query(
-        "SELECT * FROM users WHERE is_admin = 0 AND account_status = 'active' ORDER BY company, role, name"
+def _admin_dashboard_context():
+    q = request.args.get("q", "").strip()
+    sort = request.args.get("sort", "name_asc")
+    letter = request.args.get("letter", "").strip().upper()[:1]
+    users, company_counts = _admin_user_query(role=None, q=q, sort=sort, letter=letter)
+    revoked_users = dbm.query(
+        "SELECT * FROM users WHERE is_admin = 0 AND account_status = 'revoked' ORDER BY name"
     )
+    # Running totals for the stat tiles at the top of the page (Kevin's
+    # request): companies, not just people -- a company with three signed-
+    # up buyers is one "buyer company" but three "buyer users". Vendor
+    # companies come from the vendor directory itself (an admin-seeded,
+    # still-unclaimed listing counts too -- it's a company on BuyersForce
+    # whether or not anyone there has signed up yet), not from seller
+    # headcount, since those two can differ.
+    vendor_company_count = dbm.query(
+        "SELECT COUNT(DISTINCT company_name) AS n FROM vendors WHERE status = 'active'", one=True
+    )["n"]
+    buyer_company_count = dbm.query(
+        "SELECT COUNT(DISTINCT company) AS n FROM users "
+        "WHERE is_admin = 0 AND role = 'buyer' AND account_status = 'active'", one=True
+    )["n"]
+    buyer_user_count = dbm.query(
+        "SELECT COUNT(*) AS n FROM users WHERE is_admin = 0 AND role = 'buyer' AND account_status = 'active'",
+        one=True,
+    )["n"]
+    seller_user_count = dbm.query(
+        "SELECT COUNT(*) AS n FROM users WHERE is_admin = 0 AND role = 'seller' AND account_status = 'active'",
+        one=True,
+    )["n"]
     pending_invites = dbm.query(
         "SELECT i.*, u.name invited_by_name FROM invites i JOIN users u ON u.id = i.invited_by "
         "WHERE i.used_at IS NULL ORDER BY i.created_at DESC"
@@ -1165,9 +1193,6 @@ def _admin_dashboard_context(removal_preview=None):
         "LEFT JOIN users u ON u.id = lr.reported_by_user_id "
         "WHERE lr.status = 'open' ORDER BY lr.created_at DESC"
     )
-    removed_vendors = dbm.query(
-        "SELECT * FROM vendors WHERE status = 'removed' ORDER BY removed_at DESC"
-    )
     new_invite_link = None
     new_invite_id = request.args.get("new_invite", type=int)
     if new_invite_id:
@@ -1175,7 +1200,12 @@ def _admin_dashboard_context(removal_preview=None):
         if inv:
             new_invite_link = url_for("accept_invite", token=inv["token"], _external=True)
     return dict(
-        users=users, pending_invites=pending_invites,
+        users=users, company_counts=company_counts, q=q, sort=sort,
+        sort_options=ADMIN_USER_SORT_OPTIONS, jump_letters=DISCOVER_JUMP_LETTERS, letter=letter,
+        revoked_users=revoked_users,
+        vendor_company_count=vendor_company_count, buyer_company_count=buyer_company_count,
+        buyer_user_count=buyer_user_count, seller_user_count=seller_user_count,
+        pending_invites=pending_invites,
         pending_signups=pending_signups, pending_role_changes=pending_role_changes,
         open_support_requests=open_support_requests, support_category_labels=SUPPORT_CATEGORY_LABELS,
         pending_vendor_requests=pending_vendor_requests, vendor_request_kind_labels=VENDOR_REQUEST_KIND_LABELS,
@@ -1183,8 +1213,6 @@ def _admin_dashboard_context(removal_preview=None):
         all_segments=known_segments, all_technology_categories=known_categories,
         company_sizes=COMPANY_SIZE_BANDS,
         new_invite_link=new_invite_link,
-        removed_vendors=removed_vendors,
-        removal_preview=removal_preview,
     )
 
 
@@ -1254,10 +1282,10 @@ def admin_vendors_remove():
                 + ", ".join(not_found),
                 "error",
             )
-        return redirect(url_for("admin_dashboard"))
+        return redirect(url_for("admin_vendors_page"))
 
     removal_preview = {"raw_text": raw_text, "matched": matched, "not_found": not_found}
-    return render_template("admin/dashboard.html", **_admin_dashboard_context(removal_preview=removal_preview))
+    return render_template("admin/vendors.html", **_admin_vendors_context(removal_preview=removal_preview))
 
 
 @app.route("/app/admin/vendors/<int:vendor_id>/restore", methods=("POST",))
@@ -1268,7 +1296,341 @@ def admin_vendor_restore(vendor_id):
         dbm.execute("UPDATE vendors SET status='active', removed_at=NULL WHERE id=?", (vendor_id,))
         log_activity(g.user["id"], f"restored vendor listing: {vendor['company_name']}")
         flash(f"{vendor['company_name']} restored.", "success")
-    return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("admin_vendors_page"))
+
+
+@app.route("/app/admin/vendors/<int:vendor_id>/remove", methods=("POST",))
+@admin_required
+def admin_vendor_remove_one(vendor_id):
+    """Single-listing remove, for the per-row button on the Vendors page --
+    the pasted-names bulk tool above is still there for removing several at
+    once; this is the quick one-off version. Same reversible soft delete
+    either way (vendors.status = 'removed')."""
+    vendor = dbm.query("SELECT * FROM vendors WHERE id=? AND status='active'", (vendor_id,), one=True)
+    if vendor:
+        dbm.execute(
+            "UPDATE vendors SET status='removed', "
+            "removed_at=to_char(now(), 'YYYY-MM-DD HH24:MI:SS') WHERE id=?",
+            (vendor_id,),
+        )
+        log_activity(g.user["id"], f"removed vendor listing: {vendor['company_name']}")
+        flash(f"{vendor['company_name']} removed from BuyersForce.", "success")
+    return redirect(url_for("admin_vendors_page"))
+
+
+# A blank vendor "row" for the Add-vendor form's GET render -- keeps
+# admin/vendor_form.html's field bindings (vendor.company_name, etc.)
+# uniform between "new" and "edit" instead of special-casing None
+# everywhere in the template.
+_BLANK_ADMIN_VENDOR = {
+    "id": None, "company_name": "", "tagline": "", "description": "", "website": "",
+    "company_size": "", "founded_year": "", "hq_location": "", "contact_name": "",
+    "contact_email": "", "contact_phone": "", "contact_phone_country": "US",
+    "ownership_status": "", "stock_ticker": "", "accent": "#2a78d6", "initials": "VN",
+    "logo_upload_data_url": None, "logo_link_url": "",
+}
+
+
+def _admin_vendors_context(removal_preview=None):
+    """Query builder for the admin Vendors page -- same search/sort/letter-
+    jump shape as buyer_discover/seller_all_vendors (see DISCOVER_SORT_*/
+    DISCOVER_JUMP_LETTERS), plus a show_removed toggle and the pasted-names
+    bulk-remove tool this page inherited from the old Access Control
+    "Manage vendor listings" section."""
+    q = request.args.get("q", "").strip()
+    known_segments = all_technology_segments()
+    known_categories = all_technology_categories()
+    show_removed = request.args.get("show_removed") == "1"
+    sql = "SELECT * FROM vendors WHERE status = ?"
+    args = ["removed" if show_removed else "active"]
+    if q:
+        # Matches every field a vendor can be found by, same breadth as
+        # Bob/Frankie's search_vendors (see _ai_search_vendors) -- Kevin
+        # searching here should have just as good a shot at finding a
+        # match as a buyer does on Discover.
+        sql += (
+            " AND (company_name ILIKE ? OR tagline ILIKE ? OR description ILIKE ? "
+            "OR hq_location ILIKE ? OR category ILIKE ? "
+            "OR id IN (SELECT vendor_id FROM vendor_segments WHERE segment ILIKE ?) "
+            "OR id IN (SELECT vendor_id FROM vendor_technology_categories WHERE category ILIKE ?) "
+            "OR id IN (SELECT vendor_id FROM vendor_tags WHERE tag ILIKE ?))"
+        )
+        args += [f"%{q}%"] * 7
+    letter = request.args.get("letter", "").strip().upper()[:1]
+    if letter and letter not in DISCOVER_JUMP_LETTERS:
+        letter = ""
+    if letter == "#":
+        sql += " AND company_name !~* '^[a-z]'"
+    elif letter:
+        sql += " AND company_name ILIKE ?"
+        args.append(letter + "%")
+    sort = request.args.get("sort", "name_asc")
+    if sort not in DISCOVER_SORT_KEYS:
+        sort = "name_asc"
+    if sort in ("size_asc", "size_desc"):
+        case_when = " ".join(
+            f"WHEN company_size = ? THEN {idx}" for idx, _band in enumerate(COMPANY_SIZE_BANDS)
+        )
+        size_rank = f"CASE {case_when} ELSE {len(COMPANY_SIZE_BANDS)} END"
+        sql += f" ORDER BY {size_rank} {'DESC' if sort == 'size_desc' else 'ASC'}, company_name"
+        args += list(COMPANY_SIZE_BANDS)
+    elif sort in ("founded_asc", "founded_desc"):
+        direction = "DESC" if sort == "founded_desc" else "ASC"
+        sql += f" ORDER BY founded_year IS NULL, founded_year {direction}, company_name"
+    else:
+        sql += f" ORDER BY company_name {'DESC' if sort == 'name_desc' else 'ASC'}"
+    rows = dbm.query(sql, args)
+    vendors = []
+    for v in rows:
+        vendors.append({
+            **dict(v),
+            "tags": vendor_tags(v["id"]),
+            "segments": vendor_segments(v["id"]),
+            "logo_url": vendor_display_logo_url(v),
+        })
+    return dict(
+        vendors=vendors, q=q, sort=sort, sort_options=DISCOVER_SORT_OPTIONS,
+        jump_letters=DISCOVER_JUMP_LETTERS, letter=letter, show_removed=show_removed,
+        all_segments=known_segments, all_technology_categories=known_categories,
+        removal_preview=removal_preview,
+    )
+
+
+@app.route("/app/admin/vendors")
+@admin_required
+def admin_vendors_page():
+    return render_template("admin/vendors.html", **_admin_vendors_context())
+
+
+@app.route("/app/admin/vendors/new", methods=("GET", "POST"))
+@admin_required
+def admin_vendor_new():
+    if request.method == "POST":
+        company_name = request.form.get("company_name", "").strip()
+        if not company_name:
+            flash("Company name is required.", "error")
+            return redirect(url_for("admin_vendor_new"))
+        # Bare minimum row first (accent/initials assigned the same way
+        # admin_approve_signup does for a brand-new company), then the
+        # shared helper below fills in everything else from the form --
+        # same path admin_vendor_edit uses, so "add" and "edit" can never
+        # quietly save a vendor differently.
+        accent, initials = _derive_vendor_accent_initials(company_name)
+        vendor_id = dbm.execute(
+            "INSERT INTO vendors (company_name, category, accent, initials, source) "
+            "VALUES (?, 'Uncategorized', ?, ?, 'admin')",
+            (company_name, accent, initials),
+        )
+        vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
+        error = _save_vendor_fields_from_form(vendor, request.form, request.files)
+        if error:
+            flash(error, "error")
+            return redirect(url_for("admin_vendor_edit", vendor_id=vendor_id))
+        log_activity(g.user["id"], f"added a new vendor listing: {company_name}")
+        flash(f"{company_name} added to BuyersForce.", "success")
+        return redirect(url_for("admin_vendor_edit", vendor_id=vendor_id))
+    return render_template(
+        "admin/vendor_form.html", vendor=_BLANK_ADMIN_VENDOR, mode="new", tags="",
+        all_segments=all_technology_segments(), selected_segments=[],
+        all_technology_categories=all_technology_categories(), selected_technology_categories=[],
+        company_sizes=COMPANY_SIZE_BANDS, phone_countries=PHONE_COUNTRIES, logo_url=None,
+    )
+
+
+@app.route("/app/admin/vendors/<int:vendor_id>/edit", methods=("GET", "POST"))
+@admin_required
+def admin_vendor_edit(vendor_id):
+    vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
+    if not vendor:
+        abort(404)
+    if request.method == "POST":
+        error = _save_vendor_fields_from_form(vendor, request.form, request.files)
+        if error:
+            flash(error, "error")
+            return redirect(url_for("admin_vendor_edit", vendor_id=vendor_id))
+        log_activity(g.user["id"], f"edited vendor listing: {vendor['company_name']}")
+        flash("Vendor listing updated.", "success")
+        return redirect(url_for("admin_vendor_edit", vendor_id=vendor_id))
+    tags = ", ".join(vendor_tags(vendor["id"]))
+    return render_template(
+        "admin/vendor_form.html", vendor=vendor, mode="edit", tags=tags,
+        all_segments=all_technology_segments(), selected_segments=vendor_segments(vendor["id"]),
+        all_technology_categories=all_technology_categories(),
+        selected_technology_categories=vendor_technology_categories(vendor["id"]),
+        company_sizes=COMPANY_SIZE_BANDS, phone_countries=PHONE_COUNTRIES,
+        logo_url=vendor_display_logo_url(vendor),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Admin > Buyers / Sellers -- a searchable, sortable directory of
+# BuyersForce's own users (Kevin's request: quick search, amend access,
+# see company headcount at a glance), plus a per-user detail/edit page.
+# The Access Control page's own "All accounts" table shares this same
+# query builder (see _admin_dashboard_context above) rather than having
+# its own copy.
+# ---------------------------------------------------------------------------
+
+ADMIN_USER_SORT_OPTIONS = [
+    ("name_asc", "Name (A-Z)"),
+    ("name_desc", "Name (Z-A)"),
+    ("company_asc", "Company (A-Z)"),
+    ("company_desc", "Company (Z-A)"),
+    ("newest", "Newest first"),
+    ("oldest", "Oldest first"),
+]
+ADMIN_USER_SORT_KEYS = {key for key, _label in ADMIN_USER_SORT_OPTIONS}
+
+
+def _admin_user_query(role=None, q="", sort="name_asc", letter=""):
+    """Shared search/sort for the Access Control, Buyers, and Sellers admin
+    pages, plus a company_counts map ({company: how many active users
+    there} -- Kevin's "at a glance" ask) computed over that same filtered
+    set. Never includes admins or an already-revoked account (revoked
+    users get their own list -- see admin_users_revoke/_restore, mirroring
+    vendors.status='removed'/admin_vendor_restore)."""
+    sql = "SELECT * FROM users WHERE is_admin = 0 AND account_status = 'active'"
+    args = []
+    if role in ("buyer", "seller"):
+        sql += " AND role = ?"
+        args.append(role)
+    if q:
+        sql += " AND (name ILIKE ? OR email ILIKE ? OR company ILIKE ?)"
+        args += [f"%{q}%"] * 3
+    if letter and letter in DISCOVER_JUMP_LETTERS:
+        if letter == "#":
+            sql += " AND name !~* '^[a-z]'"
+        else:
+            sql += " AND name ILIKE ?"
+            args.append(letter + "%")
+    if sort not in ADMIN_USER_SORT_KEYS:
+        sort = "name_asc"
+    if sort == "company_asc":
+        sql += " ORDER BY company ASC, name ASC"
+    elif sort == "company_desc":
+        sql += " ORDER BY company DESC, name ASC"
+    elif sort == "newest":
+        sql += " ORDER BY created_at DESC"
+    elif sort == "oldest":
+        sql += " ORDER BY created_at ASC"
+    else:
+        sql += f" ORDER BY name {'DESC' if sort == 'name_desc' else 'ASC'}"
+    users = dbm.query(sql, args)
+    company_counts = {}
+    for u in users:
+        company_counts[u["company"]] = company_counts.get(u["company"], 0) + 1
+    return users, company_counts
+
+
+@app.route("/app/admin/buyers")
+@admin_required
+def admin_buyers_page():
+    q = request.args.get("q", "").strip()
+    sort = request.args.get("sort", "name_asc")
+    letter = request.args.get("letter", "").strip().upper()[:1]
+    users, company_counts = _admin_user_query(role="buyer", q=q, sort=sort, letter=letter)
+    return render_template(
+        "admin/user_list.html", role="buyer", page_title="Buyers", users=users,
+        company_counts=company_counts, q=q, sort=sort, sort_options=ADMIN_USER_SORT_OPTIONS,
+        jump_letters=DISCOVER_JUMP_LETTERS, letter=letter, vendor_by_company=None,
+    )
+
+
+@app.route("/app/admin/sellers")
+@admin_required
+def admin_sellers_page():
+    q = request.args.get("q", "").strip()
+    sort = request.args.get("sort", "name_asc")
+    letter = request.args.get("letter", "").strip().upper()[:1]
+    users, company_counts = _admin_user_query(role="seller", q=q, sort=sort, letter=letter)
+    # Map each seller's company to its vendor listing (if any) so the page
+    # can link straight to the Vendors editor instead of making Kevin go
+    # find it separately.
+    vendor_by_company = {}
+    for u in users:
+        key = (u["company"] or "").strip().lower()
+        if key and key not in vendor_by_company:
+            vendor_by_company[key] = dbm.query(
+                "SELECT id, company_name FROM vendors WHERE LOWER(TRIM(company_name)) = ? AND status='active'",
+                (key,), one=True,
+            )
+    return render_template(
+        "admin/user_list.html", role="seller", page_title="Sellers", users=users,
+        company_counts=company_counts, q=q, sort=sort, sort_options=ADMIN_USER_SORT_OPTIONS,
+        jump_letters=DISCOVER_JUMP_LETTERS, letter=letter, vendor_by_company=vendor_by_company,
+    )
+
+
+@app.route("/app/admin/users/<int:user_id>")
+@admin_required
+def admin_user_detail(user_id):
+    user = dbm.query("SELECT * FROM users WHERE id=? AND is_admin=0", (user_id,), one=True)
+    if not user:
+        abort(404)
+    recent_activity = dbm.query(
+        "SELECT * FROM activity_log WHERE user_id=? ORDER BY created_at DESC LIMIT 20", (user_id,)
+    )
+    vendor = None
+    if user["role"] == "seller" and user["company"]:
+        vendor = dbm.query(
+            "SELECT * FROM vendors WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(?)) AND status='active'",
+            (user["company"],), one=True,
+        )
+    return render_template("admin/user_detail.html", u=user, recent_activity=recent_activity, vendor=vendor)
+
+
+@app.route("/app/admin/users/<int:user_id>/edit", methods=("GET", "POST"))
+@admin_required
+def admin_user_edit(user_id):
+    user = dbm.query("SELECT * FROM users WHERE id=? AND is_admin=0", (user_id,), one=True)
+    if not user:
+        abort(404)
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        company = request.form.get("company", "").strip()
+        title = request.form.get("title", "").strip()
+        if not name or not email or not company:
+            flash("Name, email, and company are required.", "error")
+            return redirect(url_for("admin_user_edit", user_id=user_id))
+        existing = dbm.query("SELECT id FROM users WHERE email=? AND id != ?", (email, user_id), one=True)
+        if existing:
+            flash(f"{email} is already in use by another account.", "error")
+            return redirect(url_for("admin_user_edit", user_id=user_id))
+        dbm.execute(
+            "UPDATE users SET name=?, email=?, company=?, title=? WHERE id=?",
+            (name, email, company, title, user_id),
+        )
+        log_activity(g.user["id"], f"edited account details for {name} ({email})")
+        flash("Account details updated.", "success")
+        return redirect(url_for("admin_user_detail", user_id=user_id))
+    return render_template("admin/user_edit.html", u=user)
+
+
+@app.route("/app/admin/users/<int:user_id>/revoke", methods=("POST",))
+@admin_required
+def admin_users_revoke(user_id):
+    user = dbm.query(
+        "SELECT * FROM users WHERE id=? AND is_admin=0 AND account_status='active'", (user_id,), one=True
+    )
+    if user:
+        dbm.execute("UPDATE users SET account_status='revoked' WHERE id=?", (user_id,))
+        log_activity(g.user["id"], f"revoked BuyersForce access for {user['name']} ({user['email']})")
+        flash(f"Access removed for {user['name']}.", "success")
+    return redirect(request.referrer or url_for("admin_dashboard"))
+
+
+@app.route("/app/admin/users/<int:user_id>/restore", methods=("POST",))
+@admin_required
+def admin_users_restore(user_id):
+    user = dbm.query(
+        "SELECT * FROM users WHERE id=? AND is_admin=0 AND account_status='revoked'", (user_id,), one=True
+    )
+    if user:
+        dbm.execute("UPDATE users SET account_status='active' WHERE id=?", (user_id,))
+        log_activity(g.user["id"], f"restored BuyersForce access for {user['name']} ({user['email']})")
+        flash(f"Access restored for {user['name']}.", "success")
+    return redirect(request.referrer or url_for("admin_dashboard"))
 
 
 @app.route("/app/admin/signups/<int:user_id>/approve", methods=("POST",))
@@ -3816,6 +4178,132 @@ def seller_dashboard():
     )
 
 
+def _save_vendor_fields_from_form(vendor, form, files):
+    """Shared vendor profile-field save logic, used by both the seller's
+    My Company editor (seller_profile) and the admin Vendors editor
+    (admin_vendor_new/admin_vendor_edit) -- refactored out so the two
+    callers can't quietly drift apart on validation or which columns get
+    written. Returns None on success, or a user-facing error string; never
+    redirects itself, since the two callers land back on different pages
+    on failure."""
+    # Logo: an uploaded file wins if one was chosen this save; otherwise
+    # the existing upload (if any) is left alone. "Remove current logo"
+    # clears both the upload and the link, falling back through the rest
+    # of vendor_display_logo_url's chain (wiki logo, favicon, initials).
+    # Validated/rejected before anything else is saved, same as the
+    # account-photo upload this mirrors.
+    logo_data_url, logo_error = _read_uploaded_vendor_logo(files)
+    if logo_error:
+        return logo_error
+    remove_logo = form.get("remove_logo") == "on"
+    if remove_logo:
+        new_logo_link_url = ""
+        new_logo_upload_data_url = None
+    else:
+        new_logo_link_url = form.get("logo_link_url", "").strip()
+        new_logo_upload_data_url = logo_data_url if logo_data_url else vendor["logo_upload_data_url"]
+
+    founded_year = form.get("founded_year", "").strip()
+    founded_year = int(founded_year) if founded_year.isdigit() else None
+    company_size = form.get("company_size", "").strip()
+    if company_size not in COMPANY_SIZE_BANDS:
+        company_size = None
+
+    new_category = _ensure_technology_category(form.get("new_technology_category", ""))
+    technology_categories = [
+        c for c in form.getlist("technology_categories") if c in all_technology_categories()
+    ]
+    if new_category and new_category not in technology_categories:
+        technology_categories.append(new_category)
+    # `category` (a single display label shown on vendor cards, the
+    # compare table, etc.) is derived from the selected Technology
+    # Categories so those older, single-value display sites keep showing
+    # something sensible without needing their own multi-category redesign.
+    category = " / ".join(technology_categories) if technology_categories else "Uncategorized"
+
+    new_segment = _ensure_technology_segment(form.get("new_segment", ""))
+    segments = [s for s in form.getlist("segments") if s in all_technology_segments()]
+    if new_segment and new_segment not in segments:
+        segments.append(new_segment)
+
+    company_name = form.get("company_name", "").strip()
+    if not company_name:
+        return "Company name is required."
+    # Initials are auto-derived from the company name (not directly
+    # editable), same formula every other vendor row uses
+    # (_derive_vendor_accent_initials).
+    initials = _derive_initials(company_name)
+
+    # A bare domain ("acme.com") is fine -- this is plain text, not
+    # type="url", specifically so that isn't rejected by browser URL
+    # validation. Default the scheme to https:// so the stored value is
+    # still a real, clickable URL everywhere else it's used (buyer/
+    # vendor.html's website link, etc.); an explicit http:// is kept as is.
+    website = form.get("website", "").strip()
+    if website and not re.match(r"^https?://", website, re.IGNORECASE):
+        website = "https://" + website
+
+    # Same phone_country pattern as account_profile()'s phone fields --
+    # see PHONE_COUNTRIES / static/js/phone-format.js. Defaults to US.
+    contact_phone_country = (form.get("contact_phone_country", "US").strip().upper() or "US")[:2]
+
+    # Public/private + ticker (Kevin's request): mandatory on every save
+    # through this form (seller or admin) -- ownership_status always,
+    # stock_ticker only when the company is public. Admin-seeded/unclaimed
+    # vendors that predate this column instead get a best-effort default
+    # from migrate.py's one-time backfill (see
+    # _backfill_vendor_ownership_2026_09_26), so this validation only ever
+    # bites on a real save through this form.
+    ownership_status = form.get("ownership_status", "").strip().lower()
+    if ownership_status not in ("public", "private"):
+        return "Please select whether this company is publicly traded or private."
+    stock_ticker = form.get("stock_ticker", "").strip().upper()
+    if ownership_status == "public":
+        if not stock_ticker:
+            return "Please enter the stock ticker symbol for a publicly traded company."
+    else:
+        stock_ticker = None
+
+    dbm.execute(
+        # accent is deliberately left out of this UPDATE so a save never
+        # overwrites the vendor's existing accent color -- it's set once,
+        # at creation (_derive_vendor_accent_initials), and never edited.
+        "UPDATE vendors SET company_name=?, category=?, tagline=?, description=?, "
+        "website=?, initials=?, logo_link_url=?, logo_upload_data_url=?, company_size=?, "
+        "founded_year=?, hq_location=?, contact_name=?, contact_email=?, contact_phone=?, "
+        "contact_phone_country=?, ownership_status=?, stock_ticker=? WHERE id=?",
+        (
+            company_name, category, form.get("tagline", "").strip(),
+            form.get("description", "").strip(), website,
+            initials, new_logo_link_url, new_logo_upload_data_url, company_size, founded_year,
+            form.get("hq_location", "").strip(), form.get("contact_name", "").strip(),
+            form.get("contact_email", "").strip(),
+            form.get("contact_phone", "").strip(), contact_phone_country,
+            ownership_status, stock_ticker, vendor["id"],
+        ),
+    )
+    dbm.execute("DELETE FROM vendor_tags WHERE vendor_id=?", (vendor["id"],))
+    for tag in form.get("tags", "").split(","):
+        tag = tag.strip()
+        if tag:
+            dbm.execute(
+                "INSERT INTO vendor_tags (vendor_id, tag) VALUES (?, ?)", (vendor["id"], tag)
+            )
+    dbm.execute("DELETE FROM vendor_segments WHERE vendor_id=?", (vendor["id"],))
+    for segment in dict.fromkeys(segments):
+        dbm.execute(
+            "INSERT INTO vendor_segments (vendor_id, segment) VALUES (?, ?)",
+            (vendor["id"], segment),
+        )
+    dbm.execute("DELETE FROM vendor_technology_categories WHERE vendor_id=?", (vendor["id"],))
+    for cat in dict.fromkeys(technology_categories):
+        dbm.execute(
+            "INSERT INTO vendor_technology_categories (vendor_id, category) VALUES (?, ?)",
+            (vendor["id"], cat),
+        )
+    return None
+
+
 @app.route("/app/seller/profile", methods=("GET", "POST"))
 @role_required("seller")
 def seller_profile():
@@ -3830,127 +4318,10 @@ def seller_profile():
     if request.method == "POST":
         if not is_editor:
             abort(403)
-        form = request.form
-        files = request.files
-
-        # Logo: an uploaded file wins if one was chosen this save; otherwise
-        # the existing upload (if any) is left alone. "Remove current logo"
-        # clears both the upload and the link, falling back through the
-        # rest of vendor_display_logo_url's chain (wiki logo, favicon,
-        # initials). Validated/rejected before anything else is saved, same
-        # as the account-photo upload this mirrors.
-        logo_data_url, logo_error = _read_uploaded_vendor_logo(files)
-        if logo_error:
-            flash(logo_error, "error")
+        error = _save_vendor_fields_from_form(vendor, request.form, request.files)
+        if error:
+            flash(error, "error")
             return redirect(url_for("seller_profile"))
-        remove_logo = form.get("remove_logo") == "on"
-        if remove_logo:
-            new_logo_link_url = ""
-            new_logo_upload_data_url = None
-        else:
-            new_logo_link_url = form.get("logo_link_url", "").strip()
-            new_logo_upload_data_url = logo_data_url if logo_data_url else vendor["logo_upload_data_url"]
-
-        founded_year = form.get("founded_year", "").strip()
-        founded_year = int(founded_year) if founded_year.isdigit() else None
-        company_size = form.get("company_size", "").strip()
-        if company_size not in COMPANY_SIZE_BANDS:
-            company_size = None
-
-        new_category = _ensure_technology_category(form.get("new_technology_category", ""))
-        technology_categories = [
-            c for c in form.getlist("technology_categories") if c in all_technology_categories()
-        ]
-        if new_category and new_category not in technology_categories:
-            technology_categories.append(new_category)
-        # `category` (a single display label shown on vendor cards, the
-        # compare table, etc.) is no longer directly editable -- it's
-        # derived from the seller's selected Technology Categories so
-        # those older, single-value display sites keep showing something
-        # sensible without needing their own multi-category redesign.
-        category = " / ".join(technology_categories) if technology_categories else "Uncategorized"
-
-        new_segment = _ensure_technology_segment(form.get("new_segment", ""))
-        segments = [s for s in form.getlist("segments") if s in all_technology_segments()]
-        if new_segment and new_segment not in segments:
-            segments.append(new_segment)
-
-        # Initials are no longer a seller-editable field (removed per
-        # Kevin's request, alongside adding the logo above) -- auto-derived
-        # from the company name instead, same formula every other vendor
-        # row uses (_derive_vendor_accent_initials).
-        initials = _derive_initials(form["company_name"].strip())
-
-        # A seller can type just the bare domain ("acme.com") -- the field
-        # is plain text now, not type="url", specifically so that isn't
-        # rejected by browser URL validation. Default the scheme to https://
-        # so the stored value is still a real, clickable URL everywhere else
-        # it's used (buyer/vendor.html's website link, etc.); a seller who
-        # explicitly types http:// gets to keep that instead.
-        website = form.get("website", "").strip()
-        if website and not re.match(r"^https?://", website, re.IGNORECASE):
-            website = "https://" + website
-
-        # Same phone_country pattern as account_profile()'s phone fields --
-        # see PHONE_COUNTRIES / static/js/phone-format.js. Defaults to US.
-        contact_phone_country = (form.get("contact_phone_country", "US").strip().upper() or "US")[:2]
-
-        # Public/private + ticker (Kevin's request): mandatory once a
-        # seller is actually editing a claimed listing -- ownership_status
-        # always, stock_ticker only when the company is public. Admin-
-        # seeded/unclaimed vendors get a best-effort default from
-        # migrate.py's one-time backfill instead (see
-        # _backfill_vendor_ownership_2026_09_26), so this validation only
-        # ever bites on a real save from this form.
-        ownership_status = form.get("ownership_status", "").strip().lower()
-        if ownership_status not in ("public", "private"):
-            flash("Please select whether this company is publicly traded or private.", "error")
-            return redirect(url_for("seller_profile"))
-        stock_ticker = form.get("stock_ticker", "").strip().upper()
-        if ownership_status == "public":
-            if not stock_ticker:
-                flash("Please enter the stock ticker symbol for a publicly traded company.", "error")
-                return redirect(url_for("seller_profile"))
-        else:
-            stock_ticker = None
-
-        dbm.execute(
-            # accent is no longer an editable field on this form (removed
-            # per Kevin's request) -- deliberately left out of this UPDATE
-            # so a save never overwrites the vendor's existing accent color.
-            "UPDATE vendors SET company_name=?, category=?, tagline=?, description=?, "
-            "website=?, initials=?, logo_link_url=?, logo_upload_data_url=?, company_size=?, "
-            "founded_year=?, hq_location=?, contact_name=?, contact_email=?, contact_phone=?, "
-            "contact_phone_country=?, ownership_status=?, stock_ticker=? WHERE id=?",
-            (
-                form["company_name"].strip(), category, form["tagline"].strip(),
-                form["description"].strip(), website,
-                initials, new_logo_link_url, new_logo_upload_data_url, company_size, founded_year,
-                form.get("hq_location", "").strip(), form.get("contact_name", "").strip(),
-                form.get("contact_email", "").strip(),
-                form.get("contact_phone", "").strip(), contact_phone_country,
-                ownership_status, stock_ticker, vendor["id"],
-            ),
-        )
-        dbm.execute("DELETE FROM vendor_tags WHERE vendor_id=?", (vendor["id"],))
-        for tag in form.get("tags", "").split(","):
-            tag = tag.strip()
-            if tag:
-                dbm.execute(
-                    "INSERT INTO vendor_tags (vendor_id, tag) VALUES (?, ?)", (vendor["id"], tag)
-                )
-        dbm.execute("DELETE FROM vendor_segments WHERE vendor_id=?", (vendor["id"],))
-        for segment in dict.fromkeys(segments):
-            dbm.execute(
-                "INSERT INTO vendor_segments (vendor_id, segment) VALUES (?, ?)",
-                (vendor["id"], segment),
-            )
-        dbm.execute("DELETE FROM vendor_technology_categories WHERE vendor_id=?", (vendor["id"],))
-        for cat in dict.fromkeys(technology_categories):
-            dbm.execute(
-                "INSERT INTO vendor_technology_categories (vendor_id, category) VALUES (?, ?)",
-                (vendor["id"], cat),
-            )
         flash("Your company profile updated — buyers will see the latest version.", "success")
         return redirect(url_for("seller_profile"))
     if not vendor:
