@@ -2,7 +2,8 @@
   {
     "name": "Exabeam",
     "categories": [
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "Provides a security information and event management (SIEM) and behavioral analytics platform for threat detection.",
     "website": "https://www.exabeam.com/",
@@ -13,7 +14,8 @@
   {
     "name": "IBM Security",
     "categories": [
-      "SIEM/SOAR/XDR",
+      "SIEM",
+      "SOAR",
       "GRC & Compliance"
     ],
     "description": "IBM's enterprise security division offering SIEM, identity, and data protection software and services.",
@@ -131,7 +133,8 @@
     "name": "Cybereason",
     "categories": [
       "Endpoint Security",
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "Provides an EDR/XDR platform focused on detecting multi-stage cyberattacks across endpoints.",
     "website": "https://www.cybereason.com/",
@@ -349,7 +352,8 @@
     "name": "Fortinet",
     "categories": [
       "Network Security",
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "Manufactures next-generation firewalls and a broad security fabric including SIEM (FortiSIEM).",
     "website": "https://www.fortinet.com/",
@@ -395,7 +399,8 @@
     "name": "Trustwave",
     "categories": [
       "Managed Security Services (MSSP/MDR)",
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "Provides managed security services, SIEM, and threat detection for enterprises.",
     "website": "https://www.trustwave.com/",
@@ -418,7 +423,8 @@
   {
     "name": "Splunk",
     "categories": [
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "Data platform widely used for SIEM, security analytics, and operational monitoring, now part of Cisco.",
     "website": "https://www.splunk.com/",
@@ -429,7 +435,8 @@
   {
     "name": "Hewlett Packard Enterprise",
     "categories": [
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "Enterprise IT vendor offering security management and SIEM-adjacent software (ArcSight legacy line).",
     "website": "https://www.hpe.com/",
@@ -440,7 +447,8 @@
   {
     "name": "LogRhythm",
     "categories": [
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "Provides a SIEM and security analytics platform for threat detection and response.",
     "website": "https://www.logrhythm.com/",
@@ -452,7 +460,8 @@
     "name": "RSA Security",
     "categories": [
       "Identity & Access Management",
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "Longtime provider of identity, SIEM (NetWitness), and fraud detection technology, formerly part of EMC.",
     "website": "https://www.rsa.com/",
@@ -464,7 +473,8 @@
     "name": "OpenText (NetIQ)",
     "categories": [
       "Identity & Access Management",
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "Owns the former Micro Focus NetIQ identity and security management product line.",
     "website": "https://www.opentext.com/",
@@ -475,7 +485,8 @@
   {
     "name": "SolarWinds",
     "categories": [
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "IT management vendor offering network and security event monitoring tools.",
     "website": "https://www.solarwinds.com/",
@@ -486,7 +497,8 @@
   {
     "name": "AT&T Cybersecurity (AlienVault)",
     "categories": [
-      "SIEM/SOAR/XDR",
+      "SIEM",
+      "SOAR",
       "Threat Intelligence"
     ],
     "description": "Offers the USM/AlienVault unified security management and open threat exchange platform.",
@@ -498,7 +510,8 @@
   {
     "name": "Netsurion (EventTracker)",
     "categories": [
-      "SIEM/SOAR/XDR",
+      "SIEM",
+      "SOAR",
       "Managed Security Services (MSSP/MDR)"
     ],
     "description": "Provides managed SIEM/XDR services under the EventTracker product line.",
@@ -510,7 +523,8 @@
   {
     "name": "BlackStratus",
     "categories": [
-      "SIEM/SOAR/XDR",
+      "SIEM",
+      "SOAR",
       "Managed Security Services (MSSP/MDR)"
     ],
     "description": "Delivers SIEM and co-managed security services for MSSPs and mid-market enterprises.",
@@ -567,7 +581,7 @@
   {
     "name": "Pindrop",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Detects voice fraud and authenticates callers for call centers using voice biometrics.",
     "website": "https://www.pindrop.com/",
@@ -578,7 +592,7 @@
   {
     "name": "ThreatMetrix",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "LexisNexis-owned digital identity and fraud risk scoring network for online transactions.",
     "website": "https://risk.lexisnexis.com/",
@@ -589,7 +603,7 @@
   {
     "name": "Verisys",
     "categories": [
-      "Fraud & Identity Verification",
+      "Fraud & Identity Management",
       "GRC & Compliance"
     ],
     "description": "Provides credentialing and identity verification data for healthcare and workforce screening.",
@@ -601,7 +615,7 @@
   {
     "name": "Guardian Analytics",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Behavioral analytics for detecting account takeover and payments fraud in banking, now part of NICE Actimize.",
     "website": null,
@@ -612,7 +626,7 @@
   {
     "name": "Sift",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Machine-learning fraud prevention platform protecting online businesses from account and payment fraud.",
     "website": "https://sift.com/",
@@ -623,7 +637,7 @@
   {
     "name": "Jumio",
     "categories": [
-      "Fraud & Identity Verification",
+      "Fraud & Identity Management",
       "Mobile Security"
     ],
     "description": "Provides AI-based identity verification and document authentication for onboarding.",
@@ -636,7 +650,7 @@
     "name": "Agari",
     "categories": [
       "Email Security",
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Email security vendor specializing in anti-phishing and business email compromise protection, now part of Fortra.",
     "website": "https://www.fortra.com/",
@@ -648,7 +662,7 @@
     "name": "Radar (ID Experts)",
     "categories": [
       "GRC & Compliance",
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Offers breach response and identity protection/credit monitoring software for incident management.",
     "website": null,
@@ -659,7 +673,7 @@
   {
     "name": "Trulioo",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Global identity verification network for KYC and AML compliance.",
     "website": "https://www.trulioo.com/",
@@ -670,7 +684,7 @@
   {
     "name": "Feedzai",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Machine-learning platform that detects financial fraud in real time for banks and payment providers.",
     "website": "https://www.feedzai.com/",
@@ -681,7 +695,7 @@
   {
     "name": "Socure",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Provides digital identity verification and fraud risk scoring for onboarding and KYC.",
     "website": "https://www.socure.com/",
@@ -692,7 +706,7 @@
   {
     "name": "Shift Technology",
     "categories": [
-      "Fraud & Identity Verification",
+      "Fraud & Identity Management",
       "GRC & Compliance"
     ],
     "description": "AI-powered fraud detection and claims decisioning software for insurers.",
@@ -704,7 +718,7 @@
   {
     "name": "Simility",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Adaptive machine-learning fraud detection platform, acquired by PayPal.",
     "website": null,
@@ -715,7 +729,7 @@
   {
     "name": "Elliptic",
     "categories": [
-      "Fraud & Identity Verification",
+      "Fraud & Identity Management",
       "Threat Intelligence"
     ],
     "description": "Blockchain analytics company that traces cryptocurrency transactions for AML and fraud investigations.",
@@ -727,7 +741,7 @@
   {
     "name": "SecuredTouch",
     "categories": [
-      "Fraud & Identity Verification",
+      "Fraud & Identity Management",
       "Mobile Security"
     ],
     "description": "Behavioral biometrics platform for continuous fraud detection, acquired by Ping Identity.",
@@ -739,7 +753,7 @@
   {
     "name": "Ravelin",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Machine-learning fraud and chargeback prevention for online retailers.",
     "website": "https://www.ravelin.com/",
@@ -750,7 +764,7 @@
   {
     "name": "Intensity Analytics",
     "categories": [
-      "Fraud & Identity Verification",
+      "Fraud & Identity Management",
       "Identity & Access Management"
     ],
     "description": "Provides behavioral biometric authentication based on typing and interaction patterns.",
@@ -762,7 +776,7 @@
   {
     "name": "VU Security",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Latin American provider of digital identity and fraud prevention technology.",
     "website": "https://vusecurity.com/",
@@ -784,7 +798,7 @@
   {
     "name": "Veridu",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Provided social and identity verification APIs for fraud prevention.",
     "website": null,
@@ -795,8 +809,9 @@
   {
     "name": "Fortscale",
     "categories": [
-      "SIEM/SOAR/XDR",
-      "Fraud & Identity Verification"
+      "SIEM",
+      "SOAR",
+      "Fraud & Identity Management"
     ],
     "description": "User and entity behavior analytics vendor for insider threat and fraud detection, acquired by CyberArk.",
     "website": null,
@@ -807,7 +822,7 @@
   {
     "name": "VChain Technology",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Blockchain-based anti-counterfeiting and identity verification technology provider.",
     "website": null,
@@ -830,7 +845,7 @@
     "name": "ID.me",
     "categories": [
       "Identity & Access Management",
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Identity verification network letting individuals prove their identity once for government and commercial services.",
     "website": "https://www.id.me/",
@@ -1008,7 +1023,7 @@
   {
     "name": "BioCatch",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Behavioral biometrics platform used by banks to detect fraud and account takeover.",
     "website": "https://www.biocatch.com/",
@@ -1030,7 +1045,7 @@
   {
     "name": "Civic Technologies",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Blockchain-based identity verification and reusable KYC platform.",
     "website": "https://www.civic.com/",
@@ -1052,7 +1067,7 @@
   {
     "name": "Prove",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Phone-number based identity verification platform (formerly Payfone) used for onboarding and fraud prevention.",
     "website": "https://www.prove.com/",
@@ -1086,7 +1101,7 @@
     "name": "Transmit Security",
     "categories": [
       "Identity & Access Management",
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Provides passwordless customer identity and fraud prevention orchestration.",
     "website": "https://transmitsecurity.com/",
@@ -1110,7 +1125,7 @@
     "name": "Uniken",
     "categories": [
       "Identity & Access Management",
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Provides device fingerprinting and continuous authentication for digital banking.",
     "website": "https://www.uniken.com/",
@@ -1132,7 +1147,7 @@
   {
     "name": "Smile Identity",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Digital identity verification platform focused on African markets.",
     "website": "https://www.smileidentity.com/",
@@ -1245,7 +1260,7 @@
   {
     "name": "Castle",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Provides real-time account takeover and fraud detection for online applications.",
     "website": "https://castle.io/",
@@ -1256,7 +1271,7 @@
   {
     "name": "Cybertonica",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "AI-based fraud prevention and transaction risk decisioning platform.",
     "website": "https://cybertonica.com/",
@@ -1267,7 +1282,7 @@
   {
     "name": "DataVisor",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Unsupervised machine-learning platform for detecting fraud rings and abuse.",
     "website": "https://www.datavisor.com/",
@@ -1278,7 +1293,7 @@
   {
     "name": "IDwall",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Brazilian identity verification and background check automation platform.",
     "website": "https://idwall.co/",
@@ -1289,7 +1304,7 @@
   {
     "name": "Precognitive",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Behavioral and device intelligence platform for fraud detection.",
     "website": "https://www.precognitive.com/",
@@ -1300,7 +1315,7 @@
   {
     "name": "Rippleshot",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Payment card fraud detection analytics for banks and credit unions.",
     "website": "https://www.rippleshot.com/",
@@ -1311,7 +1326,7 @@
   {
     "name": "Shumei",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "China-based AI risk-control and content/fraud detection platform.",
     "website": "https://www.ishumei.com/",
@@ -1322,7 +1337,7 @@
   {
     "name": "Smyte",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Provided trust and safety/fraud prevention tools before being acquired by Twitter.",
     "website": null,
@@ -1355,7 +1370,8 @@
   {
     "name": "Demisto",
     "categories": [
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "Security orchestration, automation, and response (SOAR) platform, acquired by Palo Alto Networks as Cortex XSOAR.",
     "website": null,
@@ -1389,7 +1405,8 @@
   {
     "name": "LogicHub",
     "categories": [
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "Automated threat detection and investigation platform using decision automation.",
     "website": null,
@@ -1546,7 +1563,8 @@
   {
     "name": "JASK",
     "categories": [
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "Cloud-native SOC platform for automated alert triage, acquired by Sumo Logic.",
     "website": null,
@@ -1558,7 +1576,8 @@
     "name": "PatternEx",
     "categories": [
       "Threat Intelligence",
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "AI-driven platform for predicting and detecting cyberattacks from analyst feedback loops.",
     "website": null,
@@ -1569,7 +1588,8 @@
   {
     "name": "SecBI",
     "categories": [
-      "SIEM/SOAR/XDR",
+      "SIEM",
+      "SOAR",
       "Network Security"
     ],
     "description": "Network detection and response platform using autonomous investigation of threats.",
@@ -1593,7 +1613,8 @@
     "name": "SentinelOne",
     "categories": [
       "Endpoint Security",
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "Autonomous endpoint and XDR platform using AI to prevent, detect, and respond to threats.",
     "website": "https://www.sentinelone.com/",
@@ -1672,7 +1693,7 @@
   {
     "name": "BehavioSec",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Behavioral biometrics platform for continuous authentication, part of LexisNexis Risk Solutions.",
     "website": "https://www.behaviosec.com/",
@@ -1695,7 +1716,8 @@
     "name": "Darktrace",
     "categories": [
       "Network Security",
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "Uses AI/self-learning models to detect and autonomously respond to network anomalies.",
     "website": "https://darktrace.com/",
@@ -1706,7 +1728,8 @@
   {
     "name": "E8 Security",
     "categories": [
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "User and entity behavior analytics platform, acquired by VMware Carbon Black.",
     "website": null,
@@ -1717,7 +1740,8 @@
   {
     "name": "Interset",
     "categories": [
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "UEBA analytics platform for insider threat detection, owned by OpenText/Micro Focus.",
     "website": null,
@@ -1729,7 +1753,7 @@
     "name": "HUMAN Security (PerimeterX)",
     "categories": [
       "Application Security",
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Bot mitigation and application fraud protection platform formed from HUMAN and PerimeterX.",
     "website": "https://www.humansecurity.com/",
@@ -1751,7 +1775,8 @@
   {
     "name": "Sqrrl",
     "categories": [
-      "SIEM/SOAR/XDR",
+      "SIEM",
+      "SOAR",
       "Threat Intelligence"
     ],
     "description": "Threat-hunting and link-analysis platform acquired by Amazon Web Services.",
@@ -1776,7 +1801,7 @@
     "name": "TwoSense",
     "categories": [
       "Identity & Access Management",
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Continuous behavioral-biometric authentication for enterprise and government identity assurance.",
     "website": "https://twosense.ai/",
@@ -1809,7 +1834,7 @@
   {
     "name": "IDnow",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "European identity verification platform for KYC and digital onboarding.",
     "website": "https://www.idnow.io/",
@@ -2074,7 +2099,7 @@
     "name": "Napier AI",
     "categories": [
       "GRC & Compliance",
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "AI-powered anti-money-laundering and financial crime compliance platform.",
     "website": "https://www.napier.ai/",
@@ -2121,7 +2146,8 @@
     "name": "Rapid7",
     "categories": [
       "Vulnerability Management",
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "Vulnerability management and detection-and-response platform (InsightVM, InsightIDR).",
     "website": "https://www.rapid7.com/",
@@ -2176,7 +2202,7 @@
   {
     "name": "Chainalysis",
     "categories": [
-      "Fraud & Identity Verification",
+      "Fraud & Identity Management",
       "Threat Intelligence"
     ],
     "description": "Blockchain data platform used for crypto compliance, fraud investigation, and AML.",
@@ -2188,7 +2214,7 @@
   {
     "name": "CHEQ",
     "categories": [
-      "Fraud & Identity Verification",
+      "Fraud & Identity Management",
       "Application Security"
     ],
     "description": "Go-to-market security platform blocking bots, ad fraud, and fake form-fills.",
@@ -2428,7 +2454,7 @@
     "name": "Validated ID",
     "categories": [
       "Identity & Access Management",
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Digital identity and electronic signature platform based in Spain.",
     "website": "https://validatedid.com/",
@@ -2532,7 +2558,7 @@
   {
     "name": "Thirdfort",
     "categories": [
-      "Fraud & Identity Verification",
+      "Fraud & Identity Management",
       "GRC & Compliance"
     ],
     "description": "Identity verification and anti-money-laundering compliance platform for legal and property transactions.",
@@ -2564,7 +2590,7 @@
     "wiki_logo_url": null
   },
   {
-    "name": "Magellan S\u00e9curit\u00e9",
+    "name": "Magellan Sécurité",
     "categories": [
       "Managed Security Services (MSSP/MDR)"
     ],
@@ -2599,7 +2625,7 @@
   {
     "name": "Minsait Payments",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Payments and fraud-risk technology unit of Indra's Minsait division.",
     "website": "https://www.minsait.com/",
@@ -2621,7 +2647,7 @@
   {
     "name": "Eyeonid",
     "categories": [
-      "Fraud & Identity Verification"
+      "Fraud & Identity Management"
     ],
     "description": "Identity theft protection and monitoring service for consumers, offered via telecom partners.",
     "website": "https://eyeonid.com/",
@@ -2722,7 +2748,7 @@
   {
     "name": "Perfios",
     "categories": [
-      "Fraud & Identity Verification",
+      "Fraud & Identity Management",
       "GRC & Compliance"
     ],
     "description": "Fintech risk analytics platform supporting fraud detection and lending decisioning.",
@@ -2745,7 +2771,8 @@
   {
     "name": "Tines",
     "categories": [
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "description": "A no-code security workflow automation (SOAR) platform that lets security and IT teams build automated response and remediation workflows across their existing tools, with built-in AI guardrails.",
     "website": "https://www.tines.com/",
@@ -2756,7 +2783,8 @@
   {
     "name": "7AI",
     "categories": [
-      "SIEM/SOAR/XDR",
+      "SIEM",
+      "SOAR",
       "Incident Response & Forensics",
       "Managed Security Services (MSSP/MDR)"
     ],
@@ -2850,7 +2878,8 @@
     "categories": [
       "Network Security",
       "Zero Trust/SASE",
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "tagline": "Protect users, devices, apps, and data with an open, network-native platform",
     "description": "Cisco's security business unit provides network-native cybersecurity products spanning firewalls and cloud/AI workload protection, zero-trust and identity access (Duo, ISE, Secure Access/SASE), and unified threat detection via Splunk Enterprise Security and Cisco Talos threat intelligence.",
@@ -2876,7 +2905,8 @@
     "name": "Corelight",
     "categories": [
       "Network Security",
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "tagline": "Disrupt future attacks with complete network visibility",
     "description": "Provides an evidence-based network detection and response (NDR) platform that uses passive network monitoring and machine learning to deliver visibility, threat detection, and rapid incident investigation across on-prem, cloud, and hybrid environments.",
@@ -2888,7 +2918,8 @@
   {
     "name": "Cribl",
     "categories": [
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "tagline": "Your AI Platform for Telemetry",
     "description": "Provides a vendor-agnostic data pipeline and observability platform that collects, processes, and routes IT and security telemetry to destinations such as SIEMs, data lakes, and cloud storage, used to control telemetry costs and avoid tool lock-in.",
@@ -2928,7 +2959,8 @@
     "name": "Google",
     "categories": [
       "Cloud Security",
-      "SIEM/SOAR/XDR",
+      "SIEM",
+      "SOAR",
       "Threat Intelligence"
     ],
     "tagline": "Make Google part of your security team",
@@ -3062,7 +3094,8 @@
   {
     "name": "Microsoft",
     "categories": [
-      "SIEM/SOAR/XDR",
+      "SIEM",
+      "SOAR",
       "Identity & Access Management",
       "Cloud Security"
     ],
@@ -3155,7 +3188,8 @@
   {
     "name": "ReliaQuest",
     "categories": [
-      "SIEM/SOAR/XDR",
+      "SIEM",
+      "SOAR",
       "Managed Security Services (MSSP/MDR)"
     ],
     "tagline": "Make Security Possible",
@@ -3272,7 +3306,8 @@
     "categories": [
       "Cloud Security",
       "Application Security",
-      "SIEM/SOAR/XDR"
+      "SIEM",
+      "SOAR"
     ],
     "tagline": "AI-Powered Observability and Security",
     "description": "Offers Cloud Security Management (cloud security posture management, cloud infrastructure entitlement management, and cloud workload protection) and Application Security Management (runtime application self-protection and vulnerability detection) as security modules on its observability platform, plus Cloud SIEM for threat detection using telemetry already ingested by the platform.",
@@ -3297,7 +3332,8 @@
   {
     "name": "Trellix",
     "categories": [
-      "SIEM/SOAR/XDR",
+      "SIEM",
+      "SOAR",
       "Endpoint Security",
       "Email Security"
     ],
@@ -3325,7 +3361,8 @@
   {
     "name": "Torq",
     "categories": [
-      "SIEM/SOAR/XDR",
+      "SIEM",
+      "SOAR",
       "Incident Response & Forensics"
     ],
     "tagline": "",

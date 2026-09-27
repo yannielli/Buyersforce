@@ -72,6 +72,7 @@ def run_migrations():
             _backfill_vendor_ownership_2026_09_26(cur)
             _reclassify_acquired_vendors_under_public_parents_2026_09_27(cur)
             _add_revoked_account_status_2026_09_28(cur)
+            _split_siem_soar_and_rename_fraud_segments_2026_09_27(cur)
     finally:
         con.close()
 
@@ -814,14 +815,14 @@ def _seed_technology_taxonomy(cur):
         "API Security", "Application Security", "Backup & Ransomware Recovery",
         "Breach Remediation", "Cloud Security", "CNAPP", "Cybercrime",
         "Data Lake/Storage", "Data Security & Privacy", "EDR/XDR", "Email Security",
-        "Endpoint Security", "Fraud & Identity Verification", "GRC & Compliance",
+        "Endpoint Security", "Fraud & Identity Management", "GRC & Compliance",
         "Identity & Access Management", "Incident Response & Forensics",
         "Information Security", "IoT/OT Security", "Malware Detection",
         "Malware Prevention", "Managed Security Services (MSSP/MDR)",
         "Managed Threat Hunting", "Mobile Security", "Network Security",
         "Next Gen Anti-Virus", "Next Gen Firewall", "Penetration Testing/Offensive Security",
         "SecOps", "Security Awareness Training", "Security Operations (SOC)",
-        "SIEM/SOAR/XDR", "Supply Chain/Third-Party Risk", "Threat Intelligence",
+        "SIEM", "SOAR", "Supply Chain/Third-Party Risk", "Threat Intelligence",
         "Vulnerability Management", "Zero Trust/SASE",
     ]
     for name in starter_segments:
@@ -1514,6 +1515,95 @@ def _add_revoked_account_status_2026_09_28(cur):
     cur.execute(
         "ALTER TABLE users ADD CONSTRAINT users_account_status_check "
         "CHECK (account_status IN ('pending', 'active', 'denied', 'revoked'))"
+    )
+
+
+def _split_siem_soar_and_rename_fraud_segments_2026_09_27(cur):
+    # Kj's correction (2026-09-27): the combined "SIEM/SOAR/XDR" segment
+    # gets split into two standalone segments, "SIEM" and "SOAR" -- XDR
+    # already has its own segment ("EDR/XDR"), so it isn't recreated
+    # here. "Fraud & Identity Verification" is renamed in place to
+    # "Fraud & Identity Management" (same segment, corrected wording).
+    # Touches all three places a segment name lives: the master picklist
+    # (technology_segments), each tagged vendor's own segments
+    # (vendor_segments -- a vendor previously tagged with the combined
+    # segment gets BOTH new ones, so it stays discoverable under either),
+    # and the legacy single-value "category" label shown as the
+    # eyebrow/badge on vendor cards (vendors.category -- not admin-
+    # editable, only ever set once at seed time, so it goes stale unless
+    # corrected here too; defaults to "SIEM" for the split segment since
+    # there's no reliable way to tell which of the two fits a given
+    # vendor best -- worth a manual look on the admin Vendors page for
+    # any listing that's really SOAR-only).
+    # Guarded by _data_patches so this runs exactly once; seed_data/
+    # vendor_seed_list.json is updated to match so _seed_vendor_
+    # directory's per-deploy "ensure these segments exist" pass doesn't
+    # silently re-add the old names on a later deploy.
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches ("
+        "name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "split_siem_soar_and_rename_fraud_segments_2026_09_27"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    # Master picklist.
+    for name in ("SIEM", "SOAR"):
+        cur.execute(
+            "INSERT INTO technology_segments (name) SELECT %s "
+            "WHERE NOT EXISTS (SELECT 1 FROM technology_segments WHERE lower(name) = lower(%s))",
+            (name, name),
+        )
+    cur.execute("DELETE FROM technology_segments WHERE lower(name) = lower('SIEM/SOAR/XDR')")
+    cur.execute(
+        "UPDATE technology_segments SET name = 'Fraud & Identity Management' "
+        "WHERE lower(name) = lower('Fraud & Identity Verification') "
+        "AND NOT EXISTS ("
+        "  SELECT 1 FROM technology_segments WHERE lower(name) = lower('Fraud & Identity Management')"
+        ")"
+    )
+    cur.execute("DELETE FROM technology_segments WHERE lower(name) = lower('Fraud & Identity Verification')")
+
+    # Per-vendor tags.
+    for new_seg in ("SIEM", "SOAR"):
+        cur.execute(
+            """
+            INSERT INTO vendor_segments (vendor_id, segment)
+            SELECT vendor_id, %s FROM vendor_segments WHERE lower(segment) = lower('SIEM/SOAR/XDR')
+            AND NOT EXISTS (
+                SELECT 1 FROM vendor_segments vs2
+                WHERE vs2.vendor_id = vendor_segments.vendor_id AND lower(vs2.segment) = lower(%s)
+            )
+            """,
+            (new_seg, new_seg),
+        )
+    cur.execute("DELETE FROM vendor_segments WHERE lower(segment) = lower('SIEM/SOAR/XDR')")
+    cur.execute(
+        """
+        INSERT INTO vendor_segments (vendor_id, segment)
+        SELECT vendor_id, 'Fraud & Identity Management' FROM vendor_segments
+        WHERE lower(segment) = lower('Fraud & Identity Verification')
+        AND NOT EXISTS (
+            SELECT 1 FROM vendor_segments vs2
+            WHERE vs2.vendor_id = vendor_segments.vendor_id
+            AND lower(vs2.segment) = lower('Fraud & Identity Management')
+        )
+        """
+    )
+    cur.execute("DELETE FROM vendor_segments WHERE lower(segment) = lower('Fraud & Identity Verification')")
+
+    # Legacy single "category" label.
+    cur.execute("UPDATE vendors SET category = 'SIEM' WHERE category = 'SIEM/SOAR/XDR'")
+    cur.execute(
+        "UPDATE vendors SET category = 'Fraud & Identity Management' "
+        "WHERE category = 'Fraud & Identity Verification'"
+    )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) "
+        "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
     )
 
 
