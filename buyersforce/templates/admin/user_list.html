@@ -35,7 +35,13 @@
 
 {% if users %}
 <table class="table">
-  <tr><th>Name</th><th>Email</th><th>Company</th><th>Title</th><th></th></tr>
+  <tr>
+    <th><a href="{{ url_for(request.endpoint, q=q, letter=letter, sort=('name_desc' if sort == 'name_asc' else 'name_asc')) }}" class="sort-link{{ ' active' if sort in ('name_asc', 'name_desc') else '' }}">Name{% if sort == 'name_asc' %} ▲{% elif sort == 'name_desc' %} ▼{% endif %}</a></th>
+    <th>Email</th>
+    <th><a href="{{ url_for(request.endpoint, q=q, letter=letter, sort=('company_desc' if sort == 'company_asc' else 'company_asc')) }}" class="sort-link{{ ' active' if sort in ('company_asc', 'company_desc') else '' }}">Company{% if sort == 'company_asc' %} ▲{% elif sort == 'company_desc' %} ▼{% endif %}</a></th>
+    <th>Title</th>
+    <th></th>
+  </tr>
   {% for u in users %}
   <tr>
     <td><a href="{{ url_for('admin_user_detail', user_id=u.id) }}">{{ u.name }}</a></td>

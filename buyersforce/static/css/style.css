@@ -760,3 +760,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
   .ai-panel { right: 8px; left: 8px; bottom: 8px; width: auto; height: min(72vh, calc(100vh - 16px)); }
   .ai-launcher-btn { right: 12px; bottom: 12px; }
 }
+/* Clickable Name/Company column headers on the admin Buyers/Sellers tables (Kj's request) */
+.sort-link { color: inherit; text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }
+.sort-link:hover { color: var(--brand); }
+.sort-link.active { color: var(--brand-dark); }
