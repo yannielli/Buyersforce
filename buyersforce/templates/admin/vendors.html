@@ -14,6 +14,12 @@
   <input type="hidden" name="letter" id="letterInput" value="{{ letter }}">
   <input type="hidden" name="show_removed" id="showRemovedInput" value="{{ '1' if show_removed else '' }}">
   <input type="text" name="q" value="{{ q }}" placeholder="Search by name, description, category, or location…">
+  <select name="company_size" onchange="this.form.submit()">
+    <option value="">Any company size</option>
+    {% for size in company_sizes %}
+    <option value="{{ size }}" {{ 'selected' if size == company_size }}>{{ size }} employees</option>
+    {% endfor %}
+  </select>
   <select name="sort" onchange="this.form.submit()" aria-label="Sort vendors">
     {% for value, label in sort_options %}
     <option value="{{ value }}" {{ 'selected' if value == sort }}>Sort: {{ label }}</option>
@@ -21,11 +27,49 @@
   </select>
   <button class="btn btn-secondary" type="submit">Search</button>
   {% if show_removed %}
-  <a class="btn btn-ghost" href="{{ url_for('admin_vendors_page', q=q, sort=sort, letter=letter) }}">← Back to active listings</a>
+  <a class="btn btn-ghost" href="{{ url_for('admin_vendors_page', q=q, sort=sort, letter=letter, segment=selected_segments, technology_category=selected_technology_categories, company_size=company_size) }}">← Back to active listings</a>
   {% else %}
-  <a class="btn btn-ghost" href="{{ url_for('admin_vendors_page', q=q, sort=sort, letter=letter, show_removed=1) }}">View removed listings</a>
+  <a class="btn btn-ghost" href="{{ url_for('admin_vendors_page', q=q, sort=sort, letter=letter, segment=selected_segments, technology_category=selected_technology_categories, company_size=company_size, show_removed=1) }}">View removed listings</a>
   {% endif %}
 </form>
+
+<details class="segment-filter" {{ 'open' if selected_technology_categories }}>
+  <summary>Filter by technology category{% if selected_technology_categories %} ({{ selected_technology_categories|length }} selected){% endif %}</summary>
+  <div class="segment-grid">
+    {% for cat in all_technology_categories %}
+    <label>
+      <input type="checkbox" name="technology_category" value="{{ cat }}" form="discover-form"
+        {{ 'checked' if cat in selected_technology_categories }}>
+      {{ cat }}
+    </label>
+    {% endfor %}
+  </div>
+  <div class="filter-actions">
+    <button class="btn btn-primary btn-sm" type="submit" form="discover-form">Apply filters</button>
+    {% if selected_technology_categories or selected_segments or company_size or q or letter %}
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('admin_vendors_page', show_removed=('1' if show_removed else None)) }}">Clear all</a>
+    {% endif %}
+  </div>
+</details>
+
+<details class="segment-filter" {{ 'open' if selected_segments }}>
+  <summary>Filter by sub-category / segment{% if selected_segments %} ({{ selected_segments|length }} selected){% endif %}</summary>
+  <div class="segment-grid">
+    {% for seg in all_segments %}
+    <label>
+      <input type="checkbox" name="segment" value="{{ seg }}" form="discover-form"
+        {{ 'checked' if seg in selected_segments }}>
+      {{ seg }}
+    </label>
+    {% endfor %}
+  </div>
+  <div class="filter-actions">
+    <button class="btn btn-primary btn-sm" type="submit" form="discover-form">Apply filters</button>
+    {% if selected_technology_categories or selected_segments or company_size or q or letter %}
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('admin_vendors_page', show_removed=('1' if show_removed else None)) }}">Clear all</a>
+    {% endif %}
+  </div>
+</details>
 
 <div class="letter-jump" role="group" aria-label="Jump to vendors by first letter">
   <button type="button" class="jump-letter-btn{{ ' active' if not letter }}" data-letter="">All</button>

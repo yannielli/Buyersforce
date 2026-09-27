@@ -1355,10 +1355,17 @@ def _admin_vendors_context(removal_preview=None):
     jump shape as buyer_discover/seller_all_vendors (see DISCOVER_SORT_*/
     DISCOVER_JUMP_LETTERS), plus a show_removed toggle and the pasted-names
     bulk-remove tool this page inherited from the old Access Control
-    "Manage vendor listings" section."""
+    "Manage vendor listings" section. Kj's request: the same technology
+    category / sub-category-segment / company-size filters buyer_discover
+    has, so finding a vendor to edit doesn't rely on search text alone."""
     q = request.args.get("q", "").strip()
     known_segments = all_technology_segments()
+    segments = [s for s in request.args.getlist("segment") if s in known_segments]
     known_categories = all_technology_categories()
+    technology_categories = [
+        c for c in request.args.getlist("technology_category") if c in known_categories
+    ]
+    company_size = request.args.get("company_size", "")
     show_removed = request.args.get("show_removed") == "1"
     sql = "SELECT * FROM vendors WHERE status = ?"
     args = ["removed" if show_removed else "active"]
@@ -1375,6 +1382,21 @@ def _admin_vendors_context(removal_preview=None):
             "OR id IN (SELECT vendor_id FROM vendor_tags WHERE tag ILIKE ?))"
         )
         args += [f"%{q}%"] * 7
+    if technology_categories:
+        placeholders = ",".join(["?"] * len(technology_categories))
+        sql += (
+            f" AND id IN (SELECT vendor_id FROM vendor_technology_categories WHERE category IN ({placeholders}))"
+        )
+        args += technology_categories
+    if segments:
+        placeholders = ",".join(["?"] * len(segments))
+        sql += (
+            f" AND id IN (SELECT vendor_id FROM vendor_segments WHERE segment IN ({placeholders}))"
+        )
+        args += segments
+    if company_size:
+        sql += " AND company_size = ?"
+        args.append(company_size)
     letter = request.args.get("letter", "").strip().upper()[:1]
     if letter and letter not in DISCOVER_JUMP_LETTERS:
         letter = ""
@@ -1410,7 +1432,9 @@ def _admin_vendors_context(removal_preview=None):
     return dict(
         vendors=vendors, q=q, sort=sort, sort_options=DISCOVER_SORT_OPTIONS,
         jump_letters=DISCOVER_JUMP_LETTERS, letter=letter, show_removed=show_removed,
-        all_segments=known_segments, all_technology_categories=known_categories,
+        all_segments=known_segments, selected_segments=segments,
+        all_technology_categories=known_categories, selected_technology_categories=technology_categories,
+        company_sizes=COMPANY_SIZE_BANDS, company_size=company_size,
         removal_preview=removal_preview,
     )
 
