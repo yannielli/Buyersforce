@@ -29,6 +29,7 @@
   </div>
 </div>
 
+<div class="section-title"><h2>Pending invites</h2></div>
 {% if pending_invites_count %}
 <div class="card" style="border-color:var(--brand); background:var(--brand-tint); margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
   <div>
@@ -37,6 +38,8 @@
   </div>
   <a href="{{ url_for('admin_access_control') }}" class="btn btn-secondary btn-sm">Review on Access Control →</a>
 </div>
+{% else %}
+<div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✅</div>Nothing to see here, all caught up!</div>
 {% endif %}
 
 <div class="section-title"><h2>Support requests</h2></div>
