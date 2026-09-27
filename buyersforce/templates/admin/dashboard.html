@@ -10,25 +10,6 @@
   </div>
 </div>
 
-<div class="grid grid-4" style="grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; margin-bottom:24px;">
-  <div class="card" style="margin-top:0; text-align:center; padding:16px 10px; background:var(--brand-mcm-coral); border-color:var(--brand-mcm-coral);">
-    <div style="font-size:26px; font-weight:700; color:#fff;">{{ buyer_company_count }}</div>
-    <div class="hint" style="color:rgba(255,255,255,0.85);">Buyer Companies</div>
-  </div>
-  <div class="card" style="margin-top:0; text-align:center; padding:16px 10px; background:var(--brand-mcm-coral); border-color:var(--brand-mcm-coral);">
-    <div style="font-size:26px; font-weight:700; color:#fff;">{{ buyer_user_count }}</div>
-    <div class="hint" style="color:rgba(255,255,255,0.85);">Buyer Users</div>
-  </div>
-  <div class="card" style="margin-top:0; text-align:center; padding:16px 10px; background:var(--brand); border-color:var(--brand);">
-    <div style="font-size:26px; font-weight:700; color:#fff;">{{ vendor_company_count }}</div>
-    <div class="hint" style="color:rgba(255,255,255,0.85);">Seller Companies</div>
-  </div>
-  <div class="card" style="margin-top:0; text-align:center; padding:16px 10px; background:var(--brand); border-color:var(--brand);">
-    <div style="font-size:26px; font-weight:700; color:#fff;">{{ seller_user_count }}</div>
-    <div class="hint" style="color:rgba(255,255,255,0.85);">Seller Users</div>
-  </div>
-</div>
-
 {% if pending_signups %}
 <div class="card" style="border-color:var(--warning-border); background:var(--warning-tint); margin-bottom:24px;">
   <h3 style="font-size:14.5px;">Pending self-signup requests ({{ pending_signups|length }})</h3>
@@ -85,33 +66,6 @@
       </form>
       <form method="post" action="{{ url_for('admin_deny_role_change', request_id=r.id) }}">
         <button class="btn btn-ghost btn-sm" type="submit">Deny</button>
-      </form>
-    </span>
-  </div>
-  {% endfor %}
-</div>
-{% endif %}
-
-{% if open_support_requests %}
-<div class="card" style="border-color:var(--warning-border); background:var(--warning-tint); margin-bottom:24px;">
-  <h3 style="font-size:14.5px;">Support requests ({{ open_support_requests|length }})</h3>
-  <p style="font-size:13px; margin-bottom:12px;">Tech support, bug reports, and feature ideas from
-    users, in one place. Reply from the conversation link below.</p>
-  {% for r in open_support_requests %}
-  <div class="mock-row">
-    <span>
-      <strong style="font-size:14px;">{{ r.requester_name }}</strong>
-      <span class="badge badge-neutral" style="margin-left:6px;">{{ r.requester_role|capitalize }}</span>
-      <span class="badge badge-brand" style="margin-left:4px;">{{ support_category_labels[r.category] }}</span>
-      <span class="badge {{ 'badge-good' if r.status == 'in_progress' else 'badge-warning' }}" style="margin-left:4px;">{{ r.status.replace('_', ' ')|capitalize }}</span>
-      <div class="hint">{{ r.requester_company }} · {{ r.created_at|fmt_time }}</div>
-      <div class="snippet">{{ r.notes }}</div>
-    </span>
-    <span style="display:flex; gap:6px; align-items:flex-start;">
-      <a class="btn btn-primary btn-sm" href="{{ url_for('admin_thread', thread_id=r.thread_id) }}">Reply</a>
-      <form method="post" action="{{ url_for('admin_support_status', request_id=r.id) }}">
-        <input type="hidden" name="status" value="resolved">
-        <button class="btn btn-ghost btn-sm" type="submit">Mark resolved</button>
       </form>
     </span>
   </div>
@@ -258,7 +212,7 @@
 </div>
 {% endif %}
 
-<div class="grid grid-2" style="grid-template-columns:1fr 1.3fr; align-items:start;">
+<div class="grid grid-2" style="grid-template-columns:1fr 1.3fr; align-items:start; margin-bottom:28px;">
   <div class="card">
     <h3 style="font-size:15px;">Grant access to a new person</h3>
     <form method="post" action="{{ url_for('admin_invite') }}">
@@ -290,7 +244,7 @@
   <div>
     <div class="section-title"><h2>Pending invites</h2></div>
     {% if pending_invites %}
-    <div class="card" style="padding:8px 22px; margin-bottom:24px;">
+    <div class="card" style="padding:8px 22px;">
       {% for inv in pending_invites %}
       <div class="mock-row">
         <span>
@@ -298,7 +252,7 @@
           <div class="hint">{{ inv.role|capitalize }} · {{ inv.company }} · expires {{ inv.expires_at|fmt_time }}</div>
         </span>
         <span style="display:flex; gap:6px;">
-          <a class="btn btn-secondary btn-sm" href="{{ url_for('admin_dashboard') }}?new_invite={{ inv.id }}">Copy link</a>
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('admin_access_control') }}?new_invite={{ inv.id }}">Copy link</a>
           <form method="post" action="{{ url_for('admin_revoke_invite', invite_id=inv.id) }}">
             <button class="btn btn-ghost btn-sm" type="submit">Revoke</button>
           </form>
@@ -307,79 +261,79 @@
       {% endfor %}
     </div>
     {% else %}
-    <div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✉️</div>No pending invites.</div>
-    {% endif %}
-
-    <div class="section-title"><h2>All accounts</h2></div>
-    <form class="toolbar" method="get" id="accounts-form" style="margin-bottom:10px;">
-      <input type="hidden" name="letter" id="letterInput" value="{{ letter }}">
-      <input type="text" name="q" value="{{ q }}" placeholder="Search by name, email, or company…">
-      <select name="sort" onchange="this.form.submit()" aria-label="Sort accounts">
-        {% for value, label in sort_options %}
-        <option value="{{ value }}" {{ 'selected' if value == sort }}>Sort: {{ label }}</option>
-        {% endfor %}
-      </select>
-      <button class="btn btn-secondary" type="submit">Search</button>
-    </form>
-    <div class="letter-jump" role="group" aria-label="Jump to accounts by first letter" style="margin-bottom:10px;">
-      <button type="button" class="jump-letter-btn{{ ' active' if not letter }}" data-letter="">All</button>
-      {% for l in jump_letters %}
-      <button type="button" class="jump-letter-btn{{ ' active' if l == letter }}" data-letter="{{ l }}">{{ l }}</button>
-      {% endfor %}
-    </div>
-    {% if users %}
-    <table class="table">
-      <tr><th>Name</th><th>Email</th><th>Type</th><th>Company</th><th></th></tr>
-      {% for u in users %}
-      <tr>
-        <td><a href="{{ url_for('admin_user_detail', user_id=u.id) }}">{{ u.name }}</a></td>
-        <td>{{ u.email }}</td>
-        <td><span class="badge badge-neutral">{{ u.role|capitalize }}</span></td>
-        <td>
-          {{ u.company }}
-          {% if company_counts.get(u.company, 0) > 1 %}<span class="badge badge-neutral" style="margin-left:4px;">{{ company_counts[u.company] }}</span>{% endif %}
-        </td>
-        <td>
-          <span style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
-            <a class="btn btn-secondary btn-sm" href="{{ url_for('admin_user_edit', user_id=u.id) }}">Edit</a>
-            <form method="post" action="{{ url_for('admin_view_as', user_id=u.id) }}">
-              <button class="btn btn-secondary btn-sm" type="submit">View as</button>
-            </form>
-            <form method="post" action="{{ url_for('admin_grant_access', user_id=u.id) }}">
-              <button class="btn btn-secondary btn-sm" type="submit">Reset access</button>
-            </form>
-            <form method="post" action="{{ url_for('admin_users_revoke', user_id=u.id) }}"
-                  onsubmit="return confirm('Remove BuyersForce access for {{ u.name }}? Reversible any time from the Revoked access list below.');">
-              <button class="btn btn-ghost btn-sm" type="submit" style="color:var(--danger-ink, #b3261e);">Revoke</button>
-            </form>
-          </span>
-        </td>
-      </tr>
-      {% endfor %}
-    </table>
-    {% else %}
-    <div class="card empty-state"><div class="icon">👤</div>No accounts match that search.</div>
-    {% endif %}
-
-    {% if revoked_users %}
-    <div class="section-title" style="margin-top:24px;"><h2>Revoked access ({{ revoked_users|length }})</h2></div>
-    <div class="card" style="padding:8px 22px;">
-      {% for u in revoked_users %}
-      <div class="mock-row">
-        <span>
-          <strong style="font-size:14px;">{{ u.name }}</strong>
-          <span class="badge badge-neutral" style="margin-left:6px;">{{ u.role|capitalize }}</span>
-          <div class="hint">{{ u.email }} · {{ u.company }}</div>
-        </span>
-        <form method="post" action="{{ url_for('admin_users_restore', user_id=u.id) }}">
-          <button class="btn btn-secondary btn-sm" type="submit">Restore</button>
-        </form>
-      </div>
-      {% endfor %}
-    </div>
+    <div class="card empty-state"><div class="icon">✉️</div>No pending invites.</div>
     {% endif %}
   </div>
 </div>
+
+<div class="section-title"><h2>All accounts</h2></div>
+<form class="toolbar" method="get" id="accounts-form" style="margin-bottom:10px;">
+  <input type="hidden" name="letter" id="letterInput" value="{{ letter }}">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search by name, email, or company…">
+  <select name="sort" onchange="this.form.submit()" aria-label="Sort accounts">
+    {% for value, label in sort_options %}
+    <option value="{{ value }}" {{ 'selected' if value == sort }}>Sort: {{ label }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-secondary" type="submit">Search</button>
+</form>
+<div class="letter-jump" role="group" aria-label="Jump to accounts by first letter" style="margin-bottom:10px;">
+  <button type="button" class="jump-letter-btn{{ ' active' if not letter }}" data-letter="">All</button>
+  {% for l in jump_letters %}
+  <button type="button" class="jump-letter-btn{{ ' active' if l == letter }}" data-letter="{{ l }}">{{ l }}</button>
+  {% endfor %}
+</div>
+{% if users %}
+<table class="table">
+  <tr><th>Name</th><th>Email</th><th>Type</th><th>Company</th><th></th></tr>
+  {% for u in users %}
+  <tr>
+    <td><a href="{{ url_for('admin_user_detail', user_id=u.id) }}">{{ u.name }}</a></td>
+    <td>{{ u.email }}</td>
+    <td><span class="badge badge-neutral">{{ u.role|capitalize }}</span></td>
+    <td>
+      {{ u.company }}
+      {% if company_counts.get(u.company, 0) > 1 %}<span class="badge badge-neutral" style="margin-left:4px;">{{ company_counts[u.company] }}</span>{% endif %}
+    </td>
+    <td>
+      <span style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
+        <a class="btn btn-secondary btn-sm" href="{{ url_for('admin_user_edit', user_id=u.id) }}">Edit</a>
+        <form method="post" action="{{ url_for('admin_view_as', user_id=u.id) }}">
+          <button class="btn btn-secondary btn-sm" type="submit">View as</button>
+        </form>
+        <form method="post" action="{{ url_for('admin_grant_access', user_id=u.id) }}">
+          <button class="btn btn-secondary btn-sm" type="submit">Reset access</button>
+        </form>
+        <form method="post" action="{{ url_for('admin_users_revoke', user_id=u.id) }}"
+              onsubmit="return confirm('Remove BuyersForce access for {{ u.name }}? Reversible any time from the Revoked access list below.');">
+          <button class="btn btn-ghost btn-sm" type="submit" style="color:var(--danger-ink, #b3261e);">Revoke</button>
+        </form>
+      </span>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<div class="card empty-state"><div class="icon">👤</div>No accounts match that search.</div>
+{% endif %}
+
+{% if revoked_users %}
+<div class="section-title" style="margin-top:24px;"><h2>Revoked access ({{ revoked_users|length }})</h2></div>
+<div class="card" style="padding:8px 22px;">
+  {% for u in revoked_users %}
+  <div class="mock-row">
+    <span>
+      <strong style="font-size:14px;">{{ u.name }}</strong>
+      <span class="badge badge-neutral" style="margin-left:6px;">{{ u.role|capitalize }}</span>
+      <div class="hint">{{ u.email }} · {{ u.company }}</div>
+    </span>
+    <form method="post" action="{{ url_for('admin_users_restore', user_id=u.id) }}">
+      <button class="btn btn-secondary btn-sm" type="submit">Restore</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 
 <script>
 (function () {

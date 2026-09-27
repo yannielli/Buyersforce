@@ -676,7 +676,7 @@ def vendor_signup():
                 text=(
                     f"{contact_name} ({contact_title}) submitted {company_name} to be listed on "
                     f"BuyersForce.\n\nWebsite: {website}\nContact: {contact_email} · {contact_phone}\n\n"
-                    f"Review it in your admin dashboard: {url_for('admin_dashboard', _external=True)}"
+                    f"Review it in your admin dashboard: {url_for('admin_access_control', _external=True)}"
                 ),
                 reply_to=contact_email,
             )
@@ -1116,7 +1116,7 @@ def _viewer_is_super_admin():
     return bool(g.user["is_admin"]) or bool(session.get("impersonator_id"))
 
 
-def _admin_dashboard_context():
+def _admin_access_control_context():
     q = request.args.get("q", "").strip()
     sort = request.args.get("sort", "name_asc")
     letter = request.args.get("letter", "").strip().upper()[:1]
@@ -1124,28 +1124,6 @@ def _admin_dashboard_context():
     revoked_users = dbm.query(
         "SELECT * FROM users WHERE is_admin = 0 AND account_status = 'revoked' ORDER BY name"
     )
-    # Running totals for the stat tiles at the top of the page (Kevin's
-    # request): companies, not just people -- a company with three signed-
-    # up buyers is one "buyer company" but three "buyer users". Vendor
-    # companies come from the vendor directory itself (an admin-seeded,
-    # still-unclaimed listing counts too -- it's a company on BuyersForce
-    # whether or not anyone there has signed up yet), not from seller
-    # headcount, since those two can differ.
-    vendor_company_count = dbm.query(
-        "SELECT COUNT(DISTINCT company_name) AS n FROM vendors WHERE status = 'active'", one=True
-    )["n"]
-    buyer_company_count = dbm.query(
-        "SELECT COUNT(DISTINCT company) AS n FROM users "
-        "WHERE is_admin = 0 AND role = 'buyer' AND account_status = 'active'", one=True
-    )["n"]
-    buyer_user_count = dbm.query(
-        "SELECT COUNT(*) AS n FROM users WHERE is_admin = 0 AND role = 'buyer' AND account_status = 'active'",
-        one=True,
-    )["n"]
-    seller_user_count = dbm.query(
-        "SELECT COUNT(*) AS n FROM users WHERE is_admin = 0 AND role = 'seller' AND account_status = 'active'",
-        one=True,
-    )["n"]
     pending_invites = dbm.query(
         "SELECT i.*, u.name invited_by_name FROM invites i JOIN users u ON u.id = i.invited_by "
         "WHERE i.used_at IS NULL ORDER BY i.created_at DESC"
@@ -1156,11 +1134,6 @@ def _admin_dashboard_context():
     pending_role_changes = dbm.query(
         "SELECT rcr.*, u.name, u.email, u.title, u.company FROM role_change_requests rcr "
         "JOIN users u ON u.id = rcr.user_id WHERE rcr.status = 'pending' ORDER BY rcr.created_at DESC"
-    )
-    open_support_requests = dbm.query(
-        "SELECT sr.*, u.name requester_name, u.company requester_company, u.role requester_role "
-        "FROM support_requests sr JOIN users u ON u.id = sr.user_id "
-        "WHERE sr.status != 'resolved' ORDER BY sr.created_at DESC"
     )
     pending_vendor_requests = dbm.query(
         "SELECT vr.*, u.name requester_name, u.company requester_company "
@@ -1203,11 +1176,8 @@ def _admin_dashboard_context():
         users=users, company_counts=company_counts, q=q, sort=sort,
         sort_options=ADMIN_USER_SORT_OPTIONS, jump_letters=DISCOVER_JUMP_LETTERS, letter=letter,
         revoked_users=revoked_users,
-        vendor_company_count=vendor_company_count, buyer_company_count=buyer_company_count,
-        buyer_user_count=buyer_user_count, seller_user_count=seller_user_count,
         pending_invites=pending_invites,
         pending_signups=pending_signups, pending_role_changes=pending_role_changes,
-        open_support_requests=open_support_requests, support_category_labels=SUPPORT_CATEGORY_LABELS,
         pending_vendor_requests=pending_vendor_requests, vendor_request_kind_labels=VENDOR_REQUEST_KIND_LABELS,
         pending_vendor_claims=pending_vendor_claims, open_listing_reports=open_listing_reports,
         all_segments=known_segments, all_technology_categories=known_categories,
@@ -1216,10 +1186,58 @@ def _admin_dashboard_context():
     )
 
 
+@app.route("/app/admin/access-control")
+@admin_required
+def admin_access_control():
+    return render_template("admin/dashboard.html", **_admin_access_control_context())
+
+
+def _admin_dashboard_context():
+    # Running totals for the stat tiles at the top of the Dashboard (Kj's
+    # request): companies, not just people -- a company with three signed-
+    # up buyers is one "buyer company" but three "buyer users". Vendor
+    # companies come from the vendor directory itself (an admin-seeded,
+    # still-unclaimed listing counts too -- it's a company on BuyersForce
+    # whether or not anyone there has signed up yet), not from seller
+    # headcount, since those two can differ.
+    vendor_company_count = dbm.query(
+        "SELECT COUNT(DISTINCT company_name) AS n FROM vendors WHERE status = 'active'", one=True
+    )["n"]
+    buyer_company_count = dbm.query(
+        "SELECT COUNT(DISTINCT company) AS n FROM users "
+        "WHERE is_admin = 0 AND role = 'buyer' AND account_status = 'active'", one=True
+    )["n"]
+    buyer_user_count = dbm.query(
+        "SELECT COUNT(*) AS n FROM users WHERE is_admin = 0 AND role = 'buyer' AND account_status = 'active'",
+        one=True,
+    )["n"]
+    seller_user_count = dbm.query(
+        "SELECT COUNT(*) AS n FROM users WHERE is_admin = 0 AND role = 'seller' AND account_status = 'active'",
+        one=True,
+    )["n"]
+    open_support_requests = dbm.query(
+        "SELECT sr.*, u.name requester_name, u.company requester_company, u.role requester_role "
+        "FROM support_requests sr JOIN users u ON u.id = sr.user_id "
+        "WHERE sr.status != 'resolved' ORDER BY sr.created_at DESC"
+    )
+    # Just a count here -- the full list (and the ability to act on any one
+    # of them) lives on Access Control; this is a "you have N things to
+    # action" pointer, same spirit as the support-requests section above.
+    pending_invites_count = dbm.query(
+        "SELECT COUNT(*) AS n FROM invites WHERE used_at IS NULL", one=True
+    )["n"]
+    return dict(
+        vendor_company_count=vendor_company_count, buyer_company_count=buyer_company_count,
+        buyer_user_count=buyer_user_count, seller_user_count=seller_user_count,
+        open_support_requests=open_support_requests, support_category_labels=SUPPORT_CATEGORY_LABELS,
+        pending_invites_count=pending_invites_count,
+    )
+
+
 @app.route("/app/admin")
 @admin_required
 def admin_dashboard():
-    return render_template("admin/dashboard.html", **_admin_dashboard_context())
+    return render_template("admin/home.html", **_admin_dashboard_context())
 
 
 def _parse_bulk_vendor_names(raw_text):
@@ -1467,8 +1485,8 @@ def admin_vendor_edit(vendor_id):
 # BuyersForce's own users (Kevin's request: quick search, amend access,
 # see company headcount at a glance), plus a per-user detail/edit page.
 # The Access Control page's own "All accounts" table shares this same
-# query builder (see _admin_dashboard_context above) rather than having
-# its own copy.
+# query builder (see _admin_access_control_context above) rather than
+# having its own copy.
 # ---------------------------------------------------------------------------
 
 ADMIN_USER_SORT_OPTIONS = [
@@ -1672,7 +1690,7 @@ def admin_approve_signup(user_id):
     log_activity(user_id, "account approved by admin")
     emailer.send_signup_decision(user["email"], approved=True, login_url=url_for("login", _external=True))
     flash(f"{name} approved.", "success")
-    return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("admin_access_control"))
 
 
 @app.route("/app/admin/signups/<int:user_id>/deny", methods=("POST",))
@@ -1685,7 +1703,7 @@ def admin_deny_signup(user_id):
     log_activity(user_id, "account denied by admin")
     emailer.send_signup_decision(user["email"], approved=False)
     flash(f"{user['name']}'s request denied.", "success")
-    return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("admin_access_control"))
 
 
 @app.route("/app/admin/vendor-claims/<int:claim_id>/approve", methods=("POST",))
@@ -1715,7 +1733,7 @@ def admin_approve_vendor_claim(claim_id):
             ),
         )
     flash(f"{requester['name'] if requester else 'Requester'} now has edit access to {vendor['company_name']}.", "success")
-    return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("admin_access_control"))
 
 
 @app.route("/app/admin/vendor-claims/<int:claim_id>/deny", methods=("POST",))
@@ -1733,7 +1751,7 @@ def admin_deny_vendor_claim(claim_id):
     )
     log_activity(g.user["id"], f"denied company-listing claim request {claim_id}")
     flash("Claim request denied.", "success")
-    return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("admin_access_control"))
 
 
 @app.route("/app/admin/listing-reports/<int:report_id>/resolve", methods=("POST",))
@@ -1749,7 +1767,7 @@ def admin_resolve_listing_report(report_id):
     )
     log_activity(g.user["id"], f"resolved listing report {report_id}")
     flash("Marked resolved.", "success")
-    return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("admin_access_control"))
 
 
 def _create_invite(email, role, company, name, invited_by):
@@ -1772,18 +1790,18 @@ def admin_invite():
     name = request.form.get("name", "").strip()
     if not email or role not in ("buyer", "seller") or not company:
         flash("Email, account type, and company are required.", "error")
-        return redirect(url_for("admin_dashboard"))
+        return redirect(url_for("admin_access_control"))
 
     existing = dbm.query("SELECT * FROM users WHERE email = ?", (email,), one=True)
     if existing and existing["is_admin"]:
         flash("That email belongs to an administrator account and can't be invited "
               "as a buyer or seller.", "error")
-        return redirect(url_for("admin_dashboard"))
+        return redirect(url_for("admin_access_control"))
 
     dbm.execute("DELETE FROM invites WHERE email = ? AND used_at IS NULL", (email,))
     invite_id, token = _create_invite(email, role, company, name, g.user["id"])
     flash(f"Invite link created for {email}. Copy it below and send it to them.", "success")
-    return redirect(url_for("admin_dashboard", new_invite=invite_id))
+    return redirect(url_for("admin_access_control", new_invite=invite_id))
 
 
 @app.route("/app/admin/users/<int:user_id>/grant-access", methods=("POST",))
@@ -1797,7 +1815,7 @@ def admin_grant_access(user_id):
         user["email"], user["role"], user["company"], user["name"], g.user["id"]
     )
     flash(f"New access link generated for {user['name']}.", "success")
-    return redirect(url_for("admin_dashboard", new_invite=invite_id))
+    return redirect(url_for("admin_access_control", new_invite=invite_id))
 
 
 @app.route("/app/admin/invites/<int:invite_id>/revoke", methods=("POST",))
@@ -1805,7 +1823,7 @@ def admin_grant_access(user_id):
 def admin_revoke_invite(invite_id):
     dbm.execute("DELETE FROM invites WHERE id = ? AND used_at IS NULL", (invite_id,))
     flash("Invite revoked.", "success")
-    return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("admin_access_control"))
 
 
 @app.route("/app/admin/users/<int:user_id>/company", methods=("POST",))
@@ -1825,9 +1843,9 @@ def admin_change_company(user_id):
     new_company = request.form.get("company", "").strip()
     if not new_company:
         flash("Company name can't be blank.", "error")
-        return redirect(url_for("admin_dashboard"))
+        return redirect(url_for("admin_access_control"))
     if new_company == user["company"]:
-        return redirect(url_for("admin_dashboard"))
+        return redirect(url_for("admin_access_control"))
 
     dbm.execute("UPDATE users SET company = ? WHERE id = ?", (new_company, user_id))
     if user["role"] == "seller":
@@ -1836,7 +1854,7 @@ def admin_change_company(user_id):
             dbm.execute("UPDATE vendors SET company_name = ? WHERE id = ?", (new_company, vendor["id"]))
     log_activity(user_id, f"company changed from {user['company']} to {new_company} by admin")
     flash(f"{user['name']}'s company changed to {new_company}.", "success")
-    return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("admin_access_control"))
 
 
 @app.route("/app/admin/role-changes/<int:request_id>/approve", methods=("POST",))
@@ -1877,7 +1895,7 @@ def admin_approve_role_change(request_id):
         login_url=url_for("login", _external=True),
     )
     flash(f"{user['name']}'s account type changed to {req['requested_role']}.", "success")
-    return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("admin_access_control"))
 
 
 @app.route("/app/admin/role-changes/<int:request_id>/deny", methods=("POST",))
@@ -1898,7 +1916,7 @@ def admin_deny_role_change(request_id):
     if user:
         emailer.send_role_change_decision(user["email"], approved=False)
     flash("Request denied.", "success")
-    return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("admin_access_control"))
 
 
 @app.route("/app/admin/view-as/<int:user_id>", methods=("POST",))
@@ -2466,7 +2484,7 @@ def admin_vendor_request_decide(request_id):
                 text=note, reply_to=g.user["email"],
             )
         flash(f"{req['company_name']}'s request denied.", "success")
-        return redirect(url_for("admin_dashboard"))
+        return redirect(url_for("admin_access_control"))
 
     # action == "approve"
     accent, initials = _derive_vendor_accent_initials(company_name)
@@ -2480,7 +2498,7 @@ def admin_vendor_request_decide(request_id):
                 f"{contact_email} already has a BuyersForce account -- resolve that manually "
                 f"before approving this listing.", "error",
             )
-            return redirect(url_for("admin_dashboard"))
+            return redirect(url_for("admin_access_control"))
         created_user_id = dbm.execute(
             "INSERT INTO users (role, name, email, password_hash, company, title, account_status) "
             "VALUES ('seller', ?, ?, ?, ?, ?, 'active')",
@@ -2532,7 +2550,7 @@ def admin_vendor_request_decide(request_id):
 
     log_activity(g.user["id"], f"approved vendor listing request for {company_name}")
     flash(f"{company_name} is now live on BuyersForce.", "success")
-    return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("admin_access_control"))
 
 
 @app.route("/app/admin/messages/<int:thread_id>", methods=("GET", "POST"))
@@ -4402,7 +4420,7 @@ def seller_claim_listing():
             text=(
                 f"{g.user['name']} ({g.user['email']}) wants to claim editing access to the "
                 f"{vendor['company_name']} listing on BuyersForce.\n\n"
-                f"Review it here: {url_for('admin_dashboard', _external=True)}"
+                f"Review it here: {url_for('admin_access_control', _external=True)}"
             ),
             reply_to=g.user["email"],
         )
@@ -4433,7 +4451,7 @@ def seller_report_listing():
             text=(
                 f"{g.user['name']} ({g.user['email']}) reported a problem on the "
                 f"{vendor['company_name']} listing:\n\n{message}\n\n"
-                f"Review it here: {url_for('admin_dashboard', _external=True)}"
+                f"Review it here: {url_for('admin_access_control', _external=True)}"
             ),
             reply_to=g.user["email"],
         )

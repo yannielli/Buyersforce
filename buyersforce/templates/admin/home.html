@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Administrator</span>
+    <h1>Dashboard</h1>
+    <p class="lede">A running snapshot of BuyersForce — company and user totals, open support
+      requests, and anything waiting on you.</p>
+  </div>
+</div>
+
+<div class="grid grid-4" style="grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; margin-bottom:24px;">
+  <div class="card" style="margin-top:0; text-align:center; padding:16px 10px; background:var(--brand-mcm-coral); border-color:var(--brand-mcm-coral);">
+    <div style="font-size:26px; font-weight:700; color:#fff;">{{ buyer_company_count }}</div>
+    <div class="hint" style="color:rgba(255,255,255,0.85);">Buyer Companies</div>
+  </div>
+  <div class="card" style="margin-top:0; text-align:center; padding:16px 10px; background:var(--brand-mcm-coral); border-color:var(--brand-mcm-coral);">
+    <div style="font-size:26px; font-weight:700; color:#fff;">{{ buyer_user_count }}</div>
+    <div class="hint" style="color:rgba(255,255,255,0.85);">Buyer Users</div>
+  </div>
+  <div class="card" style="margin-top:0; text-align:center; padding:16px 10px; background:var(--brand); border-color:var(--brand);">
+    <div style="font-size:26px; font-weight:700; color:#fff;">{{ vendor_company_count }}</div>
+    <div class="hint" style="color:rgba(255,255,255,0.85);">Seller Companies</div>
+  </div>
+  <div class="card" style="margin-top:0; text-align:center; padding:16px 10px; background:var(--brand); border-color:var(--brand);">
+    <div style="font-size:26px; font-weight:700; color:#fff;">{{ seller_user_count }}</div>
+    <div class="hint" style="color:rgba(255,255,255,0.85);">Seller Users</div>
+  </div>
+</div>
+
+{% if pending_invites_count %}
+<div class="card" style="border-color:var(--brand); background:var(--brand-tint); margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+  <div>
+    <strong style="font-size:14.5px; color:var(--brand-dark);">{{ pending_invites_count }} pending invite{{ '' if pending_invites_count == 1 else 's' }}</strong>
+    <span class="hint" style="margin-left:6px;">waiting to be used or revoked.</span>
+  </div>
+  <a href="{{ url_for('admin_access_control') }}" class="btn btn-secondary btn-sm">Review on Access Control →</a>
+</div>
+{% endif %}
+
+<div class="section-title"><h2>Support requests</h2></div>
+{% if open_support_requests %}
+<div class="card" style="margin-bottom:24px;">
+  {% for r in open_support_requests %}
+  <div class="mock-row">
+    <span>
+      <strong style="font-size:14px;">{{ r.requester_name }}</strong>
+      <span class="badge badge-neutral" style="margin-left:6px;">{{ r.requester_role|capitalize }}</span>
+      <span class="badge badge-brand" style="margin-left:4px;">{{ support_category_labels[r.category] }}</span>
+      <span class="badge {{ 'badge-good' if r.status == 'in_progress' else 'badge-warning' }}" style="margin-left:4px;">{{ r.status.replace('_', ' ')|capitalize }}</span>
+      <div class="hint">{{ r.requester_company }} · {{ r.created_at|fmt_time }}</div>
+      <div class="snippet">{{ r.notes }}</div>
+    </span>
+    <span style="display:flex; gap:6px; align-items:flex-start;">
+      <a class="btn btn-primary btn-sm" href="{{ url_for('admin_thread', thread_id=r.thread_id) }}">Reply</a>
+      <form method="post" action="{{ url_for('admin_support_status', request_id=r.id) }}">
+        <input type="hidden" name="status" value="resolved">
+        <button class="btn btn-ghost btn-sm" type="submit">Mark resolved</button>
+      </form>
+    </span>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✅</div>No open support requests.</div>
+{% endif %}
+{% endblock %}

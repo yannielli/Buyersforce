@@ -35,7 +35,8 @@
             <a href="{{ url_for('seller_messages') }}" class="{{ 'active' if request.endpoint in ['seller_messages','seller_thread','messages_new'] }}">Messages{% if g.unread_count %}<span class="nav-badge">{{ g.unread_count }}</span>{% endif %}</a>
             <a href="{{ url_for('seller_partners') }}" class="{{ 'active' if request.endpoint == 'seller_partners' }}">Partners</a>
           {% elif g.user.role == 'admin' %}
-            <a href="{{ url_for('admin_dashboard') }}" class="{{ 'active' if request.endpoint == 'admin_dashboard' }}">Access control</a>
+            <a href="{{ url_for('admin_dashboard') }}" class="{{ 'active' if request.endpoint == 'admin_dashboard' }}">Dashboard</a>
+            <a href="{{ url_for('admin_access_control') }}" class="{{ 'active' if request.endpoint == 'admin_access_control' }}">Access control</a>
             <a href="{{ url_for('admin_vendors_page') }}" class="{{ 'active' if request.endpoint in ['admin_vendors_page','admin_vendor_new','admin_vendor_edit'] }}">Vendors</a>
             <a href="{{ url_for('admin_buyers_page') }}" class="{{ 'active' if request.endpoint == 'admin_buyers_page' }}">Buyers</a>
             <a href="{{ url_for('admin_sellers_page') }}" class="{{ 'active' if request.endpoint == 'admin_sellers_page' }}">Sellers</a>
