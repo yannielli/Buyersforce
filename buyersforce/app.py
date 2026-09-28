@@ -765,13 +765,10 @@ def accept_invite(token):
                     (invite["role"], name, invite["email"], pw_hash, invite["company"]),
                 )
                 if invite["role"] == "seller":
-                    dbm.execute(
-                        "INSERT INTO vendors (seller_user_id, company_name, category, tagline, "
-                        "description, website, accent, initials) VALUES (?, ?, 'Uncategorized', "
-                        "'', '', '', '#3b82f6', ?)",
-                        (user_id, invite["company"],
-                         "".join([w[0] for w in invite["company"].split()[:2]]).upper() or "VN"),
-                    )
+                    # Accepting an invite only creates the BuyersForce account --
+                    # see _ensure_unclaimed_vendor_for_company for why it never
+                    # grants edit access to the company's listing.
+                    _ensure_unclaimed_vendor_for_company(invite["company"])
             now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             dbm.execute("UPDATE invites SET used_at = ? WHERE id = ?", (now_str, invite["id"]))
             session.clear()
@@ -1154,7 +1151,8 @@ def _admin_access_control_context():
         for r in pending_vendor_requests
     ]
     pending_vendor_claims = dbm.query(
-        "SELECT vc.*, v.company_name, u.name requester_name, u.email requester_email "
+        "SELECT vc.*, v.company_name, u.name requester_name, u.email requester_email, "
+        "u.title requester_title "
         "FROM vendor_claim_requests vc "
         "JOIN vendors v ON v.id = vc.vendor_id "
         "JOIN users u ON u.id = vc.requested_by_user_id "
@@ -1509,6 +1507,16 @@ def admin_vendor_edit(vendor_id):
         flash("Vendor listing updated.", "success")
         return redirect(url_for("admin_vendor_edit", vendor_id=vendor_id))
     tags = ", ".join(vendor_tags(vendor["id"]))
+    site_admin = None
+    if vendor["seller_user_id"]:
+        site_admin = dbm.query(
+            "SELECT id, name, title, email FROM users WHERE id=?", (vendor["seller_user_id"],), one=True
+        )
+    assignable_sellers = company_seller_users(vendor["company_name"])
+    pending_claims_for_vendor = dbm.query(
+        "SELECT COUNT(*) AS n FROM vendor_claim_requests WHERE vendor_id=? AND status='pending'",
+        (vendor["id"],), one=True,
+    )["n"]
     return render_template(
         "admin/vendor_form.html", vendor=vendor, mode="edit", tags=tags,
         all_segments=all_technology_segments(), selected_segments=vendor_segments(vendor["id"]),
@@ -1516,6 +1524,8 @@ def admin_vendor_edit(vendor_id):
         selected_technology_categories=vendor_technology_categories(vendor["id"]),
         company_sizes=COMPANY_SIZE_BANDS, phone_countries=PHONE_COUNTRIES,
         logo_url=vendor_display_logo_url(vendor),
+        site_admin=site_admin, assignable_sellers=assignable_sellers,
+        pending_claims_for_vendor=pending_claims_for_vendor,
     )
 
 
@@ -1708,24 +1718,13 @@ def admin_approve_signup(user_id):
         (name, company, title, user_id),
     )
     if user["role"] == "seller":
-        # Don't create a second vendor listing for a company that's already
-        # listed -- exact match (case-insensitive/trimmed) on company_name,
-        # same rule seller_company_vendor uses. Only the first approved
-        # seller from a given company auto-becomes its editor; everyone
-        # after that sees the existing listing read-only and uses "Claim
-        # this company listing" on My Company if they should be the editor.
-        existing_vendor = dbm.query(
-            "SELECT id FROM vendors WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(?))",
-            (company,),
-            one=True,
-        )
-        if not existing_vendor:
-            dbm.execute(
-                "INSERT INTO vendors (seller_user_id, company_name, category, tagline, description, "
-                "website, accent, initials) VALUES (?, ?, 'Uncategorized', '', '', '', '#3b82f6', ?)",
-                (user_id, company,
-                 "".join([w[0] for w in company.split()[:2]]).upper() or "VN"),
-            )
+        # Approving a seller signup only activates their BuyersForce account
+        # -- it never makes them the editor of their company's listing (see
+        # _ensure_unclaimed_vendor_for_company). Every listing starts (or
+        # stays) unclaimed until its verified company admin claims it from
+        # My Company ("I am the company admin...") and Kevin approves the
+        # request, or Kevin assigns one directly from the admin Vendors page.
+        _ensure_unclaimed_vendor_for_company(company)
     log_activity(user_id, "account approved by admin")
     emailer.send_signup_decision(user["email"], approved=True, login_url=url_for("login", _external=True))
     flash(f"{name} approved.", "success")
@@ -1745,6 +1744,50 @@ def admin_deny_signup(user_id):
     return redirect(url_for("admin_access_control"))
 
 
+@app.route("/app/admin/vendors/<int:vendor_id>/site-admin", methods=("POST",))
+@admin_required
+def admin_assign_vendor_admin(vendor_id):
+    """Kevin's bypass: assign (or remove) a listing's site admin directly,
+    without a claim request in the queue -- e.g. when he already knows who
+    should administer a company's listing. Restricted to active seller
+    accounts registered at that company (company_seller_users), same pool
+    a claim request would have to come from."""
+    vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
+    if not vendor:
+        abort(404)
+    raw_user_id = request.form.get("user_id", "").strip()
+    if not raw_user_id:
+        dbm.execute("UPDATE vendors SET seller_user_id=NULL WHERE id=?", (vendor_id,))
+        log_activity(g.user["id"], f"removed the site admin for {vendor['company_name']}")
+        flash(f"Site admin removed for {vendor['company_name']}.", "success")
+        return redirect(url_for("admin_vendor_edit", vendor_id=vendor_id))
+    try:
+        user_id = int(raw_user_id)
+    except ValueError:
+        abort(400)
+    user = dbm.query(
+        "SELECT * FROM users WHERE id=? AND role='seller' AND account_status='active' "
+        "AND LOWER(TRIM(company)) = LOWER(TRIM(?))",
+        (user_id, vendor["company_name"]),
+        one=True,
+    )
+    if not user:
+        flash("That account isn't an active seller registered at this company.", "error")
+        return redirect(url_for("admin_vendor_edit", vendor_id=vendor_id))
+    dbm.execute("UPDATE vendors SET seller_user_id=? WHERE id=?", (user_id, vendor_id))
+    # Same as approving a claim -- settle any other pending requests for
+    # this listing since the decision's been made.
+    dbm.execute(
+        "UPDATE vendor_claim_requests SET status='denied', "
+        "resolved_at=to_char(now(), 'YYYY-MM-DD HH24:MI:SS'), resolved_by=? "
+        "WHERE vendor_id=? AND status='pending'",
+        (g.user["id"], vendor_id),
+    )
+    log_activity(g.user["id"], f"set {user['name']} as site admin for {vendor['company_name']}")
+    flash(f"{user['name']} is now the site admin for {vendor['company_name']}.", "success")
+    return redirect(url_for("admin_vendor_edit", vendor_id=vendor_id))
+
+
 @app.route("/app/admin/vendor-claims/<int:claim_id>/approve", methods=("POST",))
 @admin_required
 def admin_approve_vendor_claim(claim_id):
@@ -1760,6 +1803,15 @@ def admin_approve_vendor_claim(claim_id):
         "UPDATE vendor_claim_requests SET status='approved', "
         "resolved_at=to_char(now(), 'YYYY-MM-DD HH24:MI:SS'), resolved_by=? WHERE id=?",
         (g.user["id"], claim_id),
+    )
+    # Only one site admin per listing -- approving this one settles any other
+    # still-pending requests for the same vendor instead of leaving them in
+    # the queue for Kevin to deny by hand.
+    dbm.execute(
+        "UPDATE vendor_claim_requests SET status='denied', "
+        "resolved_at=to_char(now(), 'YYYY-MM-DD HH24:MI:SS'), resolved_by=? "
+        "WHERE vendor_id=? AND status='pending'",
+        (g.user["id"], vendor["id"]),
     )
     log_activity(g.user["id"], f"approved a company-listing claim on {vendor['company_name']}")
     if requester:
@@ -1910,14 +1962,7 @@ def admin_approve_role_change(request_id):
 
     dbm.execute("UPDATE users SET role=? WHERE id=?", (req["requested_role"], user["id"]))
     if req["requested_role"] == "seller":
-        vendor = dbm.query("SELECT id FROM vendors WHERE seller_user_id=?", (user["id"],), one=True)
-        if not vendor:
-            dbm.execute(
-                "INSERT INTO vendors (seller_user_id, company_name, category, tagline, description, "
-                "website, accent, initials) VALUES (?, ?, 'Uncategorized', '', '', '', '#3b82f6', ?)",
-                (user["id"], user["company"],
-                 "".join([w[0] for w in user["company"].split()[:2]]).upper() or "VN"),
-            )
+        _ensure_unclaimed_vendor_for_company(user["company"])
     # Moving FROM seller deliberately doesn't touch their existing vendor
     # listing -- deleting it would take its listings/evaluations with it.
     # It's just no longer reachable from a buyer-role account; clean it up
@@ -4183,6 +4228,41 @@ def seller_company_vendor(user):
     )
 
 
+def _ensure_unclaimed_vendor_for_company(company_name):
+    """Make sure exactly one vendor listing exists for this company, without
+    ever assigning it an editor. Called whenever a seller-role account is
+    created or activated (self-signup approval, invite acceptance, role
+    change to seller). Kevin's rule: signing up as a seller only grants a
+    BuyersForce account -- never edit access to the company's listing. A
+    listing starts (or stays) unclaimed until its verified company admin
+    claims it from My Company ("I am the company admin...") and Kevin
+    approves the request, or Kevin assigns one directly from the admin
+    Vendors page (see admin_assign_vendor_admin)."""
+    existing_vendor = dbm.query(
+        "SELECT id FROM vendors WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(?))",
+        (company_name,),
+        one=True,
+    )
+    if existing_vendor:
+        return
+    dbm.execute(
+        "INSERT INTO vendors (company_name, category, tagline, description, website, accent, initials) "
+        "VALUES (?, 'Uncategorized', '', '', '', '#3b82f6', ?)",
+        (company_name, "".join([w[0] for w in company_name.split()[:2]]).upper() or "VN"),
+    )
+
+
+def company_seller_users(company_name):
+    """Active seller accounts at this vendor's company -- the pool Kevin can
+    pick from on the admin Vendors page to directly assign (or reassign)
+    the site admin for a listing, bypassing the claim/approve flow."""
+    return dbm.query(
+        "SELECT id, name, title, email FROM users WHERE role = 'seller' AND account_status = 'active' "
+        "AND LOWER(TRIM(company)) = LOWER(TRIM(?)) ORDER BY name",
+        (company_name,),
+    )
+
+
 def company_registered_users(company_name):
     """Everyone with an active BuyersForce account whose Account "Company"
     field matches this vendor's company (case-insensitive/trimmed -- same
@@ -4199,9 +4279,10 @@ def company_registered_users(company_name):
 @app.route("/app/seller")
 @role_required("seller")
 def seller_dashboard():
-    vendor = seller_vendor(g.user)
+    vendor = seller_company_vendor(g.user)
     if not vendor:
         abort(404)
+    is_editor = vendor["seller_user_id"] == g.user["id"]
     leads = dbm.query(
         "SELECT s.*, u.name buyer_name, u.company buyer_company, u.photo_data_url buyer_photo "
         "FROM shortlist s "
@@ -4231,7 +4312,8 @@ def seller_dashboard():
         "listings": dbm.query("SELECT COUNT(*) c FROM listings WHERE vendor_id=?", (vendor["id"],), one=True)["c"],
     }
     return render_template(
-        "seller/dashboard.html", vendor=vendor, leads=leads[:6], counts=counts, meetings=meetings[:5]
+        "seller/dashboard.html", vendor=vendor, leads=leads[:6], counts=counts, meetings=meetings[:5],
+        is_editor=is_editor,
     )
 
 
@@ -4383,13 +4465,13 @@ def seller_profile():
         return redirect(url_for("seller_profile"))
     if not vendor:
         # No vendor exists yet for this seller's company at all (shouldn't
-        # normally happen -- admin_approve_signup creates one for the first
-        # approved seller from any company -- but handled gracefully in
-        # case the Account "Company" field was changed after signup, or an
-        # admin removed the listing).
+        # normally happen -- every seller-role signup path ensures an
+        # unclaimed listing exists via _ensure_unclaimed_vendor_for_company
+        # -- but handled gracefully in case the Account "Company" field was
+        # changed after signup, or an admin removed the listing).
         return render_template(
             "seller/profile.html", vendor=None, is_editor=False, pending_claim=None,
-            phone_countries=PHONE_COUNTRIES,
+            site_admin=None, phone_countries=PHONE_COUNTRIES,
         )
 
     # Claim/report options are shown to everyone on the page, editor
@@ -4406,6 +4488,15 @@ def seller_profile():
             one=True,
         )
 
+    # The verified site admin's name/title -- shown on the listing once
+    # Kevin has authorized someone, either by approving their claim or by
+    # assigning them directly from the admin Vendors page.
+    site_admin = None
+    if vendor["seller_user_id"]:
+        site_admin = dbm.query(
+            "SELECT name, title FROM users WHERE id=?", (vendor["seller_user_id"],), one=True
+        )
+
     tags = ", ".join(vendor_tags(vendor["id"]))
     selected_segments = vendor_segments(vendor["id"])
     selected_technology_categories = vendor_technology_categories(vendor["id"])
@@ -4415,6 +4506,7 @@ def seller_profile():
     registered_users = company_registered_users(vendor["company_name"])
     return render_template(
         "seller/profile.html", vendor=vendor, is_editor=is_editor, pending_claim=pending_claim,
+        site_admin=site_admin,
         tags=tags, listings=listings,
         all_segments=all_technology_segments(), selected_segments=selected_segments,
         all_technology_categories=all_technology_categories(),
@@ -4450,15 +4542,16 @@ def seller_claim_listing():
         "INSERT INTO vendor_claim_requests (vendor_id, requested_by_user_id, note) VALUES (?, ?, ?)",
         (vendor["id"], g.user["id"], note),
     )
-    log_activity(g.user["id"], f"claimed company listing for {vendor['company_name']}")
+    log_activity(g.user["id"], f"asked to be verified as the site admin for {vendor['company_name']}")
     admin = get_admin_user()
     if admin:
         emailer.send_email(
             admin["email"],
-            subject=f"Company listing claim: {vendor['company_name']}",
+            subject=f"Site admin claim: {vendor['company_name']}",
             text=(
-                f"{g.user['name']} ({g.user['email']}) wants to claim editing access to the "
-                f"{vendor['company_name']} listing on BuyersForce.\n\n"
+                f"{g.user['name']} ({g.user['email']}) says they're the company admin for "
+                f"{vendor['company_name']} and wants to be verified and authorized as its site "
+                f"admin on BuyersForce.\n\n"
                 f"Review it here: {url_for('admin_access_control', _external=True)}"
             ),
             reply_to=g.user["email"],
@@ -4502,6 +4595,8 @@ def seller_report_listing():
 @role_required("seller")
 def seller_listing_new():
     vendor = seller_vendor(g.user)
+    if not vendor:
+        abort(403)
     name = request.form.get("name", "").strip()
     description = request.form.get("description", "").strip()
     pricing_model = request.form.get("pricing_model", "").strip()
@@ -4524,6 +4619,8 @@ def seller_listing_new():
 @role_required("seller")
 def seller_listing_delete(listing_id):
     vendor = seller_vendor(g.user)
+    if not vendor:
+        abort(403)
     listing = dbm.query(
         "SELECT * FROM listings WHERE id=? AND vendor_id=?", (listing_id, vendor["id"]), one=True
     )
@@ -4558,6 +4655,8 @@ def _validate_announcement_or_award_form(form):
 @role_required("seller")
 def seller_announcement_new():
     vendor = seller_vendor(g.user)
+    if not vendor:
+        abort(403)
     kind, title, url, body, error = _validate_announcement_or_award_form(request.form)
     if error:
         flash(error, "error")
@@ -4574,6 +4673,8 @@ def seller_announcement_new():
 @role_required("seller")
 def seller_announcement_delete(announcement_id):
     vendor = seller_vendor(g.user)
+    if not vendor:
+        abort(403)
     row = dbm.query(
         "SELECT * FROM vendor_announcements WHERE id=? AND vendor_id=?",
         (announcement_id, vendor["id"]), one=True,
@@ -4588,6 +4689,8 @@ def seller_announcement_delete(announcement_id):
 @role_required("seller")
 def seller_award_new():
     vendor = seller_vendor(g.user)
+    if not vendor:
+        abort(403)
     kind, title, url, body, error = _validate_announcement_or_award_form(request.form)
     if error:
         flash(error, "error")
@@ -4604,6 +4707,8 @@ def seller_award_new():
 @role_required("seller")
 def seller_award_delete(award_id):
     vendor = seller_vendor(g.user)
+    if not vendor:
+        abort(403)
     row = dbm.query(
         "SELECT * FROM vendor_awards WHERE id=? AND vendor_id=?", (award_id, vendor["id"]), one=True,
     )
@@ -4805,7 +4910,10 @@ def seller_suggest_vendor():
 @app.route("/app/seller/leads")
 @role_required("seller")
 def seller_leads():
-    vendor = seller_vendor(g.user)
+    vendor = seller_company_vendor(g.user)
+    if not vendor:
+        abort(404)
+    is_editor = vendor["seller_user_id"] == g.user["id"]
     leads = dbm.query(
         "SELECT s.*, u.name buyer_name, u.company buyer_company, u.photo_data_url buyer_photo, "
         "u.title buyer_title, "
@@ -4817,7 +4925,7 @@ def seller_leads():
         "WHERE s.vendor_id=? ORDER BY s.created_at DESC",
         (vendor["id"],),
     )
-    return render_template("seller/leads.html", vendor=vendor, leads=leads)
+    return render_template("seller/leads.html", vendor=vendor, leads=leads, is_editor=is_editor)
 
 
 @app.route("/app/seller/leads/<int:lead_user_id>/sync", methods=("POST",))
@@ -4830,7 +4938,9 @@ def seller_leads_sync(lead_user_id):
 @app.route("/app/seller/messages")
 @role_required("seller")
 def seller_messages():
-    vendor = seller_vendor(g.user)
+    vendor = seller_company_vendor(g.user)
+    if not vendor:
+        abort(404)
     threads = dbm.query(
         "SELECT t.*, u.name buyer_name, u.company buyer_company, u.photo_data_url buyer_photo, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC LIMIT 1) last_body, "
@@ -4876,6 +4986,8 @@ def seller_meeting_action(meeting_id, action):
     if action not in ("confirmed", "declined"):
         abort(400)
     vendor = seller_vendor(g.user)
+    if not vendor:
+        abort(403)
     meeting = dbm.query(
         "SELECT * FROM meetings WHERE id=? AND vendor_id=?", (meeting_id, vendor["id"]), one=True
     )
@@ -4888,7 +5000,7 @@ def seller_meeting_action(meeting_id, action):
 @app.route("/app/seller/partners", methods=("GET", "POST"))
 @role_required("seller")
 def seller_partners():
-    vendor = seller_vendor(g.user)
+    vendor = seller_company_vendor(g.user)
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         org = request.form.get("org", "").strip()

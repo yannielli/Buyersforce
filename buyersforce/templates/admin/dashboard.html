@@ -75,14 +75,14 @@
 
 {% if pending_vendor_claims %}
 <div class="card" style="border-color:var(--warning-border); background:var(--warning-tint); margin-bottom:24px;">
-  <h3 style="font-size:14.5px;">Company listing claims ({{ pending_vendor_claims|length }})</h3>
-  <p style="font-size:13px; margin-bottom:12px;">Someone wants edit access to their company's My Company
-    listing. Only one seller per company can be the editor.</p>
+  <h3 style="font-size:14.5px;">Site admin claims ({{ pending_vendor_claims|length }})</h3>
+  <p style="font-size:13px; margin-bottom:12px;">Someone says they're the company admin and wants to be verified
+    and authorized as the site admin for their company's listing. Only one person per company holds it at a time.</p>
   {% for c in pending_vendor_claims %}
   <div class="mock-row">
     <span>
-      <strong style="font-size:14px;">{{ c.requester_name }}</strong>
-      <span class="hint">wants to edit</span>
+      <strong style="font-size:14px;">{{ c.requester_name }}</strong>{% if c.requester_title %}<span class="hint"> · {{ c.requester_title }}</span>{% endif %}
+      <span class="hint">wants to be site admin for</span>
       <span class="badge badge-neutral" style="margin-left:4px;">{{ c.company_name }}</span>
       <div class="hint">{{ c.requester_email }} · {{ c.created_at|fmt_time }}</div>
       {% if c.note %}<div class="hint">"{{ c.note }}"</div>{% endif %}

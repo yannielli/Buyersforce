@@ -184,6 +184,35 @@
       <p class="hint">This listing is live to buyers on Discover and to sellers on All Vendors right now (unless removed above).</p>
       <a href="{{ url_for('buyer_vendor', vendor_id=vendor.id) }}" class="btn btn-secondary btn-sm" style="margin-top:6px;" target="_blank">View public profile →</a>
     </div>
+    <div class="card" style="margin-top:16px;">
+      <h3 style="font-size:14px;">Site admin</h3>
+      {% if site_admin %}
+      <p class="hint" style="margin-bottom:8px;">{{ site_admin.name }}{% if site_admin.title %} · {{ site_admin.title }}{% endif %}
+        <br><span style="color:var(--ink-muted);">{{ site_admin.email }}</span></p>
+      <form method="post" action="{{ url_for('admin_assign_vendor_admin', vendor_id=vendor.id) }}">
+        <button class="btn btn-ghost btn-sm" type="submit">Remove site admin</button>
+      </form>
+      {% else %}
+      <p class="hint" style="margin-bottom:8px;">No verified site admin yet -- signing up as a seller doesn't grant
+        edit access on its own; someone has to claim this listing and be authorized, or you can assign one below.</p>
+      {% endif %}
+      {% if assignable_sellers %}
+      <form method="post" action="{{ url_for('admin_assign_vendor_admin', vendor_id=vendor.id) }}" style="margin-top:10px; display:flex; gap:8px;">
+        <select name="user_id" style="flex:1;">
+          <option value="">Choose a registered seller…</option>
+          {% for su in assignable_sellers %}
+          <option value="{{ su.id }}" {{ 'selected' if site_admin and su.id == site_admin.id }}>{{ su.name }}{% if su.title %} — {{ su.title }}{% endif %}</option>
+          {% endfor %}
+        </select>
+        <button class="btn btn-primary btn-sm" type="submit">Assign</button>
+      </form>
+      {% else %}
+      <p class="hint" style="margin-top:10px;">No registered sellers at {{ vendor.company_name }} yet to assign.</p>
+      {% endif %}
+      {% if pending_claims_for_vendor %}
+      <p class="hint" style="margin-top:10px;"><a href="{{ url_for('admin_access_control') }}">{{ pending_claims_for_vendor }} pending claim request{{ 's' if pending_claims_for_vendor != 1 }} for this listing →</a></p>
+      {% endif %}
+    </div>
     {% endif %}
   </div>
 </div>

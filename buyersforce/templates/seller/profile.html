@@ -1,6 +1,26 @@
 {% extends "base.html" %}
 {% block title %}My Company{% endblock %}
 {% block content %}
+{% if vendor and not is_editor %}
+  {% if pending_claim %}
+  <div class="card" style="border-color:var(--warning-border); background:var(--warning-tint); margin-bottom:18px;">
+    <strong style="font-size:14px;">Your claim is pending review</strong>
+    <p class="hint" style="margin-top:4px; margin-bottom:0;">You told BuyersForce you're the company admin for
+      {{ vendor.company_name }} — we're verifying that before granting edit access.</p>
+  </div>
+  {% else %}
+  <div class="card" style="border-color:var(--brand); background:var(--brand-tint); margin-bottom:18px;">
+    <strong style="font-size:14px;">Are you the company admin for {{ vendor.company_name }}?</strong>
+    <p class="hint" style="margin-top:4px;">Registering as a seller gives you a BuyersForce account, but not edit
+      access to your company's listing on its own. If you're the person who should manage it, tell us and
+      BuyersForce will verify and authorize you.</p>
+    <form method="post" action="{{ url_for('seller_claim_listing') }}" style="margin-top:10px;">
+      <input type="text" name="note" maxlength="200" placeholder="Optional: your role or title, to help us verify" style="margin-bottom:8px; width:100%; max-width:420px;">
+      <button class="btn btn-primary btn-sm" type="submit">I am the company admin, and I'd like to claim this vendor listing →</button>
+    </form>
+  </div>
+  {% endif %}
+{% endif %}
 <div class="page-header">
   <div>
     <span class="eyebrow">Your listing</span>
@@ -9,18 +29,7 @@
   </div>
   {% if vendor %}
   <div class="card" style="max-width:280px; padding:14px 16px;">
-    <strong style="font-size:13.5px;">Listing access</strong>
-    <div class="hint" style="margin-top:6px; line-height:1.5;">
-      Only one person per company edits My Company at a time.
-      {% if pending_claim %}
-      <br>Your claim request is pending BuyersForce's approval.
-      {% else %}
-      <form method="post" action="{{ url_for('seller_claim_listing') }}" style="margin-top:8px;">
-        <button class="btn btn-secondary btn-sm" type="submit">Claim this company listing →</button>
-      </form>
-      {% endif %}
-    </div>
-    <details style="margin-top:10px;">
+    <details>
       <summary style="font-size:13px; cursor:pointer; color:var(--brand);">Report a problem or error on this listing</summary>
       <form method="post" action="{{ url_for('seller_report_listing') }}" style="margin-top:8px;">
         <textarea name="message" placeholder="What's wrong with this listing?" required style="min-height:70px; font-size:13px; width:100%;"></textarea>
@@ -75,6 +84,14 @@
       {% if selected_segments %}
       <h3 style="font-size:14px; margin-top:12px;">Sub-categories / segments</h3>
       <div>{% for s in selected_segments %}<span class="tag">{{ s }}</span>{% endfor %}</div>
+      {% endif %}
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <h3 style="font-size:14px;">Site admin</h3>
+      {% if site_admin %}
+      <p class="hint" style="margin:0;">{{ site_admin.name }}{% if site_admin.title %} · {{ site_admin.title }}{% endif %}</p>
+      {% else %}
+      <p class="hint" style="margin:0;">No verified site admin yet.</p>
       {% endif %}
     </div>
     {% if registered_users %}
@@ -262,6 +279,14 @@
         </div>
         <p class="tagline">{{ vendor.tagline or "Add a tagline to stand out." }}</p>
       </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <h3 style="font-size:14px;">Site admin</h3>
+      {% if site_admin %}
+      <p class="hint" style="margin:0;">{{ site_admin.name }}{% if site_admin.title %} · {{ site_admin.title }}{% endif %}</p>
+      {% else %}
+      <p class="hint" style="margin:0;">No verified site admin yet.</p>
+      {% endif %}
     </div>
     {% if registered_users %}
     <div class="card" style="margin-top:16px;">

@@ -47,11 +47,13 @@
       {% for m in meetings %}
       <div class="mock-row">
         <span>{{ m.buyer_name }} <span class="hint">· {{ m.proposed_time|fmt_time }}</span></span>
-        {% if m.status == 'requested' %}
+        {% if m.status == 'requested' and is_editor %}
         <span style="display:flex; gap:6px;">
           <form method="post" action="{{ url_for('seller_meeting_action', meeting_id=m.id, action='confirmed') }}"><button class="btn btn-secondary btn-sm" type="submit">Confirm</button></form>
           <form method="post" action="{{ url_for('seller_meeting_action', meeting_id=m.id, action='declined') }}"><button class="btn btn-ghost btn-sm" type="submit">Decline</button></form>
         </span>
+        {% elif m.status == 'requested' %}
+        <span class="badge badge-neutral">Awaiting the site admin</span>
         {% else %}
         <span class="badge {{ 'badge-good' if m.status == 'confirmed' else 'badge-serious' }}">{{ m.status|capitalize }}</span>
         {% endif %}
