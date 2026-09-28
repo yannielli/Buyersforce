@@ -55,29 +55,27 @@
         </div>
       </div>
 
-      <div class="form-row">
-        <div class="field">
-          <label for="phone">Phone *</label>
-          <div style="display:flex; gap:8px;">
-            <select id="phone_country" name="phone_country" required style="flex:0 0 118px; min-width:0;">
-              {% for code, name, dial in phone_countries %}
-              <option value="{{ code }}" data-dial="{{ dial }}" {% if (form_data.phone_country or 'US') == code %}selected{% endif %}>
-                {{ code }}{% if dial %} +{{ dial }}{% endif %}
-              </option>
-              {% endfor %}
-            </select>
-            <input type="tel" id="phone" name="phone" required value="{{ form_data.phone or '' }}" placeholder="(555) 555-5555" style="flex:1 1 auto; min-width:0;">
-          </div>
-        </div>
-        <div class="field">
-          <label for="state">State *</label>
-          <select id="state" name="state" required>
-            <option value="">Select a state…</option>
-            {% for code, label in us_states %}
-            <option value="{{ code }}" {% if form_data.state == code %}selected{% endif %}>{{ label }}</option>
+      <div class="field">
+        <label for="phone">Phone *</label>
+        <div style="display:flex; gap:8px;">
+          <select id="phone_country" name="phone_country" required style="flex:0 0 118px; min-width:0;">
+            {% for code, name, dial in phone_countries %}
+            <option value="{{ code }}" data-dial="{{ dial }}" {% if (form_data.phone_country or 'US') == code %}selected{% endif %}>
+              {{ code }}{% if dial %} +{{ dial }}{% endif %}
+            </option>
             {% endfor %}
           </select>
+          <input type="tel" id="phone" name="phone" required value="{{ form_data.phone or '' }}" placeholder="(555) 555-5555" style="flex:1 1 auto; min-width:0;">
         </div>
+      </div>
+      <div class="field">
+        <label for="state">State *</label>
+        <select id="state" name="state" required>
+          <option value="">Select a state…</option>
+          {% for code, label in us_states %}
+          <option value="{{ code }}" {% if form_data.state == code %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
       </div>
 
       {% set tz_selected = form_data.timezone %}
