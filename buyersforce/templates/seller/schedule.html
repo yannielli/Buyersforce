@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Meetings</span>
+    <h1>Calendar</h1>
+    <p class="lede">All the meetings buyers have requested with {{ vendor.company_name }}, in one place.</p>
+  </div>
+</div>
+
+{% if meetings %}
+<table class="table">
+  <tr><th>Buyer</th><th>Proposed time</th><th>Note</th><th>Status</th></tr>
+  {% for m in meetings %}
+  <tr>
+    <td>{{ m.buyer_name }} <span class="hint">· {{ m.buyer_company }}</span></td>
+    <td>{{ m.proposed_time|fmt_time }}</td>
+    <td>{{ m.note }}</td>
+    <td>
+      {% if m.status == 'requested' and is_editor %}
+      <span style="display:flex; gap:6px;">
+        <form method="post" action="{{ url_for('seller_meeting_action', meeting_id=m.id, action='confirmed') }}"><input type="hidden" name="next" value="{{ url_for('seller_schedule') }}"><button class="btn btn-secondary btn-sm" type="submit">Confirm</button></form>
+        <form method="post" action="{{ url_for('seller_meeting_action', meeting_id=m.id, action='declined') }}"><input type="hidden" name="next" value="{{ url_for('seller_schedule') }}"><button class="btn btn-ghost btn-sm" type="submit">Decline</button></form>
+      </span>
+      {% elif m.status == 'requested' %}
+      <span class="badge badge-neutral">Awaiting the site admin</span>
+      {% else %}
+      <span class="badge {{ 'badge-good' if m.status == 'confirmed' else 'badge-serious' }}">{{ m.status|capitalize }}</span>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<div class="card empty-state"><div class="icon">🗓️</div>No meetings requested yet.</div>
+{% endif %}
+{% endblock %}

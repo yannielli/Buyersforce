@@ -52,7 +52,7 @@
     <div class="card empty-state"><div class="icon">🔎</div>No vendors yet — start discovering.</div>
     {% endif %}
 
-    <div class="section-title" style="margin-top:26px;"><h2>Upcoming meetings</h2><a href="{{ url_for('buyer_schedule') }}" class="btn btn-ghost btn-sm">Schedule</a></div>
+    <div class="section-title" style="margin-top:26px;"><h2>Upcoming meetings</h2><a href="{{ url_for('buyer_schedule') }}" class="btn btn-ghost btn-sm">Calendar</a></div>
     {% if upcoming_meetings %}
     <div class="card" style="padding:8px 22px;">
       {% for m in upcoming_meetings %}

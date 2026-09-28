@@ -19,6 +19,9 @@
         {% if info.email_sent %}we emailed them your message{% else %}not delivered yet{% endif %}
       </span>
     </div>
+    {% else %}
+    <span class="vendor-logo" style="background:var(--brand);">{{ g.user.company[0] }}</span>
+    <div><h2 style="font-size:17px; margin:0;">{{ thread.subject.split('] ')[1] if '] ' in thread.subject else thread.subject }}</h2><span class="hint">Internal team thread</span></div>
     {% endif %}
   </div>
 

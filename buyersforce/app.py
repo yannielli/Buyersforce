@@ -2297,6 +2297,10 @@ def visible_thread_ids(user):
             ids += [r["id"] for r in dbm.query(
                 "SELECT id FROM threads WHERE type='vendor' AND vendor_id=?", (vendor["id"],)
             )]
+        ids += [r["id"] for r in dbm.query(
+            "SELECT id FROM threads WHERE type='teammate' AND subject LIKE ?",
+            (f"%{user['company']}%",),
+        )]
     else:
         ids += [r["id"] for r in dbm.query(
             "SELECT id FROM threads WHERE type='vendor' AND buyer_user_id=?", (user["id"],)
@@ -3847,7 +3851,7 @@ def _load_thread_for_user(thread_id, user):
             if not vendor:
                 abort(403)
     elif thread["type"] == "teammate":
-        if user["role"] != "buyer" or user["company"] not in thread["subject"]:
+        if user["role"] not in ("buyer", "seller") or user["company"] not in thread["subject"]:
             abort(403)
     elif thread["type"] == "direct":
         if thread["participant_a_id"] != user["id"] and thread["participant_b_id"] != user["id"]:
@@ -4985,10 +4989,40 @@ def seller_messages():
         "WHERE t.type='vendor' AND t.vendor_id=? ORDER BY last_at DESC",
         (vendor["id"],),
     )
+    u = g.user
+    team_threads = dbm.query(
+        "SELECT t.*, "
+        "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC LIMIT 1) last_body, "
+        "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC LIMIT 1) last_at "
+        "FROM threads t WHERE t.type='teammate' AND "
+        "(t.created_by=? OR t.id IN "
+        "(SELECT thread_id FROM messages WHERE sender_user_id=?)) "
+        "AND t.subject LIKE ? ORDER BY last_at DESC",
+        (u["id"], u["id"], f"%{u['company']}%"),
+    )
     direct_threads = _direct_threads_for(g.user)
     return render_template(
-        "seller/messages.html", threads=threads, vendor=vendor, direct_threads=direct_threads
+        "seller/messages.html", threads=threads, vendor=vendor, direct_threads=direct_threads,
+        team_threads=team_threads,
     )
+
+
+@app.route("/app/seller/messages/team/new", methods=("POST",))
+@role_required("seller")
+def seller_new_team_thread():
+    subject = request.form.get("subject", "").strip() or "Team discussion"
+    body = request.form.get("body", "").strip()
+    thread_id = dbm.execute(
+        "INSERT INTO threads (type, buyer_user_id, subject, created_by) VALUES "
+        "('teammate', NULL, ?, ?)",
+        (f"[{g.user['company']}] {subject}", g.user["id"]),
+    )
+    if body:
+        dbm.execute(
+            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
+            (thread_id, g.user["id"], body),
+        )
+    return redirect(url_for("seller_thread", thread_id=thread_id))
 
 
 @app.route("/app/seller/messages/<int:thread_id>", methods=("GET", "POST"))
@@ -5030,7 +5064,25 @@ def seller_meeting_action(meeting_id, action):
     if meeting:
         dbm.execute("UPDATE meetings SET status=? WHERE id=?", (action, meeting_id))
         flash(f"Meeting {action}.", "success")
-    return redirect(url_for("seller_dashboard"))
+    next_url = _safe_redirect_target(request.form.get("next"), url_for("seller_dashboard"))
+    return redirect(next_url)
+
+
+@app.route("/app/seller/schedule")
+@role_required("seller")
+def seller_schedule():
+    vendor = seller_company_vendor(g.user)
+    if not vendor:
+        abort(404)
+    is_editor = vendor["seller_user_id"] == g.user["id"]
+    meetings = dbm.query(
+        "SELECT me.*, u.name buyer_name, u.company buyer_company FROM meetings me "
+        "JOIN users u ON u.id = me.buyer_user_id WHERE me.vendor_id=? ORDER BY me.proposed_time",
+        (vendor["id"],),
+    )
+    return render_template(
+        "seller/schedule.html", vendor=vendor, meetings=meetings, is_editor=is_editor
+    )
 
 
 @app.route("/app/seller/partners", methods=("GET", "POST"))
