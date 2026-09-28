@@ -209,7 +209,7 @@
 <div class="card" style="border-color:var(--brand); background:var(--brand-tint); margin-bottom:24px;">
   <h3 style="font-size:14.5px; color:var(--brand-dark);">Access link ready — send this to them yourself</h3>
   <p style="font-size:13px; margin-bottom:10px;">This link isn't emailed automatically. Copy it and send it
-    however you'd like (email, Slack, text). It expires in 7 days and can only be used once.</p>
+    however you'd like (email, Slack, text). It expires {{ new_invite_expires_at|fmt_time }} and can only be used once.</p>
   <div style="display:flex; gap:8px;">
     <input type="text" readonly value="{{ new_invite_link }}" onclick="this.select()"
            style="font-family:monospace; font-size:12.5px;">
@@ -242,6 +242,10 @@
           <input type="text" name="company" required placeholder="Their company">
         </div>
       </div>
+      <div class="field">
+        <label>Expires in (days)</label>
+        <input type="number" name="expires_days" min="1" max="90" value="7">
+      </div>
       <button class="btn btn-primary btn-block" type="submit">Create access link</button>
     </form>
   </div>
@@ -253,11 +257,17 @@
       {% for inv in pending_invites %}
       <div class="mock-row">
         <span>
-          <strong style="font-size:14px;">{{ inv.email }}</strong>
-          <div class="hint">{{ inv.role|capitalize }} · {{ inv.company }} · expires {{ inv.expires_at|fmt_time }}</div>
+          <strong style="font-size:14px;{{ ' color:var(--serious-ink);' if inv.is_expired }}">{{ inv.email }}</strong>
+          {% if inv.is_expired %}<span class="badge badge-serious" style="margin-left:6px;">Expired</span>{% endif %}
+          <div class="hint" style="{{ 'color:var(--serious-ink);' if inv.is_expired }}">{{ inv.role|capitalize }} · {{ inv.company }} · expires {{ inv.expires_at|fmt_time }}</div>
         </span>
         <span style="display:flex; gap:6px;">
+          {% if not inv.is_expired %}
           <a class="btn btn-secondary btn-sm" href="{{ url_for('admin_access_control') }}?new_invite={{ inv.id }}">Copy link</a>
+          {% endif %}
+          <form method="post" action="{{ url_for('admin_resend_invite', invite_id=inv.id) }}">
+            <button class="btn btn-secondary btn-sm" type="submit">Resend</button>
+          </form>
           <form method="post" action="{{ url_for('admin_revoke_invite', invite_id=inv.id) }}">
             <button class="btn btn-ghost btn-sm" type="submit">Revoke</button>
           </form>

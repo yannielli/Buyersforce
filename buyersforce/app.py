@@ -1126,6 +1126,10 @@ def _admin_access_control_context():
         "SELECT i.*, u.name invited_by_name FROM invites i JOIN users u ON u.id = i.invited_by "
         "WHERE i.used_at IS NULL ORDER BY i.created_at DESC"
     )
+    _now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    pending_invites = [
+        {**dict(inv), "is_expired": inv["expires_at"] < _now_str} for inv in pending_invites
+    ]
     pending_signups = dbm.query(
         "SELECT * FROM users WHERE account_status = 'pending' ORDER BY created_at DESC"
     )
@@ -1166,11 +1170,13 @@ def _admin_access_control_context():
         "WHERE lr.status = 'open' ORDER BY lr.created_at DESC"
     )
     new_invite_link = None
+    new_invite_expires_at = None
     new_invite_id = request.args.get("new_invite", type=int)
     if new_invite_id:
         inv = dbm.query("SELECT * FROM invites WHERE id = ?", (new_invite_id,), one=True)
         if inv:
             new_invite_link = url_for("accept_invite", token=inv["token"], _external=True)
+            new_invite_expires_at = inv["expires_at"]
     return dict(
         users=users, company_counts=company_counts, q=q, sort=sort,
         sort_options=ADMIN_USER_SORT_OPTIONS, jump_letters=DISCOVER_JUMP_LETTERS, letter=letter,
@@ -1181,7 +1187,7 @@ def _admin_access_control_context():
         pending_vendor_claims=pending_vendor_claims, open_listing_reports=open_listing_reports,
         all_segments=known_segments, all_technology_categories=known_categories,
         company_sizes=COMPANY_SIZE_BANDS,
-        new_invite_link=new_invite_link,
+        new_invite_link=new_invite_link, new_invite_expires_at=new_invite_expires_at,
     )
 
 
@@ -1869,9 +1875,9 @@ def admin_resolve_listing_report(report_id):
     return redirect(url_for("admin_access_control"))
 
 
-def _create_invite(email, role, company, name, invited_by):
+def _create_invite(email, role, company, name, invited_by, days=7):
     token = secrets.token_urlsafe(32)
-    expires_at = (datetime.utcnow() + timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+    expires_at = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
     invite_id = dbm.execute(
         "INSERT INTO invites (email, role, company, name, token, invited_by, expires_at) "
         "VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -1897,8 +1903,14 @@ def admin_invite():
               "as a buyer or seller.", "error")
         return redirect(url_for("admin_access_control"))
 
+    try:
+        expires_days = int(request.form.get("expires_days", "7"))
+    except ValueError:
+        expires_days = 7
+    expires_days = max(1, min(expires_days, 90))
+
     dbm.execute("DELETE FROM invites WHERE email = ? AND used_at IS NULL", (email,))
-    invite_id, token = _create_invite(email, role, company, name, g.user["id"])
+    invite_id, token = _create_invite(email, role, company, name, g.user["id"], days=expires_days)
     flash(f"Invite link created for {email}. Copy it below and send it to them.", "success")
     return redirect(url_for("admin_access_control", new_invite=invite_id))
 
@@ -1923,6 +1935,22 @@ def admin_revoke_invite(invite_id):
     dbm.execute("DELETE FROM invites WHERE id = ? AND used_at IS NULL", (invite_id,))
     flash("Invite revoked.", "success")
     return redirect(url_for("admin_access_control"))
+
+
+@app.route("/app/admin/invites/<int:invite_id>/resend", methods=("POST",))
+@admin_required
+def admin_resend_invite(invite_id):
+    invite = dbm.query(
+        "SELECT * FROM invites WHERE id = ? AND used_at IS NULL", (invite_id,), one=True
+    )
+    if not invite:
+        abort(404)
+    dbm.execute("DELETE FROM invites WHERE id = ?", (invite_id,))
+    new_invite_id, token = _create_invite(
+        invite["email"], invite["role"], invite["company"], invite["name"], g.user["id"]
+    )
+    flash(f"New access link created for {invite['email']}. Copy it below and send it to them.", "success")
+    return redirect(url_for("admin_access_control", new_invite=new_invite_id))
 
 
 @app.route("/app/admin/users/<int:user_id>/company", methods=("POST",))
