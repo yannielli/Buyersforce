@@ -41,30 +41,22 @@
 </div>
 
 <div class="section-title"><h2>Pending self-signup requests</h2></div>
-{% if pending_signups_count %}
-<div class="card" style="border-color:var(--warning-border); background:var(--warning-tint); margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-  <div>
-    <strong style="font-size:14.5px;">{{ pending_signups_count }} pending signup{{ '' if pending_signups_count == 1 else 's' }}</strong>
-    <span class="hint" style="margin-left:6px;">waiting for you to approve or deny.</span>
+<div class="card" style="margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+  <div style="display:flex; align-items:baseline; gap:8px;">
+    <span style="font-size:24px; font-weight:700; color:var(--brand-dark);">{{ pending_signups_count }}</span>
+    <span class="hint">pending signup{{ '' if pending_signups_count == 1 else 's' }}</span>
   </div>
-  <a href="{{ url_for('admin_access_control') }}" class="btn btn-secondary btn-sm">Review on Access Control →</a>
+  <a href="{{ url_for('admin_access_control') }}" class="btn btn-secondary btn-sm">Manage on Access Control →</a>
 </div>
-{% else %}
-<div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✅</div>Nothing to see here, all caught up!</div>
-{% endif %}
 
-<div class="section-title"><h2>Pending invites</h2></div>
-{% if pending_invites_count %}
-<div class="card" style="border-color:var(--brand); background:var(--brand-tint); margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-  <div>
-    <strong style="font-size:14.5px; color:var(--brand-dark);">{{ pending_invites_count }} pending invite{{ '' if pending_invites_count == 1 else 's' }}</strong>
-    <span class="hint" style="margin-left:6px;">waiting to be used or revoked.</span>
+<div class="section-title"><h2>Pending my invites</h2></div>
+<div class="card" style="margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+  <div style="display:flex; align-items:baseline; gap:8px;">
+    <span style="font-size:24px; font-weight:700; color:var(--brand-dark);">{{ pending_invites_count }}</span>
+    <span class="hint">pending invite{{ '' if pending_invites_count == 1 else 's' }}</span>
   </div>
-  <a href="{{ url_for('admin_access_control') }}" class="btn btn-secondary btn-sm">Review on Access Control →</a>
+  <a href="{{ url_for('admin_access_control') }}" class="btn btn-secondary btn-sm">Manage on Access Control →</a>
 </div>
-{% else %}
-<div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✅</div>Nothing to see here, all caught up!</div>
-{% endif %}
 
 <div class="section-title"><h2>Site admin claims</h2></div>
 {% if pending_vendor_claims_count %}

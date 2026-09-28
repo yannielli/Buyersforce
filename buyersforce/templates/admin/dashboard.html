@@ -46,7 +46,10 @@
   {% endfor %}
 </div>
 {% else %}
-<div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✅</div>No pending self-signup requests.</div>
+<div class="card" style="margin-bottom:24px; padding:0;">
+  <div style="padding:10px 20px; border-bottom:1px solid var(--gridline); font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-muted);">Name · Role · Title · Company · Contact · LinkedIn</div>
+  <div class="empty-state" style="padding:28px 24px;"><div class="icon">✅</div>No pending self-signup requests.</div>
+</div>
 {% endif %}
 
 {% if pending_role_changes %}
@@ -244,7 +247,7 @@
   </div>
 
   <div>
-    <div class="section-title"><h2>Pending invites</h2></div>
+    <div class="section-title"><h2>Pending my invites</h2></div>
     {% if pending_invites %}
     <div class="card" style="padding:8px 22px;">
       {% for inv in pending_invites %}
@@ -263,7 +266,10 @@
       {% endfor %}
     </div>
     {% else %}
-    <div class="card empty-state"><div class="icon">✉️</div>No pending invites.</div>
+    <div class="card" style="padding:0;">
+      <div style="padding:10px 20px; border-bottom:1px solid var(--gridline); font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-muted);">Email · Role · Company · Expires</div>
+      <div class="empty-state" style="padding:28px 24px;"><div class="icon">✉️</div>No pending invites.</div>
+    </div>
     {% endif %}
   </div>
 </div>
