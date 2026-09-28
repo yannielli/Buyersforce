@@ -45,6 +45,8 @@
   </div>
   {% endfor %}
 </div>
+{% else %}
+<div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✅</div>No pending self-signup requests.</div>
 {% endif %}
 
 {% if pending_role_changes %}

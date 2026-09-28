@@ -1241,6 +1241,9 @@ def _admin_dashboard_context():
     pending_vendor_claims_count = dbm.query(
         "SELECT COUNT(*) AS n FROM vendor_claim_requests WHERE status = 'pending'", one=True
     )["n"]
+    pending_signups_count = dbm.query(
+        "SELECT COUNT(*) AS n FROM users WHERE account_status = 'pending'", one=True
+    )["n"]
     return dict(
         buyer_company_count=buyer_company_count, buyer_user_count=buyer_user_count,
         seller_company_count=seller_company_count, seller_user_count=seller_user_count,
@@ -1248,6 +1251,7 @@ def _admin_dashboard_context():
         open_support_requests=open_support_requests, support_category_labels=SUPPORT_CATEGORY_LABELS,
         pending_invites_count=pending_invites_count,
         pending_vendor_claims_count=pending_vendor_claims_count,
+        pending_signups_count=pending_signups_count,
     )
 
 
