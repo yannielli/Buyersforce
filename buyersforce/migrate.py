@@ -73,6 +73,7 @@ def run_migrations():
             _reclassify_acquired_vendors_under_public_parents_2026_09_27(cur)
             _add_revoked_account_status_2026_09_28(cur)
             _split_siem_soar_and_rename_fraud_segments_2026_09_27(cur)
+            _unclaim_vendor_listings_2026_09_28(cur)
     finally:
         con.close()
 
@@ -1599,6 +1600,52 @@ def _split_siem_soar_and_rename_fraud_segments_2026_09_27(cur):
         "UPDATE vendors SET category = 'Fraud & Identity Management' "
         "WHERE category = 'Fraud & Identity Verification'"
     )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) "
+        "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
+
+
+def _unclaim_vendor_listings_2026_09_28(cur):
+    # Kevin's request (2026-09-28): of the 5 vendor listings currently
+    # showing as claimed, reset 4 of them back to unclaimed (no site
+    # admin) -- these were all auto-assigned under the OLD signup
+    # behavior (before this session's site-admin claim/authorize
+    # workflow replaced it), not genuinely claimed-and-verified.
+    # CyberStar is deliberately left as-is (Jimmy Musk stays site admin)
+    # so Kevin has one worked example of a real claimed listing next to
+    # the unclaimed ones. Guarded by _data_patches so this runs exactly
+    # once and never re-clobbers a legitimate claim made after this
+    # patch runs. Each company's row count is printed so the result is
+    # visible in the deploy logs (0 means no listing matched that name
+    # -- worth double-checking against the real company name).
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches ("
+        "name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "unclaim_vendor_listings_2026_09_28"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    companies_to_unclaim = (
+        "Aegis Shield",
+        "Ironclad Identity",
+        "Sentinel Grid",
+        "Vaultstream Data Security",
+    )
+    for company_name in companies_to_unclaim:
+        cur.execute(
+            "UPDATE vendors SET seller_user_id = NULL "
+            "WHERE LOWER(TRIM(company_name)) = LOWER(TRIM(%s))",
+            (company_name,),
+        )
+        print(
+            f"[unclaim_vendor_listings_2026_09_28] {company_name}: "
+            f"{cur.rowcount} row(s) updated"
+        )
 
     cur.execute(
         "INSERT INTO _data_patches (name, applied_at) "
