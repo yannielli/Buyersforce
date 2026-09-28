@@ -53,6 +53,19 @@
 <div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✅</div>Nothing to see here, all caught up!</div>
 {% endif %}
 
+<div class="section-title"><h2>Site admin claims</h2></div>
+{% if pending_vendor_claims_count %}
+<div class="card" style="border-color:var(--brand); background:var(--brand-tint); margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+  <div>
+    <strong style="font-size:14.5px; color:var(--brand-dark);">{{ pending_vendor_claims_count }} pending claim{{ '' if pending_vendor_claims_count == 1 else 's' }}</strong>
+    <span class="hint" style="margin-left:6px;">waiting on you to verify and authorize.</span>
+  </div>
+  <a href="{{ url_for('admin_access_control') }}" class="btn btn-secondary btn-sm">Review on Access Control →</a>
+</div>
+{% else %}
+<div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✅</div>Nothing to see here, all caught up!</div>
+{% endif %}
+
 <div class="section-title"><h2>Support requests</h2></div>
 {% if open_support_requests %}
 <div class="card" style="margin-bottom:24px;">

@@ -1232,11 +1232,14 @@ def _admin_dashboard_context():
         "FROM support_requests sr JOIN users u ON u.id = sr.user_id "
         "WHERE sr.status != 'resolved' ORDER BY sr.created_at DESC"
     )
-    # Just a count here -- the full list (and the ability to act on any one
-    # of them) lives on Access Control; this is a "you have N things to
-    # action" pointer, same spirit as the support-requests section above.
+    # Just counts here -- the full lists (and the ability to act on any one
+    # of them) live on Access Control; these are "you have N things to
+    # action" pointers, same spirit as the support-requests section above.
     pending_invites_count = dbm.query(
         "SELECT COUNT(*) AS n FROM invites WHERE used_at IS NULL", one=True
+    )["n"]
+    pending_vendor_claims_count = dbm.query(
+        "SELECT COUNT(*) AS n FROM vendor_claim_requests WHERE status = 'pending'", one=True
     )["n"]
     return dict(
         buyer_company_count=buyer_company_count, buyer_user_count=buyer_user_count,
@@ -1244,6 +1247,7 @@ def _admin_dashboard_context():
         total_vendor_count=total_vendor_count, claimed_vendor_count=claimed_vendor_count,
         open_support_requests=open_support_requests, support_category_labels=SUPPORT_CATEGORY_LABELS,
         pending_invites_count=pending_invites_count,
+        pending_vendor_claims_count=pending_vendor_claims_count,
     )
 
 
