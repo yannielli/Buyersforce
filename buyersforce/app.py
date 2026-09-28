@@ -1196,14 +1196,17 @@ def admin_access_control():
 def _admin_dashboard_context():
     # Running totals for the stat tiles at the top of the Dashboard (Kj's
     # request): companies, not just people -- a company with three signed-
-    # up buyers is one "buyer company" but three "buyer users". Vendor
-    # companies come from the vendor directory itself (an admin-seeded,
-    # still-unclaimed listing counts too -- it's a company on BuyersForce
-    # whether or not anyone there has signed up yet), not from seller
-    # headcount, since those two can differ.
-    vendor_company_count = dbm.query(
-        "SELECT COUNT(DISTINCT company_name) AS n FROM vendors WHERE status = 'active'", one=True
-    )["n"]
+    # up buyers is one "buyer company" but three "buyer users". Seller
+    # Companies/Users both come from seller headcount (users table), same
+    # shape as the buyer counts, so "Seller Companies" reads as companies
+    # that actually have an assigned seller on BuyersForce -- NOT every
+    # company with a vendor listing, since an admin-seeded listing nobody's
+    # claimed yet has no seller behind it. That broader vendor-directory
+    # count (claimed and unclaimed alike) is its own pair of tiles below
+    # instead (Kj's follow-up request): total vendor listings, and how
+    # many of those have actually been claimed by a seller
+    # (vendors.seller_user_id IS NOT NULL -- same definition buyer_vendor
+    # uses for is_claimed).
     buyer_company_count = dbm.query(
         "SELECT COUNT(DISTINCT company) AS n FROM users "
         "WHERE is_admin = 0 AND role = 'buyer' AND account_status = 'active'", one=True
@@ -1212,9 +1215,19 @@ def _admin_dashboard_context():
         "SELECT COUNT(*) AS n FROM users WHERE is_admin = 0 AND role = 'buyer' AND account_status = 'active'",
         one=True,
     )["n"]
+    seller_company_count = dbm.query(
+        "SELECT COUNT(DISTINCT company) AS n FROM users "
+        "WHERE is_admin = 0 AND role = 'seller' AND account_status = 'active'", one=True
+    )["n"]
     seller_user_count = dbm.query(
         "SELECT COUNT(*) AS n FROM users WHERE is_admin = 0 AND role = 'seller' AND account_status = 'active'",
         one=True,
+    )["n"]
+    total_vendor_count = dbm.query(
+        "SELECT COUNT(*) AS n FROM vendors WHERE status = 'active'", one=True
+    )["n"]
+    claimed_vendor_count = dbm.query(
+        "SELECT COUNT(*) AS n FROM vendors WHERE status = 'active' AND seller_user_id IS NOT NULL", one=True
     )["n"]
     open_support_requests = dbm.query(
         "SELECT sr.*, u.name requester_name, u.company requester_company, u.role requester_role "
@@ -1228,8 +1241,9 @@ def _admin_dashboard_context():
         "SELECT COUNT(*) AS n FROM invites WHERE used_at IS NULL", one=True
     )["n"]
     return dict(
-        vendor_company_count=vendor_company_count, buyer_company_count=buyer_company_count,
-        buyer_user_count=buyer_user_count, seller_user_count=seller_user_count,
+        buyer_company_count=buyer_company_count, buyer_user_count=buyer_user_count,
+        seller_company_count=seller_company_count, seller_user_count=seller_user_count,
+        total_vendor_count=total_vendor_count, claimed_vendor_count=claimed_vendor_count,
         open_support_requests=open_support_requests, support_category_labels=SUPPORT_CATEGORY_LABELS,
         pending_invites_count=pending_invites_count,
     )

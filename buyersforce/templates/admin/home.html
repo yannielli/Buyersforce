@@ -5,12 +5,12 @@
   <div>
     <span class="eyebrow">Administrator</span>
     <h1>Dashboard</h1>
-    <p class="lede">A running snapshot of BuyersForce — company and user totals, open support
+    <p class="lede">A running snapshot of BuyersForce — company, user, and vendor totals, open support
       requests, and anything waiting on you.</p>
   </div>
 </div>
 
-<div class="grid grid-4" style="grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; margin-bottom:24px;">
+<div class="grid grid-4" style="grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; margin-bottom:14px;">
   <div class="card" style="margin-top:0; text-align:center; padding:16px 10px; background:var(--brand-mcm-coral); border-color:var(--brand-mcm-coral);">
     <div style="font-size:26px; font-weight:700; color:#fff;">{{ buyer_company_count }}</div>
     <div class="hint" style="color:rgba(255,255,255,0.85);">Buyer Companies</div>
@@ -20,12 +20,23 @@
     <div class="hint" style="color:rgba(255,255,255,0.85);">Buyer Users</div>
   </div>
   <div class="card" style="margin-top:0; text-align:center; padding:16px 10px; background:var(--brand); border-color:var(--brand);">
-    <div style="font-size:26px; font-weight:700; color:#fff;">{{ vendor_company_count }}</div>
+    <div style="font-size:26px; font-weight:700; color:#fff;">{{ seller_company_count }}</div>
     <div class="hint" style="color:rgba(255,255,255,0.85);">Seller Companies</div>
   </div>
   <div class="card" style="margin-top:0; text-align:center; padding:16px 10px; background:var(--brand); border-color:var(--brand);">
     <div style="font-size:26px; font-weight:700; color:#fff;">{{ seller_user_count }}</div>
     <div class="hint" style="color:rgba(255,255,255,0.85);">Seller Users</div>
+  </div>
+</div>
+
+<div class="grid grid-2" style="grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; margin-bottom:24px;">
+  <div class="card" style="margin-top:0; text-align:center; padding:16px 10px; background:var(--brand-mcm-mustard); border-color:var(--brand-mcm-mustard);">
+    <div style="font-size:26px; font-weight:700; color:#fff;">{{ total_vendor_count }}</div>
+    <div class="hint" style="color:rgba(255,255,255,0.85);">Total Vendors</div>
+  </div>
+  <div class="card" style="margin-top:0; text-align:center; padding:16px 10px; background:var(--brand-mcm-mustard); border-color:var(--brand-mcm-mustard);">
+    <div style="font-size:26px; font-weight:700; color:#fff;">{{ claimed_vendor_count }}</div>
+    <div class="hint" style="color:rgba(255,255,255,0.85);">Claimed Vendors</div>
   </div>
 </div>
 
