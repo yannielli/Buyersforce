@@ -49,15 +49,24 @@
   <form method="post" action="{{ url_for('account_password') }}">
     <div class="field">
       <label for="current_password">Current password</label>
-      <input type="password" id="current_password" name="current_password" required>
+      <div class="password-field">
+        <input type="password" id="current_password" name="current_password" required>
+        <button type="button" class="password-toggle" data-password-toggle="current_password" aria-label="Show password">Show</button>
+      </div>
     </div>
     <div class="field">
       <label for="new_password">New password</label>
-      <input type="password" id="new_password" name="new_password" required minlength="8" placeholder="At least 8 characters">
+      <div class="password-field">
+        <input type="password" id="new_password" name="new_password" required minlength="8" placeholder="At least 8 characters">
+        <button type="button" class="password-toggle" data-password-toggle="new_password" aria-label="Show password">Show</button>
+      </div>
     </div>
     <div class="field">
       <label for="confirm">Confirm new password</label>
-      <input type="password" id="confirm" name="confirm" required minlength="8">
+      <div class="password-field">
+        <input type="password" id="confirm" name="confirm" required minlength="8">
+        <button type="button" class="password-toggle" data-password-toggle="confirm" aria-label="Show password">Show</button>
+      </div>
     </div>
     <button class="btn btn-primary" type="submit">Update password</button>
   </form>

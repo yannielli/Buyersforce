@@ -236,4 +236,19 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!wrap.contains(e.target)) close();
     });
   });
+
+  // Password visibility toggles: a "Show"/"Hide" button next to any
+  // password field wrapped in .password-field (login, signup, accept
+  // invite, and account's three password fields on the Change password
+  // tab). One generic data-attribute handler instead of per-page wiring.
+  document.querySelectorAll("[data-password-toggle]").forEach((btn) => {
+    const input = document.getElementById(btn.dataset.passwordToggle);
+    if (!input) return;
+    btn.addEventListener("click", () => {
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      btn.textContent = show ? "Hide" : "Show";
+      btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+    });
+  });
 });

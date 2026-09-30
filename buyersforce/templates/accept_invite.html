@@ -23,11 +23,17 @@
       {% endif %}
       <div class="field">
         <label for="password">Password</label>
-        <input type="password" id="password" name="password" required minlength="8" placeholder="At least 8 characters">
+        <div class="password-field">
+          <input type="password" id="password" name="password" required minlength="8" placeholder="At least 8 characters">
+          <button type="button" class="password-toggle" data-password-toggle="password" aria-label="Show password">Show</button>
+        </div>
       </div>
       <div class="field">
         <label for="confirm">Confirm password</label>
-        <input type="password" id="confirm" name="confirm" required minlength="8" placeholder="Re-enter password">
+        <div class="password-field">
+          <input type="password" id="confirm" name="confirm" required minlength="8" placeholder="Re-enter password">
+          <button type="button" class="password-toggle" data-password-toggle="confirm" aria-label="Show password">Show</button>
+        </div>
       </div>
       <button class="btn btn-primary btn-block btn-lg" type="submit">
         {{ 'Reset password & log in' if is_reset else 'Activate account' }}

@@ -122,7 +122,10 @@
 
       <div class="field">
         <label for="password">Password</label>
-        <input type="password" id="password" name="password" required placeholder="At least 8 characters" minlength="8">
+        <div class="password-field">
+          <input type="password" id="password" name="password" required placeholder="At least 8 characters" minlength="8">
+          <button type="button" class="password-toggle" data-password-toggle="password" aria-label="Show password">Show</button>
+        </div>
       </div>
 
       <button class="btn btn-primary btn-block btn-lg" type="submit">Request access</button>

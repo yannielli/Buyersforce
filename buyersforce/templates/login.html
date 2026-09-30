@@ -14,7 +14,10 @@
       </div>
       <div class="field">
         <label for="password">Password</label>
-        <input type="password" id="password" name="password" required placeholder="••••••••">
+        <div class="password-field">
+          <input type="password" id="password" name="password" required placeholder="••••••••">
+          <button type="button" class="password-toggle" data-password-toggle="password" aria-label="Show password">Show</button>
+        </div>
       </div>
       <button class="btn btn-primary btn-block btn-lg" type="submit">Log in</button>
     </form>

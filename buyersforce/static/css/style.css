@@ -254,6 +254,17 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .role-option.selected { border-color: var(--brand); background: var(--brand-tint); }
 .role-option input { display: none; }
 
+/* ---------- password visibility toggle ---------- */
+.password-field { position: relative; }
+.password-field input[type=password], .password-field input[type=text] { padding-right: 58px; }
+.password-toggle {
+  position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+  background: none; border: none; padding: 4px 8px; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; color: var(--brand);
+}
+.password-toggle:hover { text-decoration: underline; }
+.password-toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; border-radius: 4px; }
+
 /* ---------- time zone picker ---------- */
 /* A search box layered over the real <select> (built server-side with
    optgroups and GMT-offset-annotated labels), for narrowing ~430 zones
