@@ -74,6 +74,7 @@ def run_migrations():
             _add_revoked_account_status_2026_09_28(cur)
             _split_siem_soar_and_rename_fraud_segments_2026_09_27(cur)
             _unclaim_vendor_listings_2026_09_28(cur)
+            _add_vendor_intezer_2026_10_15(cur)
     finally:
         con.close()
 
@@ -1645,6 +1646,97 @@ def _unclaim_vendor_listings_2026_09_28(cur):
         print(
             f"[unclaim_vendor_listings_2026_09_28] {company_name}: "
             f"{cur.rowcount} row(s) updated"
+        )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) "
+        "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
+
+
+def _add_vendor_intezer_2026_10_15(cur):
+    # Kevin asked (2026-10-15) to add Intezer (intezer.com) to the
+    # directory -- a new admin-seeded, unclaimed listing (seller_user_id
+    # NULL), same shape as the original bulk seed. Researched via web
+    # search since Intezer wasn't in the original seed list: an AI SOC
+    # platform (automated alert triage/investigation/response, built on
+    # Intezer's original malware reverse-engineering/genetic-analysis
+    # tech), founded 2015, HQ New York NY, privately held. company_size
+    # is an estimate -- public sources disagree (roughly 30-53 employees)
+    # -- worth Kevin confirming/correcting, the way he did for AuthBase.
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches ("
+        "name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "add_vendor_intezer_2026_10_15"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    cur.execute(
+        "SELECT id FROM vendors WHERE LOWER(TRIM(company_name)) = 'intezer' "
+        "AND seller_user_id IS NULL"
+    )
+    row = cur.fetchone()
+    if row:
+        vendor_id = row[0]
+    else:
+        cur.execute(
+            """
+            INSERT INTO vendors (
+                seller_user_id, company_name, category, tagline, description,
+                website, accent, initials, company_size, source, hq_location,
+                founded_year, ownership_status
+            ) VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                "Intezer",
+                "Security Operations (SOC)",
+                "AI-driven SOC platform that investigates and resolves every security alert",
+                "Intezer provides an AI-powered SOC platform that automatically investigates "
+                "and triages security alerts -- using forensic-style analysis, built-in "
+                "malware reverse engineering, and threat intelligence -- to resolve false "
+                "positives and escalate only confirmed threats to human analysts.",
+                "https://intezer.com/",
+                "#3b82f6",
+                "I",
+                "51-200",
+                "Added at Kevin's request, 2026-10-15",
+                "New York, NY",
+                2015,
+                "private",
+            ),
+        )
+        vendor_id = cur.fetchone()[0]
+
+    for segment in (
+        "Security Operations (SOC)",
+        "SecOps",
+        "Incident Response & Forensics",
+        "SOAR",
+        "Malware Detection",
+        "Threat Intelligence",
+    ):
+        cur.execute(
+            "SELECT 1 FROM vendor_segments WHERE vendor_id = %s AND segment = %s",
+            (vendor_id, segment),
+        )
+        if not cur.fetchone():
+            cur.execute(
+                "INSERT INTO vendor_segments (vendor_id, segment) VALUES (%s, %s)",
+                (vendor_id, segment),
+            )
+
+    cur.execute(
+        "SELECT 1 FROM vendor_technology_categories WHERE vendor_id = %s AND category = %s",
+        (vendor_id, "Cybersecurity"),
+    )
+    if not cur.fetchone():
+        cur.execute(
+            "INSERT INTO vendor_technology_categories (vendor_id, category) VALUES (%s, %s)",
+            (vendor_id, "Cybersecurity"),
         )
 
     cur.execute(
