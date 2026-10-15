@@ -3514,7 +3514,7 @@ def buyer_vendor(vendor_id):
     is_claimed = vendor["seller_user_id"] is not None
     status = shortlist_status(g.user["id"], vendor_id)
     templates_ = dbm.query(
-        "SELECT * FROM eval_templates WHERE company=? OR is_shared=1 ORDER BY created_at DESC",
+        "SELECT * FROM eval_templates WHERE company=? ORDER BY created_at DESC",
         (g.user["company"],),
     )
     existing_eval = dbm.query(
@@ -3903,7 +3903,7 @@ def project_display_name(name, vendor_names):
 def buyer_evaluations():
     u = g.user
     templates_ = dbm.query(
-        "SELECT * FROM eval_templates WHERE company=? OR is_shared=1 ORDER BY created_at DESC",
+        "SELECT * FROM eval_templates WHERE company=? ORDER BY created_at DESC",
         (u["company"],),
     )
     # One project can (and often does) hold several vendors being scored
@@ -3920,7 +3920,6 @@ def buyer_evaluations():
         criteria = dbm.query(
             "SELECT * FROM eval_criteria WHERE template_id=? ORDER BY position", (p["template_id"],)
         )
-        total_weight = sum(c["weight"] for c in criteria) or 1
         evals = dbm.query(
             "SELECT e.*, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.logo_link_url, v.logo_upload_data_url, v.website "
             "FROM evaluations e JOIN vendors v ON v.id = e.vendor_id "
@@ -3938,11 +3937,19 @@ def buyer_evaluations():
             for s in scores:
                 by_criterion.setdefault(s["criterion_id"], []).append(s["score"])
             weighted_sum = 0
+            scored_weight = 0
             for c in criteria:
                 vals = by_criterion.get(c["id"], [])
-                avg = sum(vals) / len(vals) if vals else 0
+                if not vals:
+                    continue
+                avg = sum(vals) / len(vals)
                 weighted_sum += avg * c["weight"]
-            overall = round(weighted_sum / total_weight, 1) if scores else None
+                scored_weight += c["weight"]
+            # Prorate over criteria actually scored so far, rather than
+            # counting an unscored criterion as a zero -- otherwise a
+            # vendor looks artificially terrible until every single
+            # criterion has at least one score in.
+            overall = round(weighted_sum / scored_weight, 1) if scored_weight else None
             vendor_summaries.append({
                 "company_name": ev["company_name"], "accent": ev["accent"], "initials": ev["initials"],
                 "logo_url": vendor_display_logo_url(ev), "overall": overall,
@@ -4078,6 +4085,13 @@ def buyer_start_project():
     if not template_id:
         flash("Choose an evaluation template first.", "error")
         return redirect(fallback)
+    template_owned = dbm.query(
+        "SELECT 1 FROM eval_templates WHERE id=? AND company=?",
+        (template_id, g.user["company"]), one=True,
+    )
+    if not template_owned:
+        flash("That template isn't available to your company.", "error")
+        return redirect(fallback)
 
     # Re-starting an evaluation for a single vendor already being evaluated
     # against this exact template (e.g. clicking "Continue evaluation"
@@ -4178,20 +4192,23 @@ def buyer_project_detail(project_id):
     reviewers = {r["id"]: r for r in dbm.query(
         "SELECT * FROM users WHERE company=? AND role='buyer'", (g.user["company"],)
     )}
-    total_weight = sum(c["weight"] for c in criteria) or 1
-
     vendor_columns = []
     for ev in evals:
         scores = dbm.query("SELECT * FROM eval_scores WHERE evaluation_id=?", (ev["id"],))
         my_scores = {s["criterion_id"]: s for s in scores if s["user_id"] == g.user["id"]}
         weighted_sum = 0
+        scored_weight = 0
         cells = {}
         for c in criteria:
             vals = [s["score"] for s in scores if s["criterion_id"] == c["id"]]
             avg = round(sum(vals) / len(vals), 1) if vals else None
-            weighted_sum += (avg or 0) * c["weight"]
+            if avg is not None:
+                weighted_sum += avg * c["weight"]
+                scored_weight += c["weight"]
             cells[c["id"]] = {"avg": avg, "count": len(vals), "my_score": my_scores.get(c["id"])}
-        overall = round(weighted_sum / total_weight, 1) if scores else None
+        # Prorate over criteria actually scored so far -- see the same
+        # fix in buyer_evaluations() above for why.
+        overall = round(weighted_sum / scored_weight, 1) if scored_weight else None
 
         by_reviewer = {}
         for s in scores:
