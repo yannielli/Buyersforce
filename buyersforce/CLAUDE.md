@@ -12,7 +12,10 @@
 - BuyersForce: invite-only web app for technology buyers, live at
   https://buyersforce-web-production.up.railway.app
 - Code lives in GitHub repo `yannielli/buyersforce`, in the `buyersforce/` folder.
-  Kevin commits file changes through the GitHub website; every commit auto-deploys on Railway.
+  Claude commits and pushes file changes directly (via the `claude-ssh` deploy-key remote --
+  see the daily backup routine for how it's set up); every push to `main` auto-deploys on
+  Railway. (Before 2026-10-15, Kevin committed changes himself through the GitHub website --
+  he can still ask Claude to show a diff before pushing if he wants to double check something.)
 - Database: Railway's managed Postgres (service "Postgres" in the `buyersforce` project).
   Do NOT switch back to SQLite or Railway volumes — volumes had an unresolved data-wiping bug.
 - Kevin is the admin account. One email = one role (buyer, seller, or admin);
