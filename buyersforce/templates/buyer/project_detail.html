@@ -269,7 +269,7 @@
         {% if v.website %}
         <p class="hint" style="margin:4px 0 10px;">
           <a href="{{ v.website }}" target="_blank" rel="noopener">{{ v.website }}</a> ↗<br>
-          {{ EXTERNAL_LINK_PRIVACY_NOTE }}
+          <span class="warning-text">{{ EXTERNAL_LINK_PRIVACY_NOTE }}</span>
         </p>
         {% endif %}
         {% if v.overall %}
@@ -394,7 +394,7 @@
 
   {% if can_edit and not is_closed %}
   <form method="post" action="{{ url_for('buyer_project_upload_artifact', project_id=project.id) }}" enctype="multipart/form-data" style="margin-top:16px;">
-    <p class="hint" style="margin-bottom:8px;">Before uploading, consider whether this document contains sensitive, personal, or confidential information &mdash; avoid uploading anything that shouldn't leave your company.</p>
+    <p class="hint warning-text" style="margin-bottom:8px;">Before uploading, consider whether this document contains sensitive, personal, or confidential information &mdash; avoid uploading anything that shouldn't leave your company.</p>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       <input type="file" name="artifact_files" multiple style="flex:1; min-width:220px;">
       <button class="btn btn-secondary" type="submit">Upload</button>

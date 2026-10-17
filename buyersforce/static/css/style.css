@@ -256,6 +256,14 @@ label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; c
    when the smaller size should stay (e.g. class="hint action-link"). */
 .action-link { color: var(--brand); font-weight: 600; cursor: pointer; }
 .action-link:hover { color: var(--brand-dark); text-decoration: underline; }
+/* A caution the user should actually weigh before continuing -- sharing a
+   document that might hold sensitive info, following a link that takes
+   them off BuyersForce where they can be tracked -- as opposed to a plain
+   .hint aside. Same idea as .action-link but in the app's red/critical
+   tone rather than teal, and not clickable itself. Pair with .hint to
+   keep the smaller size (class="hint warning-text"), or wrap just the
+   cautionary phrase in a <span> when it's part of a longer sentence. */
+.warning-text { color: var(--critical-ink); font-weight: 600; }
 input[type=text], input[type=email], input[type=password], input[type=url],
 input[type=tel], input[type=datetime-local], input[type=number], select, textarea {
   width: 100%; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--border-strong);

@@ -25,7 +25,7 @@
   <h3 style="font-size:15px;">About</h3>
   <p>{{ vendor.description }}</p>
   {% if vendor.website %}
-  <p class="hint">🔗 <a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }}</a><br>{{ EXTERNAL_LINK_PRIVACY_NOTE }}</p>
+  <p class="hint">🔗 <a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }}</a><br><span class="warning-text">{{ EXTERNAL_LINK_PRIVACY_NOTE }}</span></p>
   {% endif %}
   {% if vendor.contact_name %}<p class="hint">👤 {{ vendor.contact_name }}</p>{% endif %}
   {% if vendor.contact_email %}<p class="hint">✉️ {{ vendor.contact_email }}</p>{% endif %}

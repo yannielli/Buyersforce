@@ -11,7 +11,7 @@
 <div class="listing-card">
   <h4>{{ item.title }}</h4>
   {% if item.kind == 'link' %}
-  <p class="hint" style="margin:6px 0 0;">🔗 <a href="{{ item.url }}" target="_blank" rel="noopener">{{ item.url }}</a><br>{{ EXTERNAL_LINK_PRIVACY_NOTE }}</p>
+  <p class="hint" style="margin:6px 0 0;">🔗 <a href="{{ item.url }}" target="_blank" rel="noopener">{{ item.url }}</a><br><span class="warning-text">{{ EXTERNAL_LINK_PRIVACY_NOTE }}</span></p>
   {% else %}
   <p style="font-size:13.5px; margin:6px 0 0;">{{ item.body }}</p>
   {% endif %}

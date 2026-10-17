@@ -61,7 +61,7 @@
     <td>
       {% if v.website %}
       <a href="{{ v.website }}" target="_blank" rel="noopener">{{ v.website }}</a> ↗
-      <div class="hint" style="margin-top:4px;">{{ EXTERNAL_LINK_PRIVACY_NOTE }}</div>
+      <div class="hint warning-text" style="margin-top:4px;">{{ EXTERNAL_LINK_PRIVACY_NOTE }}</div>
       {% else %}—{% endif %}
     </td>
     {% endfor %}
