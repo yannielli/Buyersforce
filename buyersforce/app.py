@@ -3101,6 +3101,7 @@ def buyer_discover():
         sort=sort,
         jump_letters=DISCOVER_JUMP_LETTERS,
         letter=letter,
+        discover_compare_max=DISCOVER_COMPARE_MAX,
     )
 
 

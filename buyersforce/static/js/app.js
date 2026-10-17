@@ -25,21 +25,213 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Cap Discover's compare checkboxes at 5 -- research/compare stage; a
-  // separate, smaller cap (3) applies to Compare's own "Short List"
-  // checkboxes, handled inline on compare.html since that page's form
-  // controls live outside the <form> element itself (form="shortlist-form").
+  // Vendor comparison selection for Discover + "Ask Frankie" results:
+  // persisted in localStorage, not just read off whatever's checked on
+  // the page right now. Discover's letter-jump/search/filter controls are
+  // plain GET reloads, so without this, checking "Compare" on one vendor,
+  // jumping to a different letter, and checking another used to lose the
+  // first pick entirely. A separate, smaller cap (3) applies to Compare's
+  // own "Short List" checkboxes, handled inline on compare.html since that
+  // page's form controls live outside the <form> element itself
+  // (form="shortlist-form") -- unrelated to this selection.
+  const BF_COMPARE_KEY = "bf_compare_selection";
+  function readCompareSelection() {
+    try {
+      const raw = window.localStorage.getItem(BF_COMPARE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function writeCompareSelection(list) {
+    try {
+      window.localStorage.setItem(BF_COMPARE_KEY, JSON.stringify(list));
+    } catch (e) {
+      // storage unavailable (private browsing, quota, etc.) -- the
+      // selection just won't survive a reload; nothing else to do.
+    }
+  }
+  const compareChangeListeners = [];
+  function notifyCompareChange() {
+    const sel = readCompareSelection();
+    compareChangeListeners.forEach((fn) => fn(sel));
+  }
+  // Exposed so discover.html's "Ask Frankie" chat script can read/add/
+  // remove vendors found via chat into this very same cross-page
+  // selection, without either file needing to know about the other's
+  // markup.
+  window.BFCompare = {
+    getSelection: readCompareSelection,
+    isSelected: (id) => readCompareSelection().some((v) => String(v.id) === String(id)),
+    add: (vendor, max) => {
+      const sel = readCompareSelection();
+      if (sel.some((v) => String(v.id) === String(vendor.id))) return sel;
+      if (max && sel.length >= max) return sel;
+      sel.push(vendor);
+      writeCompareSelection(sel);
+      notifyCompareChange();
+      return sel;
+    },
+    remove: (id) => {
+      const sel = readCompareSelection().filter((v) => String(v.id) !== String(id));
+      writeCompareSelection(sel);
+      notifyCompareChange();
+      return sel;
+    },
+    clear: () => {
+      writeCompareSelection([]);
+      notifyCompareChange();
+    },
+    onChange: (fn) => { compareChangeListeners.push(fn); },
+  };
+
   const compareForm = document.getElementById("compare-form");
   if (compareForm) {
+    const compareMax = parseInt(compareForm.dataset.compareMax, 10) || 5;
+    const compareTray = document.getElementById("compare-tray");
+    const compareTrayChips = document.getElementById("compare-tray-chips");
+    const compareTrayCount = document.getElementById("compare-tray-count");
+    const compareTrayClear = document.getElementById("compare-tray-clear");
+    const compareTrayButton = document.getElementById("compare-tray-button");
+    const compareSubmitBtn = document.getElementById("compare-submit");
+
     const boxes = () => Array.from(compareForm.querySelectorAll('input[type="checkbox"]'));
-    compareForm.addEventListener("change", () => {
-      const checked = boxes().filter((b) => b.checked);
-      boxes().forEach((b) => {
-        b.disabled = checked.length >= 5 && !b.checked;
-      });
-      const submitBtn = document.getElementById("compare-submit");
-      if (submitBtn) submitBtn.disabled = checked.length < 2;
+
+    const vendorFromCheckbox = (box) => ({
+      id: box.value,
+      company_name: box.dataset.companyName || "",
+      accent: box.dataset.accent || "",
+      initials: box.dataset.initials || "",
+      logo_url: box.dataset.logoUrl || "",
     });
+
+    const buildCompareUrl = (sel) => {
+      const ids = sel.map((v) => v.id).join(",");
+      return compareForm.getAttribute("action") + (ids ? "?ids=" + encodeURIComponent(ids) : "");
+    };
+
+    function renderCompareChip(vendor) {
+      const chip = document.createElement("span");
+      chip.className = "compare-chip";
+      const logo = document.createElement("span");
+      logo.className = "vendor-logo";
+      logo.style.cssText = "width:18px;height:18px;font-size:8px;";
+      logo.style.background = vendor.accent || "var(--brand)";
+      if (vendor.logo_url) {
+        const img = document.createElement("img");
+        img.src = vendor.logo_url;
+        img.alt = "";
+        img.onerror = () => { img.remove(); logo.textContent = vendor.initials || ""; };
+        logo.appendChild(img);
+      } else {
+        logo.textContent = vendor.initials || "";
+      }
+      const name = document.createElement("span");
+      name.textContent = vendor.company_name || ("Vendor #" + vendor.id);
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "compare-chip-remove";
+      remove.setAttribute("aria-label", "Remove " + (vendor.company_name || "vendor") + " from comparison");
+      remove.textContent = "×";
+      remove.addEventListener("click", () => window.BFCompare.remove(vendor.id));
+      chip.appendChild(logo);
+      chip.appendChild(name);
+      chip.appendChild(remove);
+      return chip;
+    }
+
+    function renderCompareUI() {
+      const sel = readCompareSelection();
+      const selIds = sel.map((v) => String(v.id));
+
+      // Sync this page's own checkboxes to the stored selection -- a
+      // vendor checked on a previous letter/search page shows checked
+      // here too if it's also on this page, and the cap disables the
+      // rest once the selection (not just this page) is full.
+      boxes().forEach((box) => {
+        box.checked = selIds.indexOf(box.value) !== -1;
+        box.disabled = !box.checked && sel.length >= compareMax;
+      });
+
+      // Any "+ Compare" buttons Ask Frankie has rendered into the chat so
+      // far -- querySelectorAll just finds nothing until Frankie has.
+      document.querySelectorAll(".ai-vendor-mini-compare-btn").forEach((btn) => {
+        const added = selIds.indexOf(String(btn.dataset.vendorId)) !== -1;
+        btn.classList.toggle("is-added", added);
+        btn.textContent = added ? "✓ Added" : "+ Compare";
+        btn.disabled = !added && sel.length >= compareMax;
+      });
+
+      if (compareTray) {
+        compareTray.hidden = sel.length === 0;
+        if (compareTrayChips) {
+          compareTrayChips.innerHTML = "";
+          sel.forEach((vendor) => compareTrayChips.appendChild(renderCompareChip(vendor)));
+        }
+        if (compareTrayCount) compareTrayCount.textContent = sel.length;
+        if (compareTrayButton) {
+          compareTrayButton.disabled = sel.length < 2;
+          compareTrayButton.dataset.href = buildCompareUrl(sel);
+        }
+      }
+      if (compareSubmitBtn) compareSubmitBtn.disabled = sel.length < 2;
+    }
+
+    compareForm.addEventListener("change", (e) => {
+      if (!e.target || e.target.type !== "checkbox") return;
+      const box = e.target;
+      if (box.checked) {
+        window.BFCompare.add(vendorFromCheckbox(box), compareMax);
+      } else {
+        window.BFCompare.remove(box.value);
+      }
+    });
+
+    // Progressive enhancement: with JS, "Compare selected vendors" (and
+    // the tray's own button) always compares the full cross-page
+    // selection, not just whatever happens to be checked on the page in
+    // view right now. Without JS, the form still submits normally with
+    // just this page's checked boxes -- a smaller but working compare.
+    compareForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const sel = readCompareSelection();
+      if (sel.length < 2) return;
+      window.location.href = buildCompareUrl(sel);
+    });
+
+    if (compareTrayButton) {
+      compareTrayButton.addEventListener("click", () => {
+        if (compareTrayButton.disabled) return;
+        window.location.href = compareTrayButton.dataset.href || buildCompareUrl(readCompareSelection());
+      });
+    }
+    if (compareTrayClear) {
+      compareTrayClear.addEventListener("click", () => window.BFCompare.clear());
+    }
+
+    // "+ Compare" buttons inside Ask Frankie's chat results are added long
+    // after this script runs, so this listens on a stable ancestor
+    // instead of each button -- delegation picks up every one Frankie
+    // ever renders, this turn or a later one.
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest && e.target.closest(".ai-vendor-mini-compare-btn");
+      if (!btn) return;
+      if (btn.classList.contains("is-added")) {
+        window.BFCompare.remove(btn.dataset.vendorId);
+      } else {
+        window.BFCompare.add({
+          id: btn.dataset.vendorId,
+          company_name: btn.dataset.companyName || "",
+          accent: btn.dataset.accent || "",
+          initials: btn.dataset.initials || "",
+          logo_url: btn.dataset.logoUrl || "",
+        }, compareMax);
+      }
+    });
+
+    window.BFCompare.onChange(renderCompareUI);
+    renderCompareUI();
   }
 
   // "Open to Outreach" sub-options on the profile form: shown only

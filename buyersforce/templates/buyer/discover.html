@@ -77,7 +77,18 @@
   {% endfor %}
 </div>
 
-<form id="compare-form" action="{{ url_for('buyer_compare') }}" method="get">
+<div id="compare-tray" class="compare-tray" hidden>
+  <div class="compare-tray-inner">
+    <span class="compare-tray-label">Comparing <span id="compare-tray-count">0</span>/{{ discover_compare_max }}:</span>
+    <div id="compare-tray-chips" class="compare-tray-chips"></div>
+  </div>
+  <div class="compare-tray-actions">
+    <button id="compare-tray-clear" class="btn btn-ghost btn-sm" type="button">Clear</button>
+    <button id="compare-tray-button" class="btn btn-primary btn-sm" type="button" disabled>Compare vendors</button>
+  </div>
+</div>
+
+<form id="compare-form" action="{{ url_for('buyer_compare') }}" method="get" data-compare-max="{{ discover_compare_max }}">
   <div class="vendor-grid">
     {% for v in vendors %}
     <div class="vendor-card">
@@ -105,7 +116,9 @@
       <div class="actions">
         <a href="{{ url_for('buyer_vendor', vendor_id=v.id) }}" class="btn btn-secondary btn-sm">View profile</a>
         <label class="compare-check">
-          <input type="checkbox" name="ids" value="{{ v.id }}"> Compare
+          <input type="checkbox" name="ids" value="{{ v.id }}"
+            data-company-name="{{ v.company_name }}" data-accent="{{ v.accent }}"
+            data-initials="{{ v.initials }}" data-logo-url="{{ v.logo_url or '' }}"> Compare
         </label>
       </div>
     </div>
@@ -116,6 +129,7 @@
   {% if vendors %}
   <div style="margin-top:20px; text-align:center;">
     <button id="compare-submit" class="btn btn-primary" type="submit" disabled>Compare selected vendors</button>
+    <p class="hint" style="margin-top:8px;">Check up to {{ discover_compare_max }} vendors here, or on any other search/letter page -- they queue up above until you're ready.</p>
   </div>
   {% endif %}
 </form>
@@ -256,9 +270,12 @@
     var wrap = document.createElement('div');
     wrap.className = 'ai-vendor-results';
     vendors.forEach(function (v) {
-      var card = document.createElement('a');
+      var card = document.createElement('div');
       card.className = 'ai-vendor-mini-card';
-      card.href = '/app/buyer/vendor/' + v.id;
+
+      var link = document.createElement('a');
+      link.className = 'ai-vendor-mini-link';
+      link.href = '/app/buyer/vendor/' + v.id;
       var logo = document.createElement('span');
       logo.className = 'ai-vendor-mini-logo';
       logo.style.background = v.accent || '#17948f';
@@ -294,8 +311,28 @@
       body.appendChild(name);
       body.appendChild(document.createElement('br'));
       body.appendChild(meta);
-      card.appendChild(logo);
-      card.appendChild(body);
+      link.appendChild(logo);
+      link.appendChild(body);
+
+      // Lets a buyer pull a vendor Frankie found straight into the same
+      // cross-page comparison tray the Discover grid uses -- shared
+      // storage (BFCompare) and a single delegated click listener both
+      // live in app.js, so this button needs no handler of its own, just
+      // the data it would need to add itself to that selection.
+      var compareBtn = document.createElement('button');
+      compareBtn.type = 'button';
+      compareBtn.className = 'ai-vendor-mini-compare-btn btn btn-ghost btn-sm';
+      compareBtn.dataset.vendorId = v.id;
+      compareBtn.dataset.companyName = v.company_name || '';
+      compareBtn.dataset.accent = v.accent || '';
+      compareBtn.dataset.initials = v.initials || '';
+      compareBtn.dataset.logoUrl = v.logo_url || '';
+      var alreadyAdded = window.BFCompare && window.BFCompare.isSelected(v.id);
+      compareBtn.classList.toggle('is-added', !!alreadyAdded);
+      compareBtn.textContent = alreadyAdded ? '✓ Added' : '+ Compare';
+
+      card.appendChild(link);
+      card.appendChild(compareBtn);
       wrap.appendChild(card);
     });
     messagesEl.appendChild(wrap);

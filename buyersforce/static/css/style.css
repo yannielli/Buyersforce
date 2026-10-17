@@ -726,11 +726,11 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 
 .ai-vendor-results { align-self: stretch; display: flex; flex-direction: column; gap: 8px; margin-top: -2px; }
 .ai-vendor-mini-card {
-  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
   background: var(--surface-raised); border: 1px solid var(--gridline); border-radius: var(--radius-md);
-  text-decoration: none; color: inherit;
 }
 .ai-vendor-mini-card:hover { border-color: var(--brand); }
+.ai-vendor-mini-link { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; text-decoration: none; color: inherit; }
 .ai-vendor-mini-logo {
   width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center;
   justify-content: center; color: #fff; font-size: 12px; font-weight: 700; overflow: hidden;
@@ -739,6 +739,37 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .ai-vendor-mini-body { min-width: 0; }
 .ai-vendor-mini-name { font-size: 13.5px; font-weight: 600; color: var(--ink-primary); }
 .ai-vendor-mini-meta { font-size: 12px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* "+ Compare" on each Ask Frankie result -- pulls that vendor into the
+   same cross-page comparison tray/selection the Discover grid uses. */
+.ai-vendor-mini-compare-btn { flex-shrink: 0; white-space: nowrap; }
+.ai-vendor-mini-compare-btn.is-added { background: var(--brand-tint); color: var(--brand-dark); }
+
+/* Cross-page vendor comparison tray on Discover: sticky just below the
+   topbar (matches .side-panel's top offset) so a buyer who checks
+   "Compare" on one vendor, jumps to a different letter/search/filter
+   page, and checks another, still sees the running list -- and can
+   jump straight to Compare -- without scrolling back up. */
+.compare-tray {
+  position: sticky; top: 84px; z-index: 30;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  background: var(--surface-raised); border: 1px solid var(--gridline); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md); padding: 12px 16px; margin-bottom: 20px;
+}
+.compare-tray[hidden] { display: none; }
+.compare-tray-inner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.compare-tray-label { font-size: 12.5px; font-weight: 600; color: var(--ink-muted); white-space: nowrap; }
+.compare-tray-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.compare-chip {
+  display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 8px; border-radius: 999px;
+  background: var(--brand-tint); border: 1px solid var(--border); font-size: 12.5px; font-weight: 600; color: var(--brand-dark);
+}
+.compare-chip-remove {
+  border: none; background: transparent; color: inherit; cursor: pointer; font-size: 14px; line-height: 1; opacity: .7;
+  width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%;
+}
+.compare-chip-remove:hover { background: var(--border-strong); opacity: 1; }
+.compare-tray-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+@media (max-width: 640px) { .compare-tray { position: static; } }
 
 .ai-web-sources {
   align-self: stretch; background: var(--warning-tint); border: 1px solid var(--warning-border);
