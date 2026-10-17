@@ -173,6 +173,8 @@ button { font-family: inherit; }
 .btn-ghost { background: transparent; color: var(--ink-secondary); }
 .btn-ghost:hover { background: var(--page); color: var(--ink-primary); }
 .btn-danger { background: var(--critical-tint); color: var(--critical); }
+.btn-success { background: var(--good); color: #fff; }
+.btn-success:hover { background: var(--good-ink); }
 .btn-sm { padding: 7px 12px; font-size: 13px; }
 .btn-lg { padding: 14px 26px; font-size: 15.5px; }
 .btn-block { width: 100%; }
@@ -203,6 +205,16 @@ button { font-family: inherit; }
 }
 .card + .card { margin-top: 16px; }
 .card-flat { background: var(--surface); border: 1px solid var(--gridline); }
+/* Opt-in modifier that marks a card as the forward action in a pipeline
+   (Discover -> Evaluate -> Close evaluation, so far) -- a green tint/
+   border plus the "Next step ->" tag, instead of blending in as just
+   another card alongside whatever optional actions sit next to it. */
+.card-next-step { background: var(--good-tint); border: 1.5px solid var(--good); }
+.next-step-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  text-transform: uppercase; letter-spacing: 0.06em; font-size: 11.5px; font-weight: 700;
+  color: var(--good-ink); margin-bottom: 8px;
+}
 .grid { display: grid; gap: 18px; }
 .grid-2 { grid-template-columns: repeat(2, 1fr); }
 .grid-3 { grid-template-columns: repeat(3, 1fr); }

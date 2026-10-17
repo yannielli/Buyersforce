@@ -157,11 +157,12 @@
   </div>
   {% endif %}
 
-  <div class="card">
+  <div class="card card-next-step">
+    <span class="next-step-tag">Next step <span aria-hidden="true">&rarr;</span></span>
     <h3 style="font-size:15px;">Close this evaluation</h3>
     <p class="hint">Records the outcome and moves this project to Archive. The scorecard and every score stay exactly as they are and can still be viewed any time — closing is reversible.</p>
     <details id="close-project-details" style="margin-top:10px;">
-      <summary class="btn btn-secondary btn-sm" style="display:inline-block; cursor:pointer;">Close evaluation…</summary>
+      <summary class="btn btn-success btn-sm" style="display:inline-block; cursor:pointer;">Close evaluation &rarr;</summary>
       <form method="post" action="{{ url_for('buyer_project_close', project_id=project.id) }}" style="margin-top:14px;">
         <div class="field">
           <label>Date closed</label>
@@ -189,7 +190,7 @@
           {% endfor %}
           <textarea name="no_award_other_text" placeholder="Anything else worth noting (optional)" maxlength="500" style="margin-top:6px;"></textarea>
         </div>
-        <button class="btn btn-primary" type="submit">Close evaluation</button>
+        <button class="btn btn-success" type="submit">Close evaluation &rarr;</button>
       </form>
     </details>
   </div>
