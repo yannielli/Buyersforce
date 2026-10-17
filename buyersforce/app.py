@@ -4318,6 +4318,15 @@ def buyer_evaluations():
         "SELECT * FROM eval_templates WHERE company=? ORDER BY created_at DESC",
         (u["company"],),
     )
+    # So the template library can show "used by N projects" before someone
+    # deletes one -- see buyer_evaluation_delete, which blocks the delete
+    # outright once any scores exist, but lets a never-scored template be
+    # deleted even while a project still has it set (that project just
+    # falls back to "no scorecard").
+    for t in templates_:
+        t["in_use_count"] = dbm.query(
+            "SELECT COUNT(*) AS n FROM eval_projects WHERE template_id=?", (t["id"],), one=True
+        )["n"]
     # One project can (and often does) hold several vendors being scored
     # against the same template at once -- see eval_projects in schema.sql.
     # "Active evaluations" / "Archive" below is one card per PROJECT, not
@@ -4657,6 +4666,59 @@ def buyer_evaluation_edit(template_id):
         new_rows=[("", "")],
         max_criteria=MAX_EVAL_CRITERIA,
     )
+
+
+@app.route("/app/buyer/evaluations/template/<int:template_id>/delete", methods=("POST",))
+@role_required("buyer")
+def buyer_evaluation_delete(template_id):
+    # Lets a company clean up its own scorecard library. Deliberately
+    # scoped to templates THIS company owns (template["company"] check) --
+    # never a template shared in from the future public library, which
+    # belongs to whoever published it.
+    template = dbm.query("SELECT * FROM eval_templates WHERE id=?", (template_id,), one=True)
+    if not template or template["company"] != g.user["company"]:
+        flash("That template isn't available to your company.", "error")
+        return redirect(url_for("buyer_evaluations"))
+    # If anyone has ever actually scored a vendor with this scorecard,
+    # deleting it would erase that history outright (its eval_criteria rows
+    # -- and the eval_scores tied to them -- would have to go with it, and
+    # unlike switching scorecards on a project, there's no "switch back" to
+    # undo this). So block it here rather than risk that silently.
+    has_scores = dbm.query(
+        "SELECT 1 FROM eval_scores s JOIN eval_criteria c ON c.id = s.criterion_id "
+        "WHERE c.template_id=? LIMIT 1",
+        (template_id,), one=True,
+    )
+    if has_scores:
+        flash(
+            f"“{template['name']}” already has scores recorded against it, so it can't be "
+            f"deleted -- that would erase that evaluation history. Open any project still using it and "
+            f"switch it to a different scorecard (or “No scorecard”) instead.",
+            "error",
+        )
+        return redirect(url_for("buyer_evaluations"))
+    # No scores recorded anywhere -- safe to delete. Any project still
+    # pointing at this template (picked when nobody had scored anything
+    # yet) just falls back to "no scorecard chosen yet," same as if its
+    # owner had detached it from "Rename or change scorecard."
+    affected_projects = dbm.query(
+        "SELECT name FROM eval_projects WHERE template_id=?", (template_id,)
+    )
+    dbm.execute("UPDATE eval_projects SET template_id=NULL WHERE template_id=?", (template_id,))
+    dbm.execute("UPDATE evaluations SET template_id=NULL WHERE template_id=?", (template_id,))
+    dbm.execute("DELETE FROM eval_criteria WHERE template_id=?", (template_id,))
+    dbm.execute("DELETE FROM eval_templates WHERE id=?", (template_id,))
+    log_activity(g.user["id"], f"deleted an evaluation scorecard ({template['name']})")
+    if affected_projects:
+        names = ", ".join(p["name"] for p in affected_projects)
+        flash(
+            f"Deleted “{template['name']}”. {len(affected_projects)} project(s) using it "
+            f"({names}) now show “No scorecard” -- pick a new one for them anytime.",
+            "success",
+        )
+    else:
+        flash(f"Deleted “{template['name']}”.", "success")
+    return redirect(url_for("buyer_evaluations"))
 
 
 @app.route("/app/buyer/evaluations/start-project", methods=("POST",))
