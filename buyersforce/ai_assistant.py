@@ -14,7 +14,9 @@ variable in production). If it's missing, get_client() returns None and
 run_chat_turn() degrades to a friendly "not configured yet" reply instead
 of raising -- so a misconfigured key never 500s the Discover page itself.
 """
+import json
 import os
+import re
 
 import anthropic
 
@@ -185,6 +187,125 @@ def _reply_text(content_blocks):
     return "".join(
         block.text for block in content_blocks if block.type == "text"
     ).strip()
+
+
+def _parse_json_object(text):
+    """Claude is told to reply with ONLY a JSON object, but models
+    occasionally wrap it in a markdown fence or add a stray word anyway --
+    so try a straight parse first, then fall back to pulling out the
+    first {...} span, rather than letting one extra character break the
+    whole lookup."""
+    text = (text or "").strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.lower().startswith("json"):
+            text = text[4:]
+        text = text.strip()
+    try:
+        return json.loads(text)
+    except (ValueError, TypeError):
+        pass
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except (ValueError, TypeError):
+            return None
+    return None
+
+
+def run_vendor_lookup(company_name, website_hint, known_segments, company_size_bands):
+    """One-shot web lookup for the "Suggest a vendor" form's autofill
+    button -- NOT the conversational Frankie loop above. A buyer has typed
+    a company name and wants the rest of the form (website, HQ, founded
+    year, size band, segments) filled in from whatever's public on the
+    web, before reviewing and editing it themselves; nothing here ever
+    submits anything, it only returns data for the form to prefill.
+
+    Unlike run_chat_turn, this needs no tool-use loop at all: web_search
+    is a server tool, so Anthropic resolves any searches it runs and
+    hands back the final answer within this one messages.create() call.
+
+    Returns a plain dict:
+        {"website", "hq_location", "founded_year", "company_size",
+         "segments", "web_sources"}
+    on a normal match, or {"not_found": True, "web_sources": [...]} if
+    Claude couldn't find the company at all, or {"error": "..."} if the
+    API call itself failed or the reply couldn't be parsed. Every
+    returned company_size/segments value is checked against the lists
+    this account actually has -- never trust the model's own wording
+    straight into a form that's about to feed BuyersForce's real
+    directory review queue.
+    """
+    client = get_client()
+    if client is None:
+        return {"error": "no_api_key"}
+
+    sizes_list = ", ".join(company_size_bands)
+    segments_list = ", ".join(known_segments)
+    hint = f' The buyer thinks its website may be "{website_hint}".' if website_hint else ""
+    system_prompt = (
+        "You help prefill BuyersForce's \"Suggest a vendor\" form by researching one "
+        "company on the open web. Use the web_search tool to find its OFFICIAL "
+        "website, headquarters (city, state/country), the year it was founded, and "
+        "roughly how many employees it has. "
+        f"For company_size, pick the single closest match from EXACTLY this list, "
+        f"verbatim: {sizes_list} -- or null if you genuinely can't tell. "
+        f"For segments, pick zero or more that genuinely fit from EXACTLY this list, "
+        f"verbatim (case-sensitive): {segments_list} -- an empty list if none clearly "
+        "fit; never invent a value that isn't on either list. "
+        "Respond with ONLY a single JSON object, no markdown fences, no words before "
+        "or after it, in exactly this shape: "
+        '{"website": "https://..." or null, "hq_location": "City, ST" or null, '
+        '"founded_year": 2018 or null, "company_size": "<one item from the size '
+        'list>" or null, "segments": ["<items from the segments list>"]}. '
+        'If you cannot find this company at all, respond with only {"not_found": true}.'
+    )
+
+    try:
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=700,
+            system=system_prompt,
+            tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}],
+            messages=[{"role": "user", "content": f"Company name: {company_name}.{hint}"}],
+        )
+    except anthropic.APIError as exc:
+        print(f"[ai_assistant] vendor lookup API error: {type(exc).__name__}: {exc}", flush=True)
+        return {"error": str(exc)}
+
+    web_sources = []
+    for block in response.content:
+        if block.type == "web_search_tool_result":
+            items = getattr(block, "content", None) or []
+            for item in items:
+                if getattr(item, "type", None) == "web_search_result":
+                    web_sources.append({"title": item.title, "url": item.url})
+
+    data = _parse_json_object(_reply_text(response.content))
+    if data is None:
+        return {"error": "unparseable"}
+    if data.get("not_found"):
+        return {"not_found": True, "web_sources": web_sources}
+
+    company_size = data.get("company_size")
+    if company_size not in company_size_bands:
+        company_size = None
+    segments = [s for s in (data.get("segments") or []) if s in known_segments]
+    founded_year = data.get("founded_year")
+    try:
+        founded_year = int(founded_year) if founded_year else None
+    except (TypeError, ValueError):
+        founded_year = None
+
+    return {
+        "website": (data.get("website") or None),
+        "hq_location": (data.get("hq_location") or None),
+        "founded_year": founded_year,
+        "company_size": company_size,
+        "segments": segments,
+        "web_sources": web_sources,
+    }
 
 
 def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):

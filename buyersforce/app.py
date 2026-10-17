@@ -3244,6 +3244,27 @@ def suggest_vendor():
     )
 
 
+@app.route("/app/buyer/vendors/suggest/lookup", methods=("POST",))
+@role_required("buyer")
+def suggest_vendor_lookup():
+    # The "Search the web to fill this in" button on suggest_vendor.html --
+    # a one-shot lookup, separate from Frankie's conversational loop, that
+    # just prefills the rest of the form from the open web so a buyer who
+    # only knows a company name doesn't have to go dig up its HQ, size, and
+    # founding year by hand. Never submits anything itself -- the buyer
+    # still reviews and edits before clicking "Submit for review", same as
+    # if they'd typed every field in by hand.
+    data = request.get_json(silent=True) or {}
+    company_name = (data.get("company_name") or "").strip()[:200]
+    website_hint = (data.get("website") or "").strip()[:300]
+    if not company_name:
+        return jsonify({"error": "empty_company_name"}), 400
+    result = ai_assistant.run_vendor_lookup(
+        company_name, website_hint, all_technology_segments(), COMPANY_SIZE_BANDS
+    )
+    return jsonify(result)
+
+
 # ---------------------------------------------------------------------------
 # AI Directory Assistant -- conversational vendor search embedded on the
 # Discover page (buyer/discover.html). See ai_assistant.py for the Claude

@@ -14,15 +14,21 @@
 <div class="card" style="max-width:640px;">
   <form method="post">
     <div class="form-row">
-      <div class="field"><label>Company name *</label><input type="text" name="company_name" required></div>
-      <div class="field"><label>Website *</label><input type="url" name="website" placeholder="https://" required></div>
+      <div class="field"><label>Company name *</label><input type="text" name="company_name" id="suggest-company-name" required></div>
+      <div class="field"><label>Website *</label><input type="url" name="website" id="suggest-website" placeholder="https://" required></div>
+    </div>
+
+    <div class="field" style="margin-top:-8px;">
+      <button type="button" id="suggest-lookup-btn" class="btn btn-ghost btn-sm">🔍 Search the web to fill this in</button>
+      <span class="hint" id="suggest-lookup-status" style="margin-left:10px;"></span>
+      <p class="hint" style="margin-top:6px;">Type the company name above, then let us search the web for the rest -- you can still review and edit anything below before submitting.</p>
     </div>
 
     <div class="field">
       <label>Sub-Categories / Segments (if you know them)</label>
       <div class="segment-grid" style="margin-top:6px;">
         {% for seg in all_segments %}
-        <label style="font-weight:400;"><input type="checkbox" name="segments" value="{{ seg }}"> {{ seg }}</label>
+        <label style="font-weight:400;"><input type="checkbox" name="segments" value="{{ seg }}" class="suggest-segment-cb"> {{ seg }}</label>
         {% endfor %}
       </div>
     </div>
@@ -30,15 +36,15 @@
     <div class="form-row">
       <div class="field">
         <label>Company size</label>
-        <select name="company_size">
+        <select name="company_size" id="suggest-company-size">
           <option value="">Not sure</option>
           {% for size in company_sizes %}
           <option value="{{ size }}">{{ size }} employees</option>
           {% endfor %}
         </select>
       </div>
-      <div class="field"><label>Founded year</label><input type="number" name="founded_year" min="1900" max="2100"></div>
-      <div class="field"><label>HQ location</label><input type="text" name="hq_location" placeholder="e.g. San Francisco, CA"></div>
+      <div class="field"><label>Founded year</label><input type="number" name="founded_year" id="suggest-founded-year" min="1900" max="2100"></div>
+      <div class="field"><label>HQ location</label><input type="text" name="hq_location" id="suggest-hq-location" placeholder="e.g. San Francisco, CA"></div>
     </div>
 
     <div class="form-row">
@@ -55,4 +61,65 @@
     <button class="btn btn-primary btn-block" type="submit">Submit for review</button>
   </form>
 </div>
+
+<script>
+(function () {
+  var nameInput = document.getElementById('suggest-company-name');
+  var websiteInput = document.getElementById('suggest-website');
+  var btn = document.getElementById('suggest-lookup-btn');
+  var status = document.getElementById('suggest-lookup-status');
+  var sizeSelect = document.getElementById('suggest-company-size');
+  var yearInput = document.getElementById('suggest-founded-year');
+  var hqInput = document.getElementById('suggest-hq-location');
+  if (!btn) { return; }
+
+  btn.addEventListener('click', function () {
+    var companyName = (nameInput.value || '').trim();
+    if (!companyName) {
+      status.textContent = 'Type a company name first.';
+      nameInput.focus();
+      return;
+    }
+    btn.disabled = true;
+    status.textContent = 'Searching the web...';
+
+    fetch('/app/buyer/vendors/suggest/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ company_name: companyName, website: websiteInput.value || '' }),
+    })
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) {
+        if (data.error === 'no_api_key') {
+          status.textContent = "Web lookup isn't set up yet -- go ahead and fill the form in by hand.";
+          return;
+        }
+        if (data.error) {
+          status.textContent = "Couldn't reach the web search just now -- fill the rest in by hand.";
+          return;
+        }
+        if (data.not_found) {
+          status.textContent = "Couldn't find that company on the web -- fill the rest in by hand.";
+          return;
+        }
+        if (data.website && !websiteInput.value.trim()) { websiteInput.value = data.website; }
+        if (data.hq_location) { hqInput.value = data.hq_location; }
+        if (data.founded_year) { yearInput.value = data.founded_year; }
+        if (data.company_size) { sizeSelect.value = data.company_size; }
+        if (data.segments && data.segments.length) {
+          document.querySelectorAll('.suggest-segment-cb').forEach(function (cb) {
+            if (data.segments.indexOf(cb.value) !== -1) { cb.checked = true; }
+          });
+        }
+        status.textContent = 'Filled in from the web -- double-check everything before submitting.';
+      })
+      .catch(function () {
+        status.textContent = "Couldn't reach the web search just now -- fill the rest in by hand.";
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
+  });
+})();
+</script>
 {% endblock %}
