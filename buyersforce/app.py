@@ -3908,7 +3908,8 @@ def buyer_evaluations():
     )
     # One project can (and often does) hold several vendors being scored
     # against the same template at once -- see eval_projects in schema.sql.
-    # "Active evaluations" below is one card per PROJECT, not per vendor.
+    # "Active evaluations" / "Archive" below is one card per PROJECT, not
+    # per vendor.
     projects = dbm.query(
         "SELECT p.*, t.name template_name FROM eval_projects p "
         "JOIN eval_templates t ON t.id = p.template_id "
@@ -3916,6 +3917,7 @@ def buyer_evaluations():
         (u["company"],),
     )
     active_data = []
+    archive_data = []
     for p in projects:
         criteria = dbm.query(
             "SELECT * FROM eval_criteria WHERE template_id=? ORDER BY position", (p["template_id"],)
@@ -3951,15 +3953,31 @@ def buyer_evaluations():
             # criterion has at least one score in.
             overall = round(weighted_sum / scored_weight, 1) if scored_weight else None
             vendor_summaries.append({
+                "vendor_id": ev["vendor_id"],
                 "company_name": ev["company_name"], "accent": ev["accent"], "initials": ev["initials"],
                 "logo_url": vendor_display_logo_url(ev), "overall": overall,
             })
-        active_data.append({
+        entry = {
             "id": p["id"],
             "name": project_display_name(p["name"], [v["company_name"] for v in vendor_summaries]),
             "template_name": p["template_name"], "vendors": vendor_summaries,
             "created_at": p["created_at"], "reviewers": len(reviewer_ids),
-        })
+        }
+        if p["status"] == "closed":
+            outcome = None
+            if p["selected_vendor_id"]:
+                outcome = next(
+                    (v for v in vendor_summaries if v["vendor_id"] == p["selected_vendor_id"]), None
+                )
+            entry["outcome_vendor"] = outcome
+            entry["no_award"] = outcome is None
+            entry["closed_at"] = p["closed_at"]
+            archive_data.append(entry)
+        else:
+            active_data.append(entry)
+    # Most recently closed first, so a project someone just wrapped up
+    # doesn't get buried under ones closed months ago.
+    archive_data.sort(key=lambda e: e["closed_at"] or "", reverse=True)
     # Vendors this buyer has shortlisted/is evaluating that don't have an
     # evaluations row yet -- the bridge from Compare's "Move to Evaluation"
     # (and from manually shortlisting a vendor) into actually starting a
@@ -3981,7 +3999,8 @@ def buyer_evaluations():
         for r in ready
     ]
     return render_template(
-        "buyer/evaluations.html", templates=templates_, active=active_data, ready_to_evaluate=ready_data,
+        "buyer/evaluations.html", templates=templates_, active=active_data, archive=archive_data,
+        ready_to_evaluate=ready_data, no_award_reason_labels=NO_AWARD_REASON_LABELS,
     )
 
 
@@ -3989,6 +4008,27 @@ def buyer_evaluations():
 # "+ Add criterion" past that -- this just keeps it from being truly
 # unbounded. Weight is a percent of the overall score (must sum to 100).
 MAX_EVAL_CRITERIA = 50
+
+# A template's scoring scale always starts at 1; this is how high the top
+# end can go. 5 and 10 cover the two scales buyers ask for most, but any
+# value in between is allowed too ("something else I have in mind").
+MIN_EVAL_SCALE = 2
+MAX_EVAL_SCALE = 10
+DEFAULT_EVAL_SCALE = 5
+
+# Controlled vocabulary for "closed, no vendor awarded" -- see
+# eval_project_no_award_reasons in schema.sql. Order here is the order
+# checkboxes appear in on the close-project form.
+NO_AWARD_REASONS = [
+    ("no_vendor_fit", "No vendor fit"),
+    ("selected_outside_matrix", "Selected another vendor outside of this evaluation"),
+    ("lost_budget", "Lost budget"),
+    ("poor_timing", "Poor timing"),
+    ("deprioritized", "Project deprioritized"),
+    ("on_hold", "Project on hold"),
+    ("other", "Other"),
+]
+NO_AWARD_REASON_LABELS = dict(NO_AWARD_REASONS)
 
 
 @app.route("/app/buyer/evaluations/new", methods=("GET", "POST"))
@@ -4000,6 +4040,12 @@ def buyer_evaluation_new():
         labels = request.form.getlist("criterion_label")
         weights = request.form.getlist("criterion_weight")
         filled = [(l.strip(), w) for l, w in zip(labels, weights) if l.strip()]
+
+        try:
+            scale_max = int(request.form.get("scale_max", DEFAULT_EVAL_SCALE))
+        except (TypeError, ValueError):
+            scale_max = DEFAULT_EVAL_SCALE
+        scale_max = max(MIN_EVAL_SCALE, min(MAX_EVAL_SCALE, scale_max))
 
         error = None
         parsed = []
@@ -4032,12 +4078,13 @@ def buyer_evaluation_new():
                 form_name=name, form_description=description,
                 form_rows=list(zip(labels, weights)) or [("", "")],
                 max_criteria=MAX_EVAL_CRITERIA,
+                scale_max=scale_max, min_scale=MIN_EVAL_SCALE, max_scale=MAX_EVAL_SCALE,
             )
 
         template_id = dbm.execute(
-            "INSERT INTO eval_templates (owner_user_id, company, name, description, is_shared) "
-            "VALUES (?, ?, ?, ?, 1)",
-            (g.user["id"], g.user["company"], name, description),
+            "INSERT INTO eval_templates (owner_user_id, company, name, description, is_shared, scale_max) "
+            "VALUES (?, ?, ?, ?, 1, ?)",
+            (g.user["id"], g.user["company"], name, description, scale_max),
         )
         for pos, (label, weight) in enumerate(parsed):
             dbm.execute(
@@ -4051,6 +4098,106 @@ def buyer_evaluation_new():
         "buyer/evaluation_new.html",
         form_name="", form_description="",
         form_rows=[("", 20)] * 5,
+        max_criteria=MAX_EVAL_CRITERIA,
+        scale_max=DEFAULT_EVAL_SCALE, min_scale=MIN_EVAL_SCALE, max_scale=MAX_EVAL_SCALE,
+    )
+
+
+@app.route("/app/buyer/evaluations/template/<int:template_id>/edit", methods=("GET", "POST"))
+@role_required("buyer")
+def buyer_evaluation_edit(template_id):
+    # Lets a buyer add new success criteria to a template that's already
+    # in use, or fix a label/weight on an existing one -- without ever
+    # deleting a criterion row, since eval_scores references criterion_id
+    # directly and any score already recorded against it would be orphaned
+    # (or the delete would just fail outright on the foreign key). Renaming
+    # or reweighting an existing row is safe either way: its id, and so
+    # every score tied to it, is untouched.
+    template = dbm.query("SELECT * FROM eval_templates WHERE id=?", (template_id,), one=True)
+    if not template or template["company"] != g.user["company"]:
+        flash("That template isn't available to your company.", "error")
+        return redirect(url_for("buyer_evaluations"))
+    existing = dbm.query(
+        "SELECT * FROM eval_criteria WHERE template_id=? ORDER BY position", (template_id,)
+    )
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        description = request.form.get("description", "").strip()
+        ids = request.form.getlist("criterion_id")
+        labels = request.form.getlist("criterion_label")
+        weights = request.form.getlist("criterion_weight")
+        rows = list(zip(ids, labels, weights))
+        # Rows with an id are existing criteria -- blanking the label just
+        # leaves that row as it was (see the docstring above for why
+        # removing one isn't offered). Rows with no id are new; blank ones
+        # are skipped, same as evaluation_new.html.
+        updates = [(cid, l.strip(), w) for cid, l, w in rows if cid and l.strip()]
+        new_rows = [(l.strip(), w) for cid, l, w in rows if not cid and l.strip()]
+
+        error = None
+        if not name:
+            error = "Give your template a name."
+        elif len(updates) + len(new_rows) == 0:
+            error = "A template needs at least one criterion."
+        elif len(updates) + len(new_rows) > MAX_EVAL_CRITERIA:
+            error = f"A template can have at most {MAX_EVAL_CRITERIA} criteria."
+        else:
+            total = 0
+            parsed_updates = []
+            for cid, label, w in updates:
+                try:
+                    weight = max(0, int(w))
+                except (TypeError, ValueError):
+                    weight = 0
+                parsed_updates.append((cid, label, weight))
+                total += weight
+            parsed_new = []
+            for label, w in new_rows:
+                try:
+                    weight = max(0, int(w))
+                except (TypeError, ValueError):
+                    weight = 0
+                parsed_new.append((label, weight))
+                total += weight
+            if total != 100:
+                error = f"Criteria weights must add up to 100% -- they currently add up to {total}%."
+
+        if error:
+            flash(error, "error")
+            return render_template(
+                "buyer/evaluation_edit.html",
+                template=template,
+                form_name=name, form_description=description,
+                existing_rows=list(zip(ids, labels, weights)),
+                new_rows=[("", "")],
+                max_criteria=MAX_EVAL_CRITERIA,
+            )
+
+        dbm.execute(
+            "UPDATE eval_templates SET name=?, description=? WHERE id=?",
+            (name, description, template_id),
+        )
+        for cid, label, weight in parsed_updates:
+            dbm.execute(
+                "UPDATE eval_criteria SET label=?, weight=? WHERE id=? AND template_id=?",
+                (label, weight, cid, template_id),
+            )
+        next_position = (max((c["position"] for c in existing), default=-1)) + 1
+        for i, (label, weight) in enumerate(parsed_new):
+            dbm.execute(
+                "INSERT INTO eval_criteria (template_id, label, weight, position) VALUES (?, ?, ?, ?)",
+                (template_id, label, weight, next_position + i),
+            )
+        flash("Template updated.", "success")
+        return redirect(url_for("buyer_evaluations"))
+
+    return render_template(
+        "buyer/evaluation_edit.html",
+        template=template,
+        form_name=template["name"], form_description=template["description"],
+        existing_rows=[(c["id"], c["label"], c["weight"]) for c in existing],
+        new_rows=[("", "")],
         max_criteria=MAX_EVAL_CRITERIA,
     )
 
@@ -4158,8 +4305,15 @@ def buyer_project_detail(project_id):
     )
     if not evals:
         abort(404)
+    is_closed = project["status"] == "closed"
 
     if request.method == "POST":
+        # A closed project is read-only until it's reopened -- otherwise a
+        # stray resubmit of this same form (or someone editing in another
+        # tab) could quietly change scores behind a recorded outcome.
+        if is_closed:
+            flash("This evaluation is closed. Reopen it to make changes.", "error")
+            return redirect(url_for("buyer_project_detail", project_id=project_id))
         # Every criterion x vendor cell in the grid is its own score/comment
         # field, keyed by that vendor's evaluation id so scoring one
         # vendor's "Ease of integration" never collides with another's --
@@ -4169,11 +4323,19 @@ def buyer_project_detail(project_id):
                 score = request.form.get(f"score_{ev['id']}_{c['id']}")
                 comment = request.form.get(f"comment_{ev['id']}_{c['id']}", "").strip()
                 if score:
+                    try:
+                        score_val = int(score)
+                    except (TypeError, ValueError):
+                        continue
+                    # Belt-and-suspenders: the radio buttons already stop
+                    # at this template's scale_max, but clamp here too in
+                    # case of a hand-crafted request.
+                    score_val = max(1, min(template["scale_max"], score_val))
                     dbm.execute(
                         "INSERT INTO eval_scores (evaluation_id, criterion_id, user_id, score, comment) "
                         "VALUES (?, ?, ?, ?, ?) ON CONFLICT(evaluation_id, criterion_id, user_id) "
                         "DO UPDATE SET score=excluded.score, comment=excluded.comment",
-                        (ev["id"], c["id"], g.user["id"], int(score), comment),
+                        (ev["id"], c["id"], g.user["id"], score_val, comment),
                     )
             # Free-text space for whatever the team found on Gartner Peer
             # Insights, per vendor -- BF doesn't pull real review data from
@@ -4234,11 +4396,172 @@ def buyer_project_detail(project_id):
         })
 
     project_name = project_display_name(project["name"], [v["company_name"] for v in vendor_columns])
+
+    # "+ Add another vendor": any active vendor not already part of this
+    # project -- a late entry the team wants pulled into the same
+    # scorecard instead of starting a separate one.
+    in_project_ids = [ev["vendor_id"] for ev in evals]
+    placeholders = ",".join(["?"] * len(in_project_ids))
+    other_vendors = dbm.query(
+        f"SELECT id, company_name FROM vendors WHERE status='active' AND id NOT IN ({placeholders}) "
+        "ORDER BY company_name",
+        tuple(in_project_ids),
+    )
+
+    outcome_vendor = None
+    no_award_reasons = []
+    closed_by_name = None
+    if is_closed:
+        if project["selected_vendor_id"]:
+            outcome_vendor = next(
+                (v for v in vendor_columns if v["vendor_id"] == project["selected_vendor_id"]), None
+            )
+        else:
+            reason_rows = dbm.query(
+                "SELECT reason FROM eval_project_no_award_reasons WHERE project_id=?", (project_id,)
+            )
+            no_award_reasons = [NO_AWARD_REASON_LABELS.get(r["reason"], r["reason"]) for r in reason_rows]
+        if project["closed_by"]:
+            closer = dbm.query("SELECT name FROM users WHERE id=?", (project["closed_by"],), one=True)
+            closed_by_name = closer["name"] if closer else None
+
     return render_template(
         "buyer/project_detail.html",
         project=project, project_name=project_name, template=template,
-        criteria=criteria, vendors=vendor_columns,
+        criteria=criteria, vendors=vendor_columns, other_vendors=other_vendors,
+        is_closed=is_closed, outcome_vendor=outcome_vendor, no_award_reasons=no_award_reasons,
+        no_award_other_text=project["no_award_other_text"], no_award_reason_options=NO_AWARD_REASONS,
+        closed_by_name=closed_by_name,
     )
+
+
+@app.route("/app/buyer/evaluations/project/<int:project_id>/add-vendor", methods=("POST",))
+@role_required("buyer")
+def buyer_project_add_vendor(project_id):
+    project = dbm.query("SELECT * FROM eval_projects WHERE id=?", (project_id,), one=True)
+    if not project or project["company"] != g.user["company"]:
+        abort(404)
+    if project["status"] == "closed":
+        flash("This evaluation is closed. Reopen it to add a vendor.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    try:
+        vendor_id = int(request.form.get("vendor_id", ""))
+    except (TypeError, ValueError):
+        flash("Choose a vendor to add.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    existing = dbm.query(
+        "SELECT 1 FROM evaluations WHERE project_id=? AND vendor_id=?", (project_id, vendor_id), one=True
+    )
+    if existing:
+        flash("That vendor is already part of this evaluation.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    vendor = dbm.query("SELECT * FROM vendors WHERE id=? AND status='active'", (vendor_id,), one=True)
+    if not vendor:
+        flash("That vendor isn't available.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    dbm.execute(
+        "INSERT INTO evaluations (template_id, vendor_id, company, created_by, project_id) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (project["template_id"], vendor_id, g.user["company"], g.user["id"], project_id),
+    )
+    existing_sl = dbm.query(
+        "SELECT * FROM shortlist WHERE buyer_user_id=? AND vendor_id=?", (g.user["id"], vendor_id), one=True
+    )
+    if existing_sl:
+        dbm.execute("UPDATE shortlist SET status='evaluating' WHERE id=?", (existing_sl["id"],))
+    else:
+        dbm.execute(
+            "INSERT INTO shortlist (buyer_user_id, vendor_id, status) VALUES (?, ?, 'evaluating')",
+            (g.user["id"], vendor_id),
+        )
+    log_activity(g.user["id"], f"added {vendor['company_name']} to an evaluation project")
+    flash(f"{vendor['company_name']} added to this evaluation.", "success")
+    return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+
+@app.route("/app/buyer/evaluations/project/<int:project_id>/close", methods=("POST",))
+@role_required("buyer")
+def buyer_project_close(project_id):
+    # Closing never deletes the scorecard, a score, or a comment -- it
+    # only records the outcome and files the project from "Active
+    # evaluations" into "Archive" (see buyer_evaluations). A mistaken
+    # close is recoverable any time via buyer_project_reopen.
+    project = dbm.query("SELECT * FROM eval_projects WHERE id=?", (project_id,), one=True)
+    if not project or project["company"] != g.user["company"]:
+        abort(404)
+    if project["status"] == "closed":
+        flash("This evaluation is already closed.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    outcome = request.form.get("outcome")  # 'selected_vendor' or 'no_award'
+    closed_date = request.form.get("closed_date", "").strip()
+    if closed_date:
+        try:
+            datetime.strptime(closed_date, "%Y-%m-%d")
+            closed_at = f"{closed_date} 00:00:00"
+        except ValueError:
+            closed_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        closed_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    selected_vendor_id = None
+    reasons = []
+    other_text = ""
+    if outcome == "selected_vendor":
+        try:
+            selected_vendor_id = int(request.form.get("selected_vendor_id", ""))
+        except (TypeError, ValueError):
+            flash("Choose which vendor was selected.", "error")
+            return redirect(url_for("buyer_project_detail", project_id=project_id))
+        in_project = dbm.query(
+            "SELECT 1 FROM evaluations WHERE project_id=? AND vendor_id=?",
+            (project_id, selected_vendor_id), one=True,
+        )
+        if not in_project:
+            flash("Pick a vendor that's actually part of this evaluation.", "error")
+            return redirect(url_for("buyer_project_detail", project_id=project_id))
+    else:
+        reasons = [r for r in request.form.getlist("no_award_reason") if r in NO_AWARD_REASON_LABELS]
+        other_text = request.form.get("no_award_other_text", "").strip()[:500]
+        if not reasons and not other_text:
+            flash("Pick at least one reason, or add a note, for why no vendor was selected.", "error")
+            return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    dbm.execute(
+        "UPDATE eval_projects SET status='closed', closed_at=?, closed_by=?, "
+        "selected_vendor_id=?, no_award_other_text=? WHERE id=?",
+        (closed_at, g.user["id"], selected_vendor_id, other_text, project_id),
+    )
+    dbm.execute("DELETE FROM eval_project_no_award_reasons WHERE project_id=?", (project_id,))
+    for reason in reasons:
+        dbm.execute(
+            "INSERT INTO eval_project_no_award_reasons (project_id, reason) VALUES (?, ?)",
+            (project_id, reason),
+        )
+    vendor_names = [r["company_name"] for r in dbm.query(
+        "SELECT v.company_name FROM evaluations e JOIN vendors v ON v.id=e.vendor_id WHERE e.project_id=?",
+        (project_id,),
+    )]
+    log_activity(g.user["id"], f"closed the evaluation for {', '.join(vendor_names) or 'a project'}")
+    flash("Evaluation closed.", "success")
+    return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+
+@app.route("/app/buyer/evaluations/project/<int:project_id>/reopen", methods=("POST",))
+@role_required("buyer")
+def buyer_project_reopen(project_id):
+    project = dbm.query("SELECT * FROM eval_projects WHERE id=?", (project_id,), one=True)
+    if not project or project["company"] != g.user["company"]:
+        abort(404)
+    dbm.execute(
+        "UPDATE eval_projects SET status='active', closed_at=NULL, closed_by=NULL, "
+        "selected_vendor_id=NULL, no_award_other_text='' WHERE id=?",
+        (project_id,),
+    )
+    dbm.execute("DELETE FROM eval_project_no_award_reasons WHERE project_id=?", (project_id,))
+    log_activity(g.user["id"], "reopened an evaluation project")
+    flash("Evaluation reopened -- you can make changes again.", "success")
+    return redirect(url_for("buyer_project_detail", project_id=project_id))
 
 
 @app.route("/app/buyer/schedule")

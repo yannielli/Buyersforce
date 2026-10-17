@@ -101,6 +101,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const newRow = rows[0].cloneNode(true);
         const label = newRow.querySelector('input[name="criterion_label"]');
         const weight = newRow.querySelector('input[name="criterion_weight"]');
+        // On the "edit template" page, rows[0] may be an existing
+        // criterion carrying a hidden criterion_id -- a cloned row is
+        // always a brand-new criterion, never a copy of that one, so
+        // this must come back empty (evaluation_new.html has no such
+        // field at all, so this is always a no-op there).
+        const criterionId = newRow.querySelector('input[name="criterion_id"]');
+        if (criterionId) criterionId.value = "";
         if (label) {
           label.value = "";
           label.placeholder = `Criterion ${rows.length + 1} (e.g. Ease of integration)`;
@@ -139,6 +146,25 @@ document.addEventListener("DOMContentLoaded", () => {
       box.addEventListener("change", suggestProjectName);
     });
     suggestProjectName();
+  }
+
+  // "Close this evaluation" form on project_detail.html: show either the
+  // winning-vendor radio list or the no-award reasons, never both, based
+  // on which outcome radio is picked. Defaults to the "selected vendor"
+  // fields showing (that radio starts checked), so this just handles
+  // switching to "no vendor" and back.
+  const outcomeSelected = document.getElementById("outcome-selected");
+  const outcomeNoAward = document.getElementById("outcome-no-award");
+  const outcomeSelectedFields = document.getElementById("outcome-selected-fields");
+  const outcomeNoAwardFields = document.getElementById("outcome-no-award-fields");
+  if (outcomeSelected && outcomeNoAward && outcomeSelectedFields && outcomeNoAwardFields) {
+    const syncOutcomeFields = () => {
+      outcomeSelectedFields.style.display = outcomeSelected.checked ? "block" : "none";
+      outcomeNoAwardFields.style.display = outcomeNoAward.checked ? "block" : "none";
+    };
+    outcomeSelected.addEventListener("change", syncOutcomeFields);
+    outcomeNoAward.addEventListener("change", syncOutcomeFields);
+    syncOutcomeFields();
   }
 
   // Auto-scroll message threads to latest

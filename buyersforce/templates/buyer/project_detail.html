@@ -7,7 +7,32 @@
     <h1>{{ project_name }}</h1>
     <p class="lede">Collaborative scorecard — every reviewer on {{ project.company }} scores all {{ vendors|length }} vendor{{ 's' if vendors|length != 1 }} independently.</p>
   </div>
+  <a href="{{ url_for('buyer_evaluation_edit', template_id=template.id) }}" class="btn btn-secondary">Manage criteria</a>
 </div>
+
+{% if is_closed %}
+<div class="card" style="margin-bottom:24px;">
+  <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+    <div>
+      <span class="badge badge-neutral">Closed {{ project.closed_at|fmt_time }}{% if closed_by_name %} by {{ closed_by_name }}{% endif %}</span>
+      {% if outcome_vendor %}
+      <p style="margin-top:10px;">Selected vendor: <strong>{{ outcome_vendor.company_name }}</strong></p>
+      {% else %}
+      <p style="margin-top:10px;">No vendor selected.</p>
+      {% if no_award_reasons %}
+      <p class="hint" style="margin-top:4px;">{{ no_award_reasons|join(', ') }}</p>
+      {% endif %}
+      {% if no_award_other_text %}
+      <p class="hint" style="margin-top:4px;">"{{ no_award_other_text }}"</p>
+      {% endif %}
+      {% endif %}
+    </div>
+    <form method="post" action="{{ url_for('buyer_project_reopen', project_id=project.id) }}">
+      <button class="btn btn-secondary" type="submit">Reopen evaluation</button>
+    </form>
+  </div>
+</div>
+{% endif %}
 
 <form method="post">
   <div class="card" style="margin-bottom:24px;">
@@ -41,9 +66,9 @@
             {% set cell = v.cells[c.id] %}
             <td class="scorecard-score-cell">
               <div class="score-pill-group">
-                {% for n in range(1, 6) %}
+                {% for n in range(1, template.scale_max + 1) %}
                 <label class="score-dot {{ 'selected' if cell.my_score and cell.my_score.score == n }}">
-                  <input type="radio" name="score_{{ v.evaluation_id }}_{{ c.id }}" value="{{ n }}" {{ 'checked' if cell.my_score and cell.my_score.score == n }}>
+                  <input type="radio" name="score_{{ v.evaluation_id }}_{{ c.id }}" value="{{ n }}" {{ 'checked' if cell.my_score and cell.my_score.score == n }} {{ 'disabled' if is_closed }}>
                   {{ n }}
                 </label>
                 {% endfor %}
@@ -51,7 +76,7 @@
               {% if cell.avg %}<div class="hint" style="margin-top:4px;">team avg {{ cell.avg }}</div>{% endif %}
               <input type="text" name="comment_{{ v.evaluation_id }}_{{ c.id }}" placeholder="Note on {{ c.label|lower }}…"
                      value="{{ cell.my_score.comment if cell.my_score else '' }}"
-                     class="scorecard-comment-input">
+                     class="scorecard-comment-input" {{ 'disabled' if is_closed }}>
             </td>
             {% endfor %}
           </tr>
@@ -59,7 +84,11 @@
         </tbody>
       </table>
     </div>
+    {% if is_closed %}
+    <p class="hint" style="margin-top:14px;">This evaluation is closed, so scores are read-only. Reopen it above to make changes.</p>
+    {% else %}
     <button class="btn btn-primary" type="submit" style="margin-top:14px;">Save my scores</button>
+    {% endif %}
   </div>
 
   <div class="section-title"><h2>Vendor comparison</h2></div>
@@ -75,7 +104,7 @@
         </p>
         {% endif %}
         {% if v.overall %}
-        <div class="big-number">{{ v.overall }}<span class="of5"> / 5</span></div>
+        <div class="big-number">{{ v.overall }}<span class="of5"> / {{ template.scale_max }}</span></div>
         {% else %}
         <div class="hint">No scores submitted yet</div>
         {% endif %}
@@ -88,7 +117,7 @@
         {% else %}
         <p class="hint" style="margin:0;">No Gartner Peer Insights notes yet — add one below.</p>
         {% endif %}
-        <input type="text" name="gartner_peer_note_{{ v.evaluation_id }}" placeholder="e.g. 4.5/5 stars, 120 reviews — strong marks on support" value="{{ v.gartner_peer_note }}" style="margin-top:10px;">
+        <input type="text" name="gartner_peer_note_{{ v.evaluation_id }}" placeholder="e.g. 4.5/5 stars, 120 reviews — strong marks on support" value="{{ v.gartner_peer_note }}" style="margin-top:10px;" {{ 'disabled' if is_closed }}>
         <div class="hint" style="margin-top:4px;">BuyersForce doesn't pull live review data — jot down what your team found so it's visible on Compare too.</div>
         <a href="{{ v.gartner_url }}" target="_blank" rel="noopener" class="hint" style="display:inline-block; margin-top:8px;">Search reviews ↗</a>
       </div>
@@ -101,7 +130,7 @@
           {% for r in v.reviewer_rows %}
           <div class="bar-row">
             <span class="bar-label">{{ r.name }}</span>
-            <div class="bar-track"><div class="bar-fill" style="width:{{ (r.avg / 5 * 100)|round(1) }}%; background:{{ colors[loop.index0 % 5] }};"></div></div>
+            <div class="bar-track"><div class="bar-fill" style="width:{{ (r.avg / template.scale_max * 100)|round(1) }}%; background:{{ colors[loop.index0 % 5] }};"></div></div>
             <span class="bar-value">{{ r.avg }}</span>
           </div>
           {% endfor %}
@@ -112,4 +141,58 @@
     {% endfor %}
   </div>
 </form>
+
+{% if not is_closed %}
+<div class="grid grid-2" style="margin-top:24px;">
+  {% if other_vendors %}
+  <div class="card">
+    <h3 style="font-size:15px;">Add another vendor</h3>
+    <p class="hint">A late entry the team wants scored alongside these {{ vendors|length }} on this same scorecard.</p>
+    <form method="post" action="{{ url_for('buyer_project_add_vendor', project_id=project.id) }}" style="display:flex; gap:8px; margin-top:10px;">
+      <select name="vendor_id" style="flex:1;">
+        {% for ov in other_vendors %}<option value="{{ ov.id }}">{{ ov.company_name }}</option>{% endfor %}
+      </select>
+      <button class="btn btn-secondary" type="submit">Add</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h3 style="font-size:15px;">Close this evaluation</h3>
+    <p class="hint">Records the outcome and moves this project to Archive. The scorecard and every score stay exactly as they are and can still be viewed any time — closing is reversible.</p>
+    <details id="close-project-details" style="margin-top:10px;">
+      <summary class="btn btn-secondary btn-sm" style="display:inline-block; cursor:pointer;">Close evaluation…</summary>
+      <form method="post" action="{{ url_for('buyer_project_close', project_id=project.id) }}" style="margin-top:14px;">
+        <div class="field">
+          <label>Date closed</label>
+          <input type="date" name="closed_date">
+          <p class="hint" style="margin:4px 0 0;">Leave blank to use today.</p>
+        </div>
+        <div class="field">
+          <label><input type="radio" name="outcome" value="selected_vendor" id="outcome-selected" checked style="width:auto; margin-right:6px;">A vendor was selected</label>
+        </div>
+        <div id="outcome-selected-fields" style="margin:0 0 16px 22px;">
+          {% for v in vendors %}
+          <label style="display:block; margin-bottom:6px;">
+            <input type="radio" name="selected_vendor_id" value="{{ v.vendor_id }}" style="width:auto; margin-right:6px;">{{ v.company_name }}
+          </label>
+          {% endfor %}
+        </div>
+        <div class="field">
+          <label><input type="radio" name="outcome" value="no_award" id="outcome-no-award" style="width:auto; margin-right:6px;">No vendor was selected</label>
+        </div>
+        <div id="outcome-no-award-fields" style="margin:0 0 16px 22px; display:none;">
+          {% for key, label in no_award_reason_options %}
+          <label style="display:block; margin-bottom:6px;">
+            <input type="checkbox" name="no_award_reason" value="{{ key }}" style="width:auto; margin-right:6px;">{{ label }}
+          </label>
+          {% endfor %}
+          <textarea name="no_award_other_text" placeholder="Anything else worth noting (optional)" maxlength="500" style="margin-top:6px;"></textarea>
+        </div>
+        <button class="btn btn-primary" type="submit">Close evaluation</button>
+      </form>
+    </details>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

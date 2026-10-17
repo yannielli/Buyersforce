@@ -18,6 +18,15 @@
     <label>Description</label>
     <textarea name="description" placeholder="What is this scorecard for?">{{ form_description or '' }}</textarea>
   </div>
+  <div class="field">
+    <label for="scale_max">Rating scale</label>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span class="hint" style="margin:0;">Rate vendors on a scale of 1 to</span>
+      <input type="number" name="scale_max" id="scale_max" min="{{ min_scale }}" max="{{ max_scale }}" step="1"
+             value="{{ scale_max }}" style="width:70px;">
+    </div>
+    <p class="hint">Most teams use 1-5 or 1-10 -- pick any top number from {{ min_scale }} to {{ max_scale }}. This is set once and can't be changed later, so scores already recorded always mean what they said.</p>
+  </div>
 
   <label>Success criteria</label>
   <div class="form-row criteria-col-headers" style="margin-bottom:6px;">

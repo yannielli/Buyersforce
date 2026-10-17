@@ -75,6 +75,10 @@ def run_migrations():
             _split_siem_soar_and_rename_fraud_segments_2026_09_27(cur)
             _unclaim_vendor_listings_2026_09_28(cur)
             _add_vendor_intezer_2026_10_15(cur)
+            _add_eval_template_scale_column(cur)
+            _widen_eval_scores_score_check(cur)
+            _add_eval_project_closing_columns(cur)
+            _add_eval_project_no_award_reasons_table(cur)
     finally:
         con.close()
 
@@ -588,6 +592,86 @@ def _add_evaluations_gartner_note_column(cur):
     # Free-text space for whatever the team found on Gartner Peer Insights --
     # see schema.sql's comment on this column for the full rationale.
     cur.execute("ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS gartner_peer_note TEXT NOT NULL DEFAULT ''")
+
+
+def _add_eval_template_scale_column(cur):
+    # The top of a template's scoring scale (bottom is always 1) -- see
+    # schema.sql's comment on eval_templates.scale_max. Every template that
+    # already existed was built assuming 1-5, so the DEFAULT 5 here is also
+    # the correct backfill for every existing row -- no separate UPDATE
+    # needed.
+    cur.execute("ALTER TABLE eval_templates ADD COLUMN IF NOT EXISTS scale_max INTEGER NOT NULL DEFAULT 5")
+
+
+def _widen_eval_scores_score_check(cur):
+    # The original CHECK only allowed 1-5; templates can now pick a scale
+    # up to 1-10 (see _add_eval_template_scale_column), so eval_scores'
+    # own CHECK has to allow the broadest scale any template might pick --
+    # the per-template ceiling is enforced in app.py's buyer_project_detail.
+    # Postgres names an inline column CHECK '<table>_<column>_check' unless
+    # told otherwise, so that's the name dropped and recreated here (same
+    # technique as _add_revoked_account_status_2026_09_28).
+    cur.execute(
+        "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+        "WHERE conname = 'eval_scores_score_check'"
+    )
+    row = cur.fetchone()
+    if row and "10" in row[0]:
+        return  # already migrated
+    cur.execute("ALTER TABLE eval_scores DROP CONSTRAINT IF EXISTS eval_scores_score_check")
+    cur.execute("ALTER TABLE eval_scores ADD CONSTRAINT eval_scores_score_check CHECK (score BETWEEN 1 AND 10)")
+
+
+def _add_eval_project_closing_columns(cur):
+    # Lets a buyer "close" an evaluation project -- see schema.sql's
+    # comment on these columns. Closing never deletes the scorecard, any
+    # score, or any comment; it only records the outcome and files the
+    # project out of "Active evaluations" into "Archive" (see
+    # buyer_evaluations/buyer_project_close/buyer_project_reopen in app.py).
+    for ddl in (
+        "ALTER TABLE eval_projects ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'",
+        "ALTER TABLE eval_projects ADD COLUMN IF NOT EXISTS closed_at TEXT",
+        "ALTER TABLE eval_projects ADD COLUMN IF NOT EXISTS closed_by INTEGER REFERENCES users(id)",
+        "ALTER TABLE eval_projects ADD COLUMN IF NOT EXISTS selected_vendor_id INTEGER REFERENCES vendors(id)",
+        "ALTER TABLE eval_projects ADD COLUMN IF NOT EXISTS no_award_other_text TEXT NOT NULL DEFAULT ''",
+    ):
+        cur.execute(ddl)
+    cur.execute(
+        """
+        DO $$ BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'eval_projects_status_check'
+            ) THEN
+                ALTER TABLE eval_projects ADD CONSTRAINT eval_projects_status_check
+                CHECK (status IN ('active', 'closed'));
+            END IF;
+        END $$;
+        """
+    )
+
+
+def _add_eval_project_no_award_reasons_table(cur):
+    # One row per reason checked when a project closes with no vendor
+    # awarded -- see schema.sql's comment on this table for why it's a
+    # child table rather than a packed CSV column.
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS eval_project_no_award_reasons (
+            id SERIAL PRIMARY KEY,
+            project_id INTEGER NOT NULL REFERENCES eval_projects(id),
+            reason TEXT NOT NULL CHECK (reason IN (
+                'no_vendor_fit', 'selected_outside_matrix', 'lost_budget',
+                'poor_timing', 'deprioritized', 'on_hold', 'other'
+            ))
+        )
+        """
+    )
+    cur.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS eval_project_no_award_reasons_uniq
+        ON eval_project_no_award_reasons (project_id, reason)
+        """
+    )
 
 
 def _add_technology_category_column(cur):

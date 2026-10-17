@@ -32,6 +32,7 @@ DROP TABLE IF EXISTS vendor_announcements CASCADE;
 DROP TABLE IF EXISTS vendor_awards CASCADE;
 DROP TABLE IF EXISTS vendor_claim_requests CASCADE;
 DROP TABLE IF EXISTS vendor_listing_reports CASCADE;
+DROP TABLE IF EXISTS eval_project_no_award_reasons CASCADE;
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -472,6 +473,15 @@ CREATE TABLE eval_templates (
     name TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     is_shared INTEGER NOT NULL DEFAULT 1,
+    -- The top of the scoring scale shown on this template's scorecards
+    -- (bottom is always 1) -- e.g. 5 for a 1-5 scale, 10 for 1-10. Set once
+    -- at creation (see buyer_evaluation_new in app.py) and left fixed after
+    -- that, since changing it once scores exist would make old and new
+    -- scores mean different things. eval_scores.score's own CHECK is
+    -- widened to the broadest scale any template can pick (1-10) -- the
+    -- per-template ceiling below is enforced in app.py, not by Postgres,
+    -- since a CHECK can't reference another table.
+    scale_max INTEGER NOT NULL DEFAULT 5,
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
 );
 
@@ -495,8 +505,42 @@ CREATE TABLE eval_projects (
     company TEXT NOT NULL,
     name TEXT NOT NULL DEFAULT '',
     created_by INTEGER NOT NULL REFERENCES users(id),
+    -- 'active' projects show under "Active evaluations"; 'closed' ones move
+    -- to "Archive" (see buyer_evaluations in app.py). Closing never deletes
+    -- anything -- the scorecard, every score, and every comment stay right
+    -- where they are and stay viewable/exportable, this just records the
+    -- outcome and files the project out of the active list. Reopening (see
+    -- buyer_project_reopen) clears the outcome fields below and puts it
+    -- back to 'active'.
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'closed')),
+    closed_at TEXT,
+    closed_by INTEGER REFERENCES users(id),
+    -- The winning vendor, if any -- must be one of the vendors actually in
+    -- this project (enforced in buyer_project_close). NULL covers both "not
+    -- closed yet" and "closed with no vendor awarded" -- the latter is
+    -- distinguished by status='closed' plus no_award_other_text/the rows in
+    -- eval_project_no_award_reasons below.
+    selected_vendor_id INTEGER REFERENCES vendors(id),
+    -- The free-text half of "no vendor awarded, here's why" (checkbox
+    -- reasons live in eval_project_no_award_reasons) -- capped at 500
+    -- characters in buyer_project_close.
+    no_award_other_text TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
 );
+
+-- Multi-select reasons for closing a project with no vendor awarded --
+-- one row per reason checked, mirroring the vendor_segments/vendor_tags
+-- one-row-per-tag shape rather than packing a CSV into a single column.
+CREATE TABLE eval_project_no_award_reasons (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES eval_projects(id),
+    reason TEXT NOT NULL CHECK (reason IN (
+        'no_vendor_fit', 'selected_outside_matrix', 'lost_budget',
+        'poor_timing', 'deprioritized', 'on_hold', 'other'
+    ))
+);
+CREATE UNIQUE INDEX eval_project_no_award_reasons_uniq
+ON eval_project_no_award_reasons (project_id, reason);
 
 CREATE TABLE evaluations (
     id SERIAL PRIMARY KEY,
@@ -523,7 +567,10 @@ CREATE TABLE eval_scores (
     evaluation_id INTEGER NOT NULL REFERENCES evaluations(id),
     criterion_id INTEGER NOT NULL REFERENCES eval_criteria(id),
     user_id INTEGER NOT NULL REFERENCES users(id),
-    score INTEGER NOT NULL CHECK (score BETWEEN 1 AND 5),
+    -- Widened from the original 1-5 to the broadest scale any template can
+    -- pick (see eval_templates.scale_max) -- the actual per-template
+    -- ceiling is enforced in app.py's buyer_project_detail, not here.
+    score INTEGER NOT NULL CHECK (score BETWEEN 1 AND 10),
     comment TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
     UNIQUE(evaluation_id, criterion_id, user_id)

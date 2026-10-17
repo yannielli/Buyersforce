@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ template.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Template library</span>
+    <h1>Edit {{ template.name }}</h1>
+    <p class="lede">Add new success criteria, or fix a label/weight -- existing criteria can't be removed once a template is in use, so scores already recorded always point at something real.</p>
+  </div>
+  <a href="{{ url_for('buyer_evaluations') }}" class="btn btn-secondary">Back to Evaluate</a>
+</div>
+
+<form method="post" class="card" style="max-width:640px;">
+  <div class="field">
+    <label>Template name</label>
+    <input type="text" name="name" required value="{{ form_name or '' }}">
+  </div>
+  <div class="field">
+    <label>Description</label>
+    <textarea name="description" placeholder="What is this scorecard for?">{{ form_description or '' }}</textarea>
+  </div>
+  <p class="hint">Rating scale: 1-{{ template.scale_max }} (set when this template was created and can't be changed here).</p>
+
+  <label>Success criteria</label>
+  <div class="form-row criteria-col-headers" style="margin-bottom:6px;">
+    <span class="hint" style="margin:0;">Criterion</span>
+    <span class="hint criteria-weight-header" style="margin:0;">Weight</span>
+  </div>
+  <div id="criteria-rows" data-max="{{ max_criteria }}">
+    {% for cid, label, weight in existing_rows %}
+    <div class="form-row criterion-input-row" style="margin-bottom:8px;">
+      <input type="hidden" name="criterion_id" value="{{ cid }}">
+      <input type="text" name="criterion_label" value="{{ label }}">
+      <div class="weight-input-wrap">
+        <input type="number" name="criterion_weight" min="0" max="100" step="1" value="{{ weight }}" class="criterion-weight-input" title="Weight (%)">
+        <span class="weight-suffix">%</span>
+      </div>
+    </div>
+    {% endfor %}
+    {% for label, weight in new_rows %}
+    <div class="form-row criterion-input-row" style="margin-bottom:8px;">
+      <input type="hidden" name="criterion_id" value="">
+      <input type="text" name="criterion_label" placeholder="New criterion (e.g. Ease of integration)" value="{{ label }}">
+      <div class="weight-input-wrap">
+        <input type="number" name="criterion_weight" min="0" max="100" step="1" value="{{ weight or 0 }}" class="criterion-weight-input" title="Weight (%)">
+        <span class="weight-suffix">%</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="criteria-controls">
+    <button type="button" id="add-criterion-btn" class="btn btn-ghost btn-sm">+ Add criterion</button>
+    <span class="hint" id="criteria-total-hint" style="margin:0;">Total weight: <strong id="criteria-total-value">0</strong>%</span>
+  </div>
+  <p class="hint">Leave a new row blank to skip it. Weight is the percent of the overall score each success criterion carries -- <strong>all weights must add up to 100%.</strong></p>
+  <button class="btn btn-primary" type="submit" style="margin-top:12px;">Save changes</button>
+</form>
+{% endblock %}

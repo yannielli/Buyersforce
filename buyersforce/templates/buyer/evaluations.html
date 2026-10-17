@@ -75,12 +75,53 @@
 <div class="card empty-state"><div class="icon">🧮</div>No evaluations started — start one from a vendor's profile.</div>
 {% endif %}
 
+<div class="section-title" style="margin-top:30px;"><h2>Archive</h2></div>
+{% if archive %}
+<p class="hint" style="margin-top:-6px; margin-bottom:14px;">Closed evaluations, most recent first — the full scorecard is always still here to view.</p>
+<div class="grid grid-2">
+  {% for p in archive %}
+  <a class="card" href="{{ url_for('buyer_project_detail', project_id=p.id) }}" style="display:block;">
+    <strong>{{ p.name }}</strong>
+    <div class="hint">{{ p.template_name }}</div>
+    <div class="project-vendor-row">
+      {% for v in p.vendors %}
+      <div class="project-vendor-chip">
+        <span class="vendor-logo" style="background:{{ v.accent }}; width:26px;height:26px;font-size:10px;">
+          {% if v.logo_url %}<img src="{{ v.logo_url }}" alt="" onerror="this.remove();">{% endif %}
+          {{ v.initials }}
+        </span>
+        <span class="hint" style="font-size:12px;">{{ v.company_name }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <p style="margin-top:10px;">
+      {% if p.outcome_vendor %}
+      <span class="badge badge-good">Selected: {{ p.outcome_vendor.company_name }}</span>
+      {% else %}
+      <span class="badge badge-neutral">No vendor selected</span>
+      {% endif %}
+    </p>
+    <p class="hint" style="margin-top:8px;">Closed {{ p.closed_at|fmt_time }}</p>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card empty-state"><div class="icon">🗄️</div>No closed evaluations yet — closing one from its project page files it here.</div>
+{% endif %}
+
 <div class="section-title" style="margin-top:30px;"><h2>Template library</h2></div>
 <div class="grid grid-2">
   {% for t in templates %}
   <div class="card">
-    <strong>{{ t.name }}</strong>
-    {% if t.company != g.user.company %}<span class="badge badge-neutral" style="margin-left:8px;">Shared by {{ t.company }}</span>{% endif %}
+    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px;">
+      <div>
+        <strong>{{ t.name }}</strong>
+        {% if t.company != g.user.company %}<span class="badge badge-neutral" style="margin-left:8px;">Shared by {{ t.company }}</span>{% endif %}
+      </div>
+      {% if t.company == g.user.company %}
+      <a href="{{ url_for('buyer_evaluation_edit', template_id=t.id) }}" class="hint" style="white-space:nowrap;">Edit</a>
+      {% endif %}
+    </div>
     <p style="font-size:13.5px; margin-top:6px;">{{ t.description }}</p>
   </div>
   {% else %}
