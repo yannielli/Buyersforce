@@ -4392,6 +4392,21 @@ def buyer_evaluations():
         ")) ORDER BY p.created_at DESC",
         (u["company"], u["id"], u["id"]),
     )
+    # "Bring your own document" step 6a: a shortcut for starting a new
+    # project with the same scorecard as one you've already run, without
+    # having to go hunt for its name in the Template library. Limited to
+    # projects this buyer can already see (same privacy rule as above),
+    # not every project at the company -- templates themselves are
+    # company-wide, but project names/vendors are private.
+    past_with_template = [
+        {
+            "template_id": p["template_id"],
+            "name": p["name"] or "Untitled evaluation",
+            "template_name": p["template_name"],
+            "status": p["status"],
+        }
+        for p in projects if p["template_id"]
+    ]
     active_data = []
     archive_data = []
     for p in projects:
@@ -4478,6 +4493,7 @@ def buyer_evaluations():
     return render_template(
         "buyer/evaluations.html", templates=templates_, active=active_data, archive=archive_data,
         ready_to_evaluate=ready_data, no_award_reason_labels=NO_AWARD_REASON_LABELS,
+        past_with_template=past_with_template,
     )
 
 
@@ -4861,6 +4877,26 @@ def buyer_start_project():
         log_activity(g.user["id"], f"started an evaluation for {vendor_names[0]}")
     else:
         log_activity(g.user["id"], f"started an evaluation project for {', '.join(vendor_names)}")
+
+    # "Bring your own document" step 6b: let a document already in hand
+    # (a spreadsheet, an old checklist, an RFP) ride along as a project
+    # artifact right from the start, instead of making them create the
+    # project first and then go find the upload button. Reuses the exact
+    # same storage/validation as the project page's own upload -- see
+    # _read_uploaded_project_artifact and buyer_project_upload_artifact.
+    uploads = [f for f in request.files.getlist("artifact_files") if f and f.filename]
+    for f in uploads[:MAX_PROJECT_ARTIFACTS_PER_PROJECT]:
+        data_url, size_bytes, error = _read_uploaded_project_artifact(f)
+        if error:
+            flash(error, "error")
+            continue
+        dbm.execute(
+            "INSERT INTO eval_project_artifacts "
+            "(project_id, filename, content_type, data_url, size_bytes, uploaded_by) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (project_id, f.filename, f.mimetype or "application/octet-stream", data_url, size_bytes, g.user["id"]),
+        )
+        log_activity(g.user["id"], f"uploaded {f.filename} to a new evaluation project")
     return redirect(url_for("buyer_project_detail", project_id=project_id))
 
 

@@ -10,11 +10,29 @@
   <a href="{{ url_for('buyer_evaluation_new') }}" class="btn btn-primary">+ New template</a>
 </div>
 
+<div class="card" style="margin-bottom:30px;">
+  <strong style="font-size:14.5px;">Don't have a document to start from? Ask a teammate</strong>
+  <p class="hint" style="margin-top:4px; margin-bottom:12px;">Send a teammate a quick message asking them to share a scorecard, checklist, or spreadsheet they've already used — then come back and attach it when you start your project.</p>
+  <form method="post" action="{{ url_for('messages_start') }}">
+    <div class="form-row">
+      <div class="field" style="margin-bottom:0;">
+        <label for="ask-teammate-email">Teammate's email</label>
+        <input type="email" name="to_email" id="ask-teammate-email" placeholder="teammate@yourcompany.com" required>
+      </div>
+    </div>
+    <div class="field">
+      <label for="ask-teammate-body">Message</label>
+      <textarea name="body" id="ask-teammate-body" rows="2">Hey — I'm starting a new evaluation and could use a document to kick it off, like a scorecard, checklist, or spreadsheet you've already used. Mind sharing one with me?</textarea>
+    </div>
+    <button class="btn btn-secondary" type="submit">Send request</button>
+  </form>
+</div>
+
 {% if ready_to_evaluate %}
 <div class="section-title"><h2>Ready to evaluate</h2></div>
 <p class="hint" style="margin-top:-6px; margin-bottom:14px;">Vendors you've shortlisted, from Discover or Compare — pick which ones to compare side by side in one scorecard.</p>
 <div class="card" style="margin-bottom:30px;">
-  <form method="post" action="{{ url_for('buyer_start_project') }}" id="start-project-form">
+  <form method="post" action="{{ url_for('buyer_start_project') }}" id="start-project-form" enctype="multipart/form-data">
     <div class="ready-vendor-list">
       {% for r in ready_to_evaluate %}
       <label class="ready-vendor-row">
@@ -37,11 +55,25 @@
         {% if not templates %}
         <p class="hint" style="margin-top:4px;">No templates yet — you can add one to this project later, from the project page.</p>
         {% endif %}
+        {% if past_with_template %}
+        <select id="start-from-past" style="margin-top:8px;"
+          onchange="if(this.value){document.getElementById('project-template').value=this.value;} this.selectedIndex=0;">
+          <option value="">…or copy the scorecard from a past evaluation</option>
+          {% for p in past_with_template %}
+          <option value="{{ p.template_id }}">{{ p.name }} — {{ p.template_name }}{% if p.status == 'closed' %} (closed){% endif %}</option>
+          {% endfor %}
+        </select>
+        {% endif %}
       </div>
       <div class="field" style="margin-bottom:0;">
         <label for="project-name">Project name</label>
         <input type="text" name="name" id="project-name" placeholder="e.g. CrowdStrike vs. SentinelOne" required>
       </div>
+    </div>
+    <div class="field" style="margin-top:14px;">
+      <label for="project-artifact-files">Already have a document to start from? Attach it (optional)</label>
+      <input type="file" name="artifact_files" id="project-artifact-files" multiple>
+      <p class="hint" style="margin-top:4px;">A scorecard, checklist, RFP, or spreadsheet — attached to this project so your team can see it. Before uploading, consider whether it contains sensitive, personal, or confidential information.</p>
     </div>
     <button class="btn btn-primary" type="submit" style="margin-top:14px;">Start project</button>
   </form>
