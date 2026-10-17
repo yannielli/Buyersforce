@@ -4036,50 +4036,72 @@ def _build_scorecard_xlsx(project_name, template, criteria, vendors_data, includ
     ws.title = "Scorecard"
 
     ws.cell(row=1, column=1, value=project_name).font = title_font
-    ws.cell(row=2, column=1, value=(
-        f"{template['name']} · scale 1–{template['scale_max']} · "
-        f"exported {datetime.now().strftime('%b %-d, %Y')}"
-    ))
+    if template:
+        meta = (
+            f"{template['name']} · scale 1–{template['scale_max']} · "
+            f"exported {datetime.now().strftime('%b %-d, %Y')}"
+        )
+    else:
+        meta = f"No scorecard chosen yet · exported {datetime.now().strftime('%b %-d, %Y')}"
+    ws.cell(row=2, column=1, value=meta)
 
-    header_row = 4
-    ws.cell(row=header_row, column=1, value="Success criteria").font = header_font
-    ws.cell(row=header_row, column=2, value="Weight").font = header_font
-    for col, v in enumerate(vendors_data, start=3):
-        cell = ws.cell(row=header_row, column=col, value=v["company_name"])
-        cell.font = header_font
-    for col in range(1, 3 + len(vendors_data)):
-        ws.cell(row=header_row, column=col).fill = brand_fill
-
-    row = header_row + 1
-    for c in criteria:
-        ws.cell(row=row, column=1, value=c["label"])
-        ws.cell(row=row, column=2, value=f"{c['weight']}%")
+    if criteria:
+        header_row = 4
+        ws.cell(row=header_row, column=1, value="Success criteria").font = header_font
+        ws.cell(row=header_row, column=2, value="Weight").font = header_font
         for col, v in enumerate(vendors_data, start=3):
-            avg = v["cells"].get(c["id"], {}).get("avg")
-            ws.cell(row=row, column=col, value=avg if avg is not None else "—")
+            cell = ws.cell(row=header_row, column=col, value=v["company_name"])
+            cell.font = header_font
+        for col in range(1, 3 + len(vendors_data)):
+            ws.cell(row=header_row, column=col).fill = brand_fill
+
+        row = header_row + 1
+        for c in criteria:
+            ws.cell(row=row, column=1, value=c["label"])
+            ws.cell(row=row, column=2, value=f"{c['weight']}%")
+            for col, v in enumerate(vendors_data, start=3):
+                avg = v["cells"].get(c["id"], {}).get("avg")
+                ws.cell(row=row, column=col, value=avg if avg is not None else "—")
+            row += 1
+
+        overall_row = row
+        ws.cell(row=overall_row, column=1, value="Overall (weighted)").font = header_font
+        for col, v in enumerate(vendors_data, start=3):
+            cell = ws.cell(row=overall_row, column=col, value=v["overall"] if v["overall"] is not None else "—")
+            cell.font = header_font
+            cell.fill = brand_fill
+        ws.cell(row=overall_row, column=1).fill = brand_fill
+        ws.cell(row=overall_row, column=2).fill = brand_fill
+
+        gartner_row = overall_row + 2
+        ws.cell(row=gartner_row, column=1, value="Peer review notes").font = header_font
+        for col, v in enumerate(vendors_data, start=3):
+            cell = ws.cell(row=gartner_row, column=col, value=v["gartner_peer_note"] or "")
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+        ws.column_dimensions["A"].width = 32
+        ws.column_dimensions["B"].width = 10
+        for col in range(3, 3 + len(vendors_data)):
+            ws.column_dimensions[get_column_letter(col)].width = 24
+    else:
+        # No scorecard on this project -- nothing to score against, so
+        # just list the vendors with their peer-review notes instead of a
+        # criteria grid.
+        row = 4
+        ws.cell(row=row, column=1, value="Vendor").font = header_font
+        ws.cell(row=row, column=2, value="Peer review notes").font = header_font
+        ws.cell(row=row, column=1).fill = brand_fill
+        ws.cell(row=row, column=2).fill = brand_fill
         row += 1
+        for v in vendors_data:
+            ws.cell(row=row, column=1, value=v["company_name"])
+            cell = ws.cell(row=row, column=2, value=v["gartner_peer_note"] or "")
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+            row += 1
+        ws.column_dimensions["A"].width = 28
+        ws.column_dimensions["B"].width = 60
 
-    overall_row = row
-    ws.cell(row=overall_row, column=1, value="Overall (weighted)").font = header_font
-    for col, v in enumerate(vendors_data, start=3):
-        cell = ws.cell(row=overall_row, column=col, value=v["overall"] if v["overall"] is not None else "—")
-        cell.font = header_font
-        cell.fill = brand_fill
-    ws.cell(row=overall_row, column=1).fill = brand_fill
-    ws.cell(row=overall_row, column=2).fill = brand_fill
-
-    gartner_row = overall_row + 2
-    ws.cell(row=gartner_row, column=1, value="Peer review notes").font = header_font
-    for col, v in enumerate(vendors_data, start=3):
-        cell = ws.cell(row=gartner_row, column=col, value=v["gartner_peer_note"] or "")
-        cell.alignment = Alignment(wrap_text=True, vertical="top")
-
-    ws.column_dimensions["A"].width = 32
-    ws.column_dimensions["B"].width = 10
-    for col in range(3, 3 + len(vendors_data)):
-        ws.column_dimensions[get_column_letter(col)].width = 24
-
-    if include_comments:
+    if criteria and include_comments:
         cs = wb.create_sheet("Comments")
         cs.append(["Vendor", "Criterion", "Reviewer", "Score", "Comment"])
         for cell in cs[1]:
@@ -4094,7 +4116,7 @@ def _build_scorecard_xlsx(project_name, template, criteria, vendors_data, includ
         cs.column_dimensions["D"].width = 8
         cs.column_dimensions["E"].width = 60
 
-    if include_reviewer_breakdown:
+    if criteria and include_reviewer_breakdown:
         rs = wb.create_sheet("By reviewer")
         rs.append(["Vendor", "Reviewer", "Average score", "Criteria scored"])
         for cell in rs[1]:
@@ -4144,53 +4166,75 @@ def _build_scorecard_pdf(project_name, template, criteria, vendors_data, include
     )
     elements = []
     elements.append(Paragraph(_pdf_text(project_name), title_style))
-    meta = (
-        f"{_pdf_text(template['name'])} &middot; scale 1&ndash;{template['scale_max']} &middot; "
-        f"exported {datetime.now().strftime('%b %-d, %Y')}"
-    )
+    if template:
+        meta = (
+            f"{_pdf_text(template['name'])} &middot; scale 1&ndash;{template['scale_max']} &middot; "
+            f"exported {datetime.now().strftime('%b %-d, %Y')}"
+        )
+    else:
+        meta = f"No scorecard chosen yet &middot; exported {datetime.now().strftime('%b %-d, %Y')}"
     elements.append(Paragraph(meta, meta_style))
     elements.append(Spacer(1, 14))
 
-    header = ["Success criteria", "Weight"] + [str(v["company_name"]) for v in vendors_data]
-    table_data = [header]
-    for c in criteria:
-        row = [str(c["label"]), f"{c['weight']}%"]
+    if criteria:
+        header = ["Success criteria", "Weight"] + [str(v["company_name"]) for v in vendors_data]
+        table_data = [header]
+        for c in criteria:
+            row = [str(c["label"]), f"{c['weight']}%"]
+            for v in vendors_data:
+                avg = v["cells"].get(c["id"], {}).get("avg")
+                row.append(str(avg) if avg is not None else "—")
+            table_data.append(row)
+        overall_row_idx = len(table_data)
+        table_data.append(
+            ["Overall (weighted)", ""]
+            + [(str(v["overall"]) if v["overall"] is not None else "—") for v in vendors_data]
+        )
+
+        col_widths = [1.8 * inch, 0.6 * inch] + [1.4 * inch] * len(vendors_data)
+        table = Table(table_data, colWidths=col_widths, repeatRows=1)
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), brand),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("BACKGROUND", (0, overall_row_idx), (-1, overall_row_idx), brand_tint),
+            ("FONTNAME", (0, overall_row_idx), (-1, overall_row_idx), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.5, gridline),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (2, 0), (-1, -1), "CENTER"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, overall_row_idx - 1), [colors.white, colors.HexColor("#fcfcfb")]),
+        ]))
+        elements.append(table)
+
+        gartner_notes = [
+            (v["company_name"], v["gartner_peer_note"]) for v in vendors_data if (v["gartner_peer_note"] or "").strip()
+        ]
+        if gartner_notes:
+            elements.append(Paragraph("Peer review notes", h3_style))
+            for name, note in gartner_notes:
+                elements.append(Paragraph(f"<b>{_pdf_text(name)}:</b> {_pdf_text(note)}", body_style))
+                elements.append(Spacer(1, 4))
+    else:
+        # No scorecard on this project -- nothing to score against, so
+        # just a vendor / peer-notes table instead of a criteria grid.
+        simple_data = [["Vendor", "Peer review notes"]]
         for v in vendors_data:
-            avg = v["cells"].get(c["id"], {}).get("avg")
-            row.append(str(avg) if avg is not None else "—")
-        table_data.append(row)
-    overall_row_idx = len(table_data)
-    table_data.append(
-        ["Overall (weighted)", ""]
-        + [(str(v["overall"]) if v["overall"] is not None else "—") for v in vendors_data]
-    )
+            note = (v["gartner_peer_note"] or "").strip()
+            simple_data.append([
+                Paragraph(_pdf_text(v["company_name"]), body_style),
+                Paragraph(_pdf_text(note) if note else "—", body_style),
+            ])
+        simple_table = Table(simple_data, colWidths=[2.2 * inch, 7.8 * inch])
+        simple_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), brand_tint),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.5, gridline),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        elements.append(simple_table)
 
-    col_widths = [1.8 * inch, 0.6 * inch] + [1.4 * inch] * len(vendors_data)
-    table = Table(table_data, colWidths=col_widths, repeatRows=1)
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), brand),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("BACKGROUND", (0, overall_row_idx), (-1, overall_row_idx), brand_tint),
-        ("FONTNAME", (0, overall_row_idx), (-1, overall_row_idx), "Helvetica-Bold"),
-        ("GRID", (0, 0), (-1, -1), 0.5, gridline),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("ALIGN", (2, 0), (-1, -1), "CENTER"),
-        ("ROWBACKGROUNDS", (0, 1), (-1, overall_row_idx - 1), [colors.white, colors.HexColor("#fcfcfb")]),
-    ]))
-    elements.append(table)
-
-    gartner_notes = [
-        (v["company_name"], v["gartner_peer_note"]) for v in vendors_data if (v["gartner_peer_note"] or "").strip()
-    ]
-    if gartner_notes:
-        elements.append(Paragraph("Peer review notes", h3_style))
-        for name, note in gartner_notes:
-            elements.append(Paragraph(f"<b>{_pdf_text(name)}:</b> {_pdf_text(note)}", body_style))
-            elements.append(Spacer(1, 4))
-
-    if include_comments and any(v["comments"] for v in vendors_data):
+    if criteria and include_comments and any(v["comments"] for v in vendors_data):
         elements.append(Paragraph("Comments", h3_style))
         for v in vendors_data:
             for cm in v["comments"]:
@@ -4283,8 +4327,11 @@ def buyer_evaluations():
     # existed (pre-existing projects were backfilled with every buyer as
     # 'editor' so nobody lost access they already had -- see migrate.py).
     projects = dbm.query(
+        # LEFT JOIN, not JOIN -- a project with no scorecard yet
+        # (template_id IS NULL) still has to show up here, not disappear
+        # from the list entirely.
         "SELECT p.*, t.name template_name FROM eval_projects p "
-        "JOIN eval_templates t ON t.id = p.template_id "
+        "LEFT JOIN eval_templates t ON t.id = p.template_id "
         "WHERE p.company=? AND (p.created_by=? OR EXISTS ("
         "  SELECT 1 FROM eval_project_collaborators c "
         "  WHERE c.project_id = p.id AND c.user_id = ?"
@@ -4296,7 +4343,7 @@ def buyer_evaluations():
     for p in projects:
         criteria = dbm.query(
             "SELECT * FROM eval_criteria WHERE template_id=? ORDER BY position", (p["template_id"],)
-        )
+        ) if p["template_id"] else []
         evals = dbm.query(
             "SELECT e.*, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.logo_link_url, v.logo_upload_data_url, v.website "
             "FROM evaluations e JOIN vendors v ON v.id = e.vendor_id "
@@ -4337,6 +4384,7 @@ def buyer_evaluations():
             "name": project_display_name(p["name"], [v["company_name"] for v in vendor_summaries]),
             "template_name": p["template_name"], "vendors": vendor_summaries,
             "created_at": p["created_at"], "reviewers": len(reviewer_ids),
+            "has_scorecard": p["template_id"] is not None,
         }
         if p["status"] == "closed":
             outcome = None
@@ -4409,6 +4457,32 @@ NO_AWARD_REASON_LABELS = dict(NO_AWARD_REASONS)
 @app.route("/app/buyer/evaluations/new", methods=("GET", "POST"))
 @role_required("buyer")
 def buyer_evaluation_new():
+    # Reachable two ways: the plain "+ New template" button (no project
+    # context -- lands back on the Evaluate list), and "+ Create a new
+    # scorecard" from a project that has none yet (project_detail.html
+    # links here with ?project_id=<id>). In the second case, a template
+    # created successfully attaches itself to that project automatically
+    # and returns there, instead of leaving the buyer to go find it again
+    # in the "Rename or change scorecard" picker.
+    return_project = None
+    raw_project_id = request.values.get("project_id", "").strip()
+    if raw_project_id:
+        try:
+            candidate_id = int(raw_project_id)
+        except (TypeError, ValueError):
+            candidate_id = None
+        if candidate_id is not None:
+            # A soft lookup, deliberately NOT eval_project_or_404 -- a
+            # stale or tampered project_id hint should just be ignored
+            # (fall back to the plain "new template" flow), not 404 the
+            # whole page.
+            candidate_project = dbm.query(
+                "SELECT * FROM eval_projects WHERE id=? AND company=?",
+                (candidate_id, g.user["company"]), one=True,
+            )
+            if candidate_project and eval_project_role(candidate_project, g.user) in ("owner", "editor"):
+                return_project = candidate_project
+
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         description = request.form.get("description", "").strip()
@@ -4454,6 +4528,7 @@ def buyer_evaluation_new():
                 form_rows=list(zip(labels, weights)) or [("", "")],
                 max_criteria=MAX_EVAL_CRITERIA,
                 scale_max=scale_max, min_scale=MIN_EVAL_SCALE, max_scale=MAX_EVAL_SCALE,
+                return_project_id=return_project["id"] if return_project else None,
             )
 
         template_id = dbm.execute(
@@ -4467,6 +4542,12 @@ def buyer_evaluation_new():
                 "VALUES (?, ?, ?, ?)",
                 (template_id, label, weight, pos),
             )
+        if return_project:
+            dbm.execute("UPDATE eval_projects SET template_id=? WHERE id=?", (template_id, return_project["id"]))
+            dbm.execute("UPDATE evaluations SET template_id=? WHERE project_id=?", (template_id, return_project["id"]))
+            log_activity(g.user["id"], f"created and attached a new scorecard ({name})")
+            flash(f'Created "{name}" and set it as this project\'s scorecard.', "success")
+            return redirect(url_for("buyer_project_detail", project_id=return_project["id"]))
         flash("Evaluation template created and shared with your team.", "success")
         return redirect(url_for("buyer_evaluations"))
     return render_template(
@@ -4475,6 +4556,7 @@ def buyer_evaluation_new():
         form_rows=[("", 20)] * 5,
         max_criteria=MAX_EVAL_CRITERIA,
         scale_max=DEFAULT_EVAL_SCALE, min_scale=MIN_EVAL_SCALE, max_scale=MAX_EVAL_SCALE,
+        return_project_id=return_project["id"] if return_project else None,
     )
 
 
@@ -4597,23 +4679,27 @@ def buyer_start_project():
         if vid not in seen:
             seen.add(vid)
             vendor_ids.append(vid)
-    template_id = request.form.get("template_id")
+    template_id = request.form.get("template_id", "").strip()
     name = request.form.get("name", "").strip()
 
     fallback = request.referrer or url_for("buyer_evaluations")
     if not vendor_ids:
         flash("Choose at least one vendor to evaluate.", "error")
         return redirect(fallback)
-    if not template_id:
-        flash("Choose an evaluation template first.", "error")
-        return redirect(fallback)
-    template_owned = dbm.query(
-        "SELECT 1 FROM eval_templates WHERE id=? AND company=?",
-        (template_id, g.user["company"]), one=True,
-    )
-    if not template_owned:
-        flash("That template isn't available to your company.", "error")
-        return redirect(fallback)
+    # A scorecard is optional now -- blank means "no scorecard yet, just
+    # track these vendors together" (see buyer_project_update_meta and
+    # buyer_evaluation_new for adding/creating one later). When one IS
+    # chosen, it still has to actually belong to this company.
+    if template_id:
+        template_owned = dbm.query(
+            "SELECT 1 FROM eval_templates WHERE id=? AND company=?",
+            (template_id, g.user["company"]), one=True,
+        )
+        if not template_owned:
+            flash("That template isn't available to your company.", "error")
+            return redirect(fallback)
+    else:
+        template_id = None
 
     # Re-starting an evaluation for a single vendor already being evaluated
     # against this exact template (e.g. clicking "Continue evaluation"
@@ -4680,10 +4766,17 @@ def buyer_project_detail(project_id):
     # schema.sql); 'viewer' is read-only and can't POST at all.
     can_edit = my_role in ("owner", "editor")
     can_comment = my_role in ("owner", "editor", "commenter")
-    template = dbm.query("SELECT * FROM eval_templates WHERE id=?", (project["template_id"],), one=True)
+    # template_id can be NULL -- a project started with "No scorecard", or
+    # one that had its scorecard removed (see buyer_project_update_meta).
+    # template/criteria both just go empty rather than erroring; every
+    # scoring calc below (_aggregate_evaluation_scores etc.) already
+    # degrades cleanly with an empty criteria list.
+    template = dbm.query(
+        "SELECT * FROM eval_templates WHERE id=?", (project["template_id"],), one=True
+    ) if project["template_id"] else None
     criteria = dbm.query(
         "SELECT * FROM eval_criteria WHERE template_id=? ORDER BY position", (project["template_id"],)
-    )
+    ) if project["template_id"] else []
     evals = dbm.query(
         "SELECT e.*, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.logo_link_url, v.logo_upload_data_url, v.website "
         "FROM evaluations e JOIN vendors v ON v.id = e.vendor_id "
@@ -4885,25 +4978,39 @@ def buyer_project_update_meta(project_id):
         flash("Give this evaluation project a name.", "error")
         return redirect(url_for("buyer_project_detail", project_id=project_id))
 
-    try:
-        new_template_id = int(request.form.get("template_id", ""))
-    except (TypeError, ValueError):
-        flash("Choose a scorecard template.", "error")
-        return redirect(url_for("buyer_project_detail", project_id=project_id))
-    template_owned = dbm.query(
-        "SELECT 1 FROM eval_templates WHERE id=? AND company=?",
-        (new_template_id, g.user["company"]), one=True,
-    )
-    if not template_owned:
-        flash("That scorecard template isn't available to your company.", "error")
-        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    # Blank selection means "No scorecard" -- detaches the current one
+    # (if any) without deleting anything it's scored. Kept distinct from
+    # the "choose a scorecard" error below, which is really a malformed
+    # request (a non-numeric, non-empty value).
+    raw_template_id = request.form.get("template_id", "").strip()
+    new_template_id = None
+    if raw_template_id:
+        try:
+            new_template_id = int(raw_template_id)
+        except (TypeError, ValueError):
+            flash("Choose a scorecard template.", "error")
+            return redirect(url_for("buyer_project_detail", project_id=project_id))
+        template_owned = dbm.query(
+            "SELECT 1 FROM eval_templates WHERE id=? AND company=?",
+            (new_template_id, g.user["company"]), one=True,
+        )
+        if not template_owned:
+            flash("That scorecard template isn't available to your company.", "error")
+            return redirect(url_for("buyer_project_detail", project_id=project_id))
 
     dbm.execute(
         "UPDATE eval_projects SET name=?, template_id=? WHERE id=?",
         (name, new_template_id, project_id),
     )
+    # evaluations.template_id just mirrors the project's -- see its
+    # schema.sql comment -- so keep it in sync rather than let it go
+    # stale.
+    dbm.execute("UPDATE evaluations SET template_id=? WHERE project_id=?", (new_template_id, project_id))
     if new_template_id != project["template_id"]:
-        log_activity(g.user["id"], f"switched the scorecard on an evaluation project to {name}")
+        if new_template_id is None:
+            log_activity(g.user["id"], f"removed the scorecard from an evaluation project ({name})")
+        else:
+            log_activity(g.user["id"], f"switched the scorecard on an evaluation project to {name}")
     else:
         log_activity(g.user["id"], f"renamed an evaluation project to {name}")
     flash("Project updated.", "success")
@@ -5056,10 +5163,15 @@ def buyer_project_export(project_id):
     # the project -- even 'viewer' -- unlike every other action on this
     # page. eval_project_or_404 is the only gate needed here.
     project, my_role = eval_project_or_404(project_id, g.user)
-    template = dbm.query("SELECT * FROM eval_templates WHERE id=?", (project["template_id"],), one=True)
+    # template_id can be NULL (no scorecard chosen, or one removed) --
+    # template/all_criteria both just go empty; the export builders below
+    # fall back to a plain vendor list instead of a scored grid.
+    template = dbm.query(
+        "SELECT * FROM eval_templates WHERE id=?", (project["template_id"],), one=True
+    ) if project["template_id"] else None
     all_criteria = dbm.query(
         "SELECT * FROM eval_criteria WHERE template_id=? ORDER BY position", (project["template_id"],)
-    )
+    ) if project["template_id"] else []
     all_evals = dbm.query(
         "SELECT e.*, v.company_name FROM evaluations e JOIN vendors v ON v.id = e.vendor_id "
         "WHERE e.project_id=? ORDER BY e.id",
@@ -5083,13 +5195,16 @@ def buyer_project_export(project_id):
     # empty picker almost always means the vendor/criteria checkboxes
     # didn't come through on the request, not that the person wants a
     # blank report, so this is caught and reported rather than silently
-    # falling back to "all."
+    # falling back to "all." That rule only applies to criteria when the
+    # project actually HAS a scorecard, though -- a no-scorecard project
+    # never shows a criteria picker (nothing to pick), so there's nothing
+    # to validate there; the export is just a vendor list.
     evals = [e for e in all_evals if e["id"] in wanted_eval_ids]
     criteria = [c for c in all_criteria if c["id"] in wanted_criterion_ids]
     if not evals:
         flash("Choose at least one vendor to export.", "error")
         return redirect(url_for("buyer_project_detail", project_id=project_id))
-    if not criteria:
+    if all_criteria and not criteria:
         flash("Choose at least one success criterion to export.", "error")
         return redirect(url_for("buyer_project_detail", project_id=project_id))
 

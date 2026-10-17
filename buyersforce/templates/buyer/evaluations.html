@@ -14,7 +14,6 @@
 <div class="section-title"><h2>Ready to evaluate</h2></div>
 <p class="hint" style="margin-top:-6px; margin-bottom:14px;">Vendors you've shortlisted, from Discover or Compare — pick which ones to compare side by side in one scorecard.</p>
 <div class="card" style="margin-bottom:30px;">
-  {% if templates %}
   <form method="post" action="{{ url_for('buyer_start_project') }}" id="start-project-form">
     <div class="ready-vendor-list">
       {% for r in ready_to_evaluate %}
@@ -32,8 +31,12 @@
       <div class="field" style="margin-bottom:0;">
         <label for="project-template">Scorecard template</label>
         <select name="template_id" id="project-template">
+          <option value="">No scorecard — just track these vendors</option>
           {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
         </select>
+        {% if not templates %}
+        <p class="hint" style="margin-top:4px;">No templates yet — you can add one to this project later, from the project page.</p>
+        {% endif %}
       </div>
       <div class="field" style="margin-bottom:0;">
         <label for="project-name">Project name</label>
@@ -42,9 +45,6 @@
     </div>
     <button class="btn btn-primary" type="submit" style="margin-top:14px;">Start project</button>
   </form>
-  {% else %}
-  <p class="hint" style="margin:0;">Create an evaluation template first.</p>
-  {% endif %}
 </div>
 {% endif %}
 
@@ -62,7 +62,7 @@
           {{ v.initials }}
         </span>
         <span class="hint" style="font-size:12px;">{{ v.company_name }}</span>
-        {% if v.overall %}<span class="badge badge-brand" style="font-size:11px;">{{ v.overall }}</span>{% else %}<span class="badge badge-neutral" style="font-size:11px;">Not scored</span>{% endif %}
+        {% if v.overall %}<span class="badge badge-brand" style="font-size:11px;">{{ v.overall }}</span>{% elif p.has_scorecard %}<span class="badge badge-neutral" style="font-size:11px;">Not scored</span>{% else %}<span class="badge badge-neutral" style="font-size:11px;">No scorecard</span>{% endif %}
       </div>
       {% endfor %}
     </div>

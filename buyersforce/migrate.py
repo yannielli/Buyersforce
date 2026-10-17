@@ -83,6 +83,7 @@ def run_migrations():
             _allow_null_eval_scores_score_2026_10_17(cur)
             _backfill_eval_project_collaborators_2026_10_17(cur)
             _add_eval_project_artifacts_table(cur)
+            _allow_null_eval_project_template_2026_10_17(cur)
     finally:
         con.close()
 
@@ -1942,6 +1943,16 @@ def _add_eval_project_artifacts_table(cur):
         )
         """
     )
+
+
+def _allow_null_eval_project_template_2026_10_17(cur):
+    # A project (and the evaluations under it) can now sit with no
+    # scorecard chosen at all -- e.g. started against the wrong template,
+    # or started before the right one exists yet. DROP NOT NULL is a
+    # no-op if a column is already nullable, so this is safe to run every
+    # deploy without a guard.
+    cur.execute("ALTER TABLE eval_projects ALTER COLUMN template_id DROP NOT NULL")
+    cur.execute("ALTER TABLE evaluations ALTER COLUMN template_id DROP NOT NULL")
 
 
 if __name__ == "__main__":

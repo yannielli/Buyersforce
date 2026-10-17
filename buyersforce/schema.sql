@@ -501,7 +501,11 @@ CREATE TABLE eval_criteria (
 -- (project_display_name() in app.py) when it's blank, so this can be ''.
 CREATE TABLE eval_projects (
     id SERIAL PRIMARY KEY,
-    template_id INTEGER NOT NULL REFERENCES eval_templates(id),
+    -- NULL means "no scorecard chosen yet" -- a project can hold vendors
+    -- and notes with nothing to score them against, until someone creates
+    -- a template or pulls one in from the library (see
+    -- buyer_project_update_meta and buyer_evaluation_new in app.py).
+    template_id INTEGER REFERENCES eval_templates(id),
     company TEXT NOT NULL,
     name TEXT NOT NULL DEFAULT '',
     created_by INTEGER NOT NULL REFERENCES users(id),
@@ -591,7 +595,12 @@ CREATE TABLE eval_project_artifacts (
 
 CREATE TABLE evaluations (
     id SERIAL PRIMARY KEY,
-    template_id INTEGER NOT NULL REFERENCES eval_templates(id),
+    -- Mirrors the parent project's template_id (NULL when the project has
+    -- no scorecard yet) -- kept in sync by buyer_start_project and
+    -- buyer_project_update_meta. Nothing in app.py actually scores against
+    -- this column (buyer_project_detail always reads the project's own
+    -- template_id), so this is really just a legacy duplicate.
+    template_id INTEGER REFERENCES eval_templates(id),
     vendor_id INTEGER NOT NULL REFERENCES vendors(id),
     company TEXT NOT NULL,
     created_by INTEGER NOT NULL REFERENCES users(id),

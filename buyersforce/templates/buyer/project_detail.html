@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <span class="eyebrow">{{ template.name }}</span>
+    <span class="eyebrow">{{ template.name if template else 'No scorecard yet' }}</span>
     <h1>{{ project_name }}</h1>
     <p class="lede">Collaborative scorecard — every reviewer with access scores all {{ vendors|length }} vendor{{ 's' if vendors|length != 1 }} independently.</p>
     {% if my_role != 'owner' %}
@@ -14,7 +14,7 @@
     </p>
     {% endif %}
     {% if can_edit %}
-    <details id="edit-project-details" style="margin-top:8px;">
+    <details id="edit-project-details" style="margin-top:8px;" {{ 'open' if not template }}>
       <summary class="hint" style="cursor:pointer; display:inline-block;">Rename or change scorecard &rarr;</summary>
       <form method="post" action="{{ url_for('buyer_project_update_meta', project_id=project.id) }}" style="margin-top:12px; max-width:420px;">
         <div class="field">
@@ -23,19 +23,23 @@
         </div>
         <div class="field">
           <label for="edit-project-template">Scorecard template</label>
-          <select name="template_id" id="edit-project-template" data-current="{{ template.id }}" data-has-scores="{{ '1' if any_scores else '0' }}">
-            {% for t in all_templates %}<option value="{{ t.id }}" {{ 'selected' if t.id == template.id }}>{{ t.name }}</option>{% endfor %}
+          <select name="template_id" id="edit-project-template" data-current="{{ template.id if template else '' }}" data-has-scores="{{ '1' if any_scores else '0' }}">
+            <option value="" {{ 'selected' if not template }}>No scorecard</option>
+            {% for t in all_templates %}<option value="{{ t.id }}" {{ 'selected' if template and t.id == template.id }}>{{ t.name }}</option>{% endfor %}
           </select>
           {% if any_scores %}
-          <p class="hint" style="margin-top:4px;">Switching to a different scorecard hides scores tied to criteria it doesn't have — nothing is deleted, and they come back if you switch back.</p>
+          <p class="hint" style="margin-top:4px;">Changing the scorecard hides scores tied to criteria that aren't on the new one (or hides all scores if you remove the scorecard) — nothing is deleted, and they come back if you switch back.</p>
           {% endif %}
+          <p class="hint" style="margin-top:4px;">Don't see the right one? <a href="{{ url_for('buyer_evaluation_new', project_id=project.id) }}">Create a new scorecard</a> — it'll attach to this project automatically.</p>
         </div>
         <button class="btn btn-secondary btn-sm" type="submit">Save</button>
       </form>
     </details>
     {% endif %}
   </div>
+  {% if template %}
   <a href="{{ url_for('buyer_evaluation_edit', template_id=template.id) }}" class="btn btn-secondary">Manage criteria</a>
+  {% endif %}
 </div>
 
 {% if is_closed %}
@@ -65,6 +69,7 @@
 {% endif %}
 
 <form method="post">
+  {% if template %}
   <div class="card" style="margin-bottom:24px;">
     <h3 style="font-size:15px;">Your scores</h3>
     <div class="scorecard-scroll">
@@ -122,13 +127,19 @@
     <button class="btn btn-primary" type="submit" style="margin-top:14px;">{{ 'Save my scores' if can_edit else 'Save my comments' }}</button>
     {% endif %}
   </div>
+  {% else %}
+  <div class="card empty-state" style="margin-bottom:24px;">
+    <div class="icon">🧮</div>
+    No scorecard chosen yet{% if can_edit %} — pick one or create a new one from "Rename or change scorecard" above{% endif %}. Vendors and peer review notes below still work without one.
+  </div>
+  {% endif %}
 
   <div class="section-title"><h2>Vendor comparison</h2></div>
   <div class="vendor-columns-grid">
     {% for v in vendors %}
     <div>
       <div class="card overall-score">
-        <div class="stat-label">{{ v.company_name }} — weighted overall</div>
+        <div class="stat-label">{{ v.company_name }}{% if template %} — weighted overall{% endif %}</div>
         {% if v.website %}
         <p class="hint" style="margin:4px 0 10px;">
           <a href="{{ v.website }}" target="_blank" rel="noopener">{{ v.website }}</a> ↗<br>
@@ -137,8 +148,10 @@
         {% endif %}
         {% if v.overall %}
         <div class="big-number">{{ v.overall }}<span class="of5"> / {{ template.scale_max }}</span></div>
-        {% else %}
+        {% elif template %}
         <div class="hint">No scores submitted yet</div>
+        {% else %}
+        <div class="hint">No scorecard chosen yet</div>
         {% endif %}
       </div>
 
@@ -284,6 +297,7 @@
         <label style="display:block; margin-bottom:4px; font-weight:400;"><input type="checkbox" name="evaluation_ids" value="{{ v.evaluation_id }}" checked style="width:auto; margin-right:6px;">{{ v.company_name }}</label>
         {% endfor %}
       </div>
+      {% if criteria %}
       <div class="field">
         <label>Success criteria to include</label>
         {% for c in criteria %}
@@ -294,6 +308,9 @@
         <label style="display:block; margin-bottom:4px; font-weight:400;"><input type="checkbox" name="include_comments" checked style="width:auto; margin-right:6px;">Include comments</label>
         <label style="display:block; font-weight:400;"><input type="checkbox" name="include_reviewer_breakdown" checked style="width:auto; margin-right:6px;">Include score-by-reviewer breakdown</label>
       </div>
+      {% else %}
+      <p class="hint" style="margin-bottom:16px;">This project has no scorecard yet, so the export will just be a vendor list with peer review notes.</p>
+      {% endif %}
       <button class="btn btn-secondary" type="submit">Download export</button>
     </form>
   </details>

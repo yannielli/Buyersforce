@@ -10,6 +10,10 @@
 </div>
 
 <form method="post" class="card" style="max-width:640px;">
+  {% if return_project_id %}
+  <input type="hidden" name="project_id" value="{{ return_project_id }}">
+  <p class="hint" style="margin:0 0 16px;">This scorecard will attach to that evaluation project automatically once it's created.</p>
+  {% endif %}
   <div class="field">
     <label>Template name</label>
     <input type="text" name="name" required placeholder="e.g. Security Tooling Scorecard" value="{{ form_name or '' }}">
