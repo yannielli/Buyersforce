@@ -7,7 +7,6 @@
     <h1>Evaluate</h1>
     <p class="lede">Shared, reusable scorecards your whole team can weigh in on.</p>
   </div>
-  <a href="{{ url_for('buyer_evaluation_new') }}" class="btn btn-primary">+ New template</a>
 </div>
 
 <div class="section-title"><h2>Active Evaluations</h2></div>
@@ -36,30 +35,17 @@
 <div class="card empty-state"><div class="icon">🧮</div>No evaluations in progress yet — start one below.</div>
 {% endif %}
 
-<div class="card" style="margin-top:30px; margin-bottom:30px;">
-  <strong style="font-size:14.5px;">Don't have a document to start from? Ask a teammate</strong>
-  <p class="hint" style="margin-top:4px; margin-bottom:12px;">Send a teammate a quick message asking them to share a scorecard, checklist, or spreadsheet they've already used — then come back and attach it when you start your project.</p>
-  <form method="post" action="{{ url_for('messages_start') }}">
-    <div class="form-row">
-      <div class="field" style="margin-bottom:0;">
-        <label for="ask-teammate-email">Teammate's email</label>
-        <input type="email" name="to_email" id="ask-teammate-email" placeholder="teammate@yourcompany.com" required>
-      </div>
-    </div>
-    <div class="field">
-      <label for="ask-teammate-body">Message</label>
-      <textarea name="body" id="ask-teammate-body" rows="2">Hey — I'm starting a new evaluation and could use a document to kick it off, like a scorecard, checklist, or spreadsheet you've already used. Mind sharing one with me?</textarea>
-    </div>
-    <button class="btn btn-secondary" type="submit">Send request</button>
-  </form>
-</div>
-
-<div class="section-title"><h2>New Evaluation</h2></div>
-<p class="hint" style="margin-top:-6px; margin-bottom:14px;">Already know who you want to evaluate? Search for a vendor below — or pick up ones you've shortlisted from Discover or Compare.</p>
+<div class="section-title" style="margin-top:30px;"><h2>New Evaluation</h2></div>
+<p class="hint" style="margin-top:-6px; margin-bottom:14px;">Already know who you want to evaluate? Search for vendors below — or pick up ones you've shortlisted from Discover or Compare.</p>
 <div class="card" style="margin-bottom:30px;">
   <form method="post" action="{{ url_for('buyer_start_project') }}" id="start-project-form" enctype="multipart/form-data">
     <div class="field">
-      <label for="vendor-search-input">Search for a vendor to add</label>
+      <label for="project-name">Project name</label>
+      <input type="text" name="name" id="project-name" placeholder="e.g. CrowdStrike vs. SentinelOne" required>
+    </div>
+
+    <div class="field">
+      <label for="vendor-search-input">Search for vendors to add</label>
       <input type="text" id="vendor-search-input" list="all-vendors-datalist" placeholder="Start typing a company name…" autocomplete="off">
       <datalist id="all-vendors-datalist">
         {% for v in all_vendors %}<option value="{{ v.company_name }}">{% endfor %}
@@ -81,31 +67,81 @@
     {% if not ready_to_evaluate %}
     <p class="hint" id="no-vendors-hint" style="margin-top:8px;">Nothing added yet — search above, or shortlist a vendor from Discover or Compare first.</p>
     {% endif %}
-    <div class="form-row" style="margin-top:14px;">
-      <div class="field" style="margin-bottom:0;">
-        <label for="project-template">Scorecard template</label>
-        <select name="template_id" id="project-template">
-          <option value="">No scorecard — just track these vendors</option>
-          {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
-        </select>
-        {% if not templates %}
-        <p class="hint" style="margin-top:4px;">No templates yet — you can add one to this project later, from the project page.</p>
-        {% endif %}
-        {% if past_with_template %}
-        <select id="start-from-past" style="margin-top:8px;"
-          onchange="if(this.value){document.getElementById('project-template').value=this.value;} this.selectedIndex=0;">
-          <option value="">…or copy the scorecard from a past evaluation</option>
-          {% for p in past_with_template %}
-          <option value="{{ p.template_id }}">{{ p.name }} — {{ p.template_name }}{% if p.status == 'closed' %} (closed){% endif %}</option>
+
+    <div class="field" style="margin-top:14px;">
+      <label for="scorecard-mode">Scorecard template</label>
+      <select id="scorecard-mode">
+        <option value="later" selected>Add Scorecard later</option>
+        <option value="mine">Select Scorecard template you used before</option>
+        <option value="shared">Select Scorecard from library shared by other BuyersForce users</option>
+        <option value="ask">Ask a teammate for a Scorecard</option>
+        <option value="new">+ New Scorecard</option>
+      </select>
+    </div>
+    <input type="hidden" name="template_id" id="project-template-final" value="">
+
+    <div class="field" id="scorecard-mine-wrap" hidden>
+      <label for="project-template-mine">Choose one of your templates</label>
+      <select id="project-template-mine">
+        <option value="">Choose a template…</option>
+        {% for t in templates %}
+        <option value="{{ t.id }}">{{ t.name }}{% if t.in_use_count %} — used by {{ t.in_use_count }} project{{ 's' if t.in_use_count != 1 }}{% endif %}</option>
+        {% endfor %}
+      </select>
+      {% if not templates %}
+      <p class="hint" style="margin-top:4px;">You don't have any templates yet — try “+ New Scorecard” instead.</p>
+      {% else %}
+      <details style="margin-top:8px;">
+        <summary class="hint" style="cursor:pointer;">Manage your templates</summary>
+        <div style="margin-top:8px; display:flex; flex-direction:column; gap:8px;">
+          {% for t in templates %}
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px;">
+            <span style="font-size:13.5px;">{{ t.name }}</span>
+            <div style="display:flex; gap:10px; align-items:baseline; flex-shrink:0;">
+              <a href="{{ url_for('buyer_evaluation_edit', template_id=t.id) }}" class="hint" style="white-space:nowrap;">Edit</a>
+              <form method="post" action="{{ url_for('buyer_evaluation_delete', template_id=t.id) }}" style="margin:0;"
+                    onsubmit="return confirm('Delete “{{ t.name }}”? Any project currently using it will switch to “No scorecard.” If vendors have already been scored with it, deletion is blocked so that history is kept.');">
+                <button type="submit" class="hint" style="white-space:nowrap; background:none; border:none; padding:0; cursor:pointer; color:var(--danger-ink, #b3261e);">Delete</button>
+              </form>
+            </div>
+          </div>
           {% endfor %}
-        </select>
-        {% endif %}
-      </div>
-      <div class="field" style="margin-bottom:0;">
-        <label for="project-name">Project name</label>
-        <input type="text" name="name" id="project-name" placeholder="e.g. CrowdStrike vs. SentinelOne" required>
+        </div>
+      </details>
+      {% endif %}
+    </div>
+
+    <div class="field" id="scorecard-shared-wrap" hidden>
+      <label for="project-template-shared">Choose a template shared by another company</label>
+      <select id="project-template-shared">
+        <option value="">Choose a shared template…</option>
+        {% for t in shared_templates %}
+        <option value="{{ t.id }}">{{ t.name }} — shared by {{ t.company }}</option>
+        {% endfor %}
+      </select>
+      {% if not shared_templates %}
+      <p class="hint" style="margin-top:4px;">No other company has shared a template yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="field" id="scorecard-ask-wrap" hidden>
+      <div class="card" style="background:var(--surface-2, #f6f6f4); margin:0;">
+        <p class="hint" style="margin:0 0 10px;">Send a teammate a quick message asking them to share a scorecard, checklist, or spreadsheet they've already used — then come back and attach it below, or pick it up once they've added it to the library.</p>
+        <div class="form-row">
+          <div class="field" style="margin-bottom:0;">
+            <label for="ask-teammate-email">Teammate's email</label>
+            <input type="email" id="ask-teammate-email" placeholder="teammate@yourcompany.com">
+          </div>
+        </div>
+        <div class="field">
+          <label for="ask-teammate-body">Message</label>
+          <textarea id="ask-teammate-body" rows="2">Hey — I'm starting a new evaluation and could use a document to kick it off, like a scorecard, checklist, or spreadsheet you've already used. Mind sharing one with me?</textarea>
+        </div>
+        <button type="button" id="ask-teammate-send" class="btn btn-secondary">Send request</button>
+        <p class="hint" id="ask-teammate-status" style="margin-top:8px;" hidden></p>
       </div>
     </div>
+
     <div class="field" style="margin-top:14px;">
       <label for="project-artifact-files">Already have a document to start from? Attach it (optional)</label>
       <input type="file" name="artifact_files" id="project-artifact-files" multiple>
@@ -122,7 +158,6 @@
   var input = document.getElementById('vendor-search-input');
   var list = document.getElementById('ready-vendor-list');
   var noVendorsHint = document.getElementById('no-vendors-hint');
-  if (!input || !list) { return; }
 
   function addVendorRow(id, name) {
     if (list.querySelector('.ready-vendor-checkbox[value="' + id + '"]')) { return; }
@@ -155,15 +190,89 @@
     if (noVendorsHint) { noVendorsHint.style.display = 'none'; }
   }
 
-  // A datalist selection sets the input's value and fires "input" right
-  // away in every major browser -- no need to wait for blur/Enter ("change").
-  input.addEventListener('input', function() {
-    var name = input.value.trim();
-    var id = vendorMap[name];
-    if (!id) { return; }
-    addVendorRow(id, name);
-    input.value = '';
-  });
+  if (input && list) {
+    // A datalist selection sets the input's value and fires "input" right
+    // away in every major browser -- no need to wait for blur/Enter ("change").
+    input.addEventListener('input', function() {
+      var name = input.value.trim();
+      var id = vendorMap[name];
+      if (!id) { return; }
+      addVendorRow(id, name);
+      input.value = '';
+    });
+  }
+
+  // Scorecard template picklist: one dropdown picks the PATH (later/mine/
+  // shared/ask/new), and each path reveals its own little control below
+  // it instead of cluttering the page with all of them at once. Only one
+  // of "mine"/"shared" ever feeds the real template_id that gets
+  // submitted; "ask" is a side errand (its own request, not part of this
+  // form) and "new" just sends the buyer to go build one.
+  var mode = document.getElementById('scorecard-mode');
+  var finalField = document.getElementById('project-template-final');
+  var wraps = {
+    mine: document.getElementById('scorecard-mine-wrap'),
+    shared: document.getElementById('scorecard-shared-wrap'),
+    ask: document.getElementById('scorecard-ask-wrap'),
+  };
+  var mineSelect = document.getElementById('project-template-mine');
+  var sharedSelect = document.getElementById('project-template-shared');
+  var NEW_TEMPLATE_URL = {{ url_for('buyer_evaluation_new') | tojson }};
+
+  function showMode(value) {
+    Object.keys(wraps).forEach(function(key) {
+      if (wraps[key]) { wraps[key].hidden = (key !== value); }
+    });
+    if (value === 'mine') {
+      finalField.value = mineSelect ? mineSelect.value : '';
+    } else if (value === 'shared') {
+      finalField.value = sharedSelect ? sharedSelect.value : '';
+    } else {
+      finalField.value = '';
+    }
+  }
+
+  if (mode) {
+    mode.addEventListener('change', function() {
+      if (mode.value === 'new') {
+        window.open(NEW_TEMPLATE_URL, '_blank');
+        mode.value = 'later';
+        showMode('later');
+        return;
+      }
+      showMode(mode.value);
+    });
+  }
+  if (mineSelect) {
+    mineSelect.addEventListener('change', function() { finalField.value = mineSelect.value; });
+  }
+  if (sharedSelect) {
+    sharedSelect.addEventListener('change', function() { finalField.value = sharedSelect.value; });
+  }
+
+  var askBtn = document.getElementById('ask-teammate-send');
+  if (askBtn) {
+    askBtn.addEventListener('click', function() {
+      var email = document.getElementById('ask-teammate-email').value.trim();
+      var body = document.getElementById('ask-teammate-body').value.trim();
+      var status = document.getElementById('ask-teammate-status');
+      status.hidden = false;
+      if (!email || !body) {
+        status.textContent = "Enter your teammate's email first.";
+        return;
+      }
+      status.textContent = 'Sending…';
+      var fd = new FormData();
+      fd.append('to_email', email);
+      fd.append('body', body);
+      fetch({{ url_for('messages_start') | tojson }}, { method: 'POST', body: fd })
+        .then(function(resp) {
+          if (resp.redirected) { window.location = resp.url; return; }
+          status.textContent = resp.ok ? 'Message sent.' : "Couldn't send that — try again.";
+        })
+        .catch(function() { status.textContent = "Couldn't send that — try again."; });
+    });
+  }
 })();
 </script>
 
@@ -199,33 +308,4 @@
 {% else %}
 <div class="card empty-state"><div class="icon">🗄️</div>No closed evaluations yet — closing one from its project page files it here.</div>
 {% endif %}
-
-<div class="section-title" style="margin-top:30px;"><h2>Template library</h2></div>
-<div class="grid grid-2">
-  {% for t in templates %}
-  <div class="card">
-    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px;">
-      <div>
-        <strong>{{ t.name }}</strong>
-        {% if t.company != g.user.company %}<span class="badge badge-neutral" style="margin-left:8px;">Shared by {{ t.company }}</span>{% endif %}
-      </div>
-      {% if t.company == g.user.company %}
-      <div style="display:flex; gap:12px; align-items:baseline; flex-shrink:0;">
-        <a href="{{ url_for('buyer_evaluation_edit', template_id=t.id) }}" class="hint" style="white-space:nowrap;">Edit</a>
-        <form method="post" action="{{ url_for('buyer_evaluation_delete', template_id=t.id) }}" style="margin:0;"
-              onsubmit="return confirm('Delete “{{ t.name }}”? Any project currently using it will switch to “No scorecard.” If vendors have already been scored with it, deletion is blocked so that history is kept.');">
-          <button type="submit" class="hint" style="white-space:nowrap; background:none; border:none; padding:0; cursor:pointer; color:var(--danger-ink, #b3261e);">Delete</button>
-        </form>
-      </div>
-      {% endif %}
-    </div>
-    <p style="font-size:13.5px; margin-top:6px;">{{ t.description }}</p>
-    {% if t.in_use_count %}
-    <p class="hint" style="margin-top:8px;">Used by {{ t.in_use_count }} project{{ 's' if t.in_use_count != 1 }}</p>
-    {% endif %}
-  </div>
-  {% else %}
-  <div class="card empty-state"><div class="icon">📋</div>No templates yet.</div>
-  {% endfor %}
-</div>
 {% endblock %}

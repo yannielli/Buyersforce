@@ -4392,21 +4392,6 @@ def buyer_evaluations():
         ")) ORDER BY p.created_at DESC",
         (u["company"], u["id"], u["id"]),
     )
-    # "Bring your own document" step 6a: a shortcut for starting a new
-    # project with the same scorecard as one you've already run, without
-    # having to go hunt for its name in the Template library. Limited to
-    # projects this buyer can already see (same privacy rule as above),
-    # not every project at the company -- templates themselves are
-    # company-wide, but project names/vendors are private.
-    past_with_template = [
-        {
-            "template_id": p["template_id"],
-            "name": p["name"] or "Untitled evaluation",
-            "template_name": p["template_name"],
-            "status": p["status"],
-        }
-        for p in projects if p["template_id"]
-    ]
     active_data = []
     archive_data = []
     for p in projects:
@@ -4499,10 +4484,21 @@ def buyer_evaluations():
     # handles (it inserts a shortlist row for any vendor_id that doesn't
     # have one yet).
     all_vendors = dbm.query("SELECT id, company_name FROM vendors ORDER BY company_name")
+    # New Evaluation's "Scorecard template" picklist, option (c): every
+    # template is shared by default (eval_templates.is_shared, set at
+    # creation in buyer_evaluation_new and never exposed as a choice --
+    # there's no "keep this private" checkbox yet), so any other
+    # company's template is fair game here. buyer_start_project's
+    # ownership check is relaxed to match (it accepts company-owned OR
+    # is_shared=1).
+    shared_templates = dbm.query(
+        "SELECT * FROM eval_templates WHERE is_shared=1 AND company != ? ORDER BY company, name",
+        (u["company"],),
+    )
     return render_template(
         "buyer/evaluations.html", templates=templates_, active=active_data, archive=archive_data,
         ready_to_evaluate=ready_data, no_award_reason_labels=NO_AWARD_REASON_LABELS,
-        past_with_template=past_with_template, all_vendors=all_vendors,
+        all_vendors=all_vendors, shared_templates=shared_templates,
     )
 
 
@@ -4821,14 +4817,16 @@ def buyer_start_project():
     # A scorecard is optional now -- blank means "no scorecard yet, just
     # track these vendors together" (see buyer_project_update_meta and
     # buyer_evaluation_new for adding/creating one later). When one IS
-    # chosen, it still has to actually belong to this company.
+    # chosen, it has to either belong to this company or be one another
+    # company has marked shared -- see the "Scorecard from library shared
+    # by other BuyersForce users" option on the New Evaluation form.
     if template_id:
-        template_owned = dbm.query(
-            "SELECT 1 FROM eval_templates WHERE id=? AND company=?",
+        template_available = dbm.query(
+            "SELECT 1 FROM eval_templates WHERE id=? AND (company=? OR is_shared=1)",
             (template_id, g.user["company"]), one=True,
         )
-        if not template_owned:
-            flash("That template isn't available to your company.", "error")
+        if not template_available:
+            flash("That template isn't available to you.", "error")
             return redirect(fallback)
     else:
         template_id = None
