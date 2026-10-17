@@ -210,7 +210,7 @@
       <p class="hint" style="margin-top:10px;">No registered sellers at {{ vendor.company_name }} yet to assign.</p>
       {% endif %}
       {% if pending_claims_for_vendor %}
-      <p class="hint" style="margin-top:10px;"><a href="{{ url_for('admin_access_control') }}">{{ pending_claims_for_vendor }} pending claim request{{ 's' if pending_claims_for_vendor != 1 }} for this listing →</a></p>
+      <p class="hint" style="margin-top:10px;"><a href="{{ url_for('admin_access_control') }}" class="action-link">{{ pending_claims_for_vendor }} pending claim request{{ 's' if pending_claims_for_vendor != 1 }} for this listing →</a></p>
       {% endif %}
     </div>
     {% endif %}

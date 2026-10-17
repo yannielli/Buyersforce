@@ -51,7 +51,7 @@
       {% if company_counts.get(u.company, 0) > 1 %}<span class="badge badge-neutral" style="margin-left:4px;">{{ company_counts[u.company] }} at this company</span>{% endif %}
       {% if role == "seller" and vendor_by_company %}
         {% set vendor = vendor_by_company.get((u.company or "").strip().lower()) %}
-        {% if vendor %}<div class="hint"><a href="{{ url_for('admin_vendor_edit', vendor_id=vendor.id) }}">Vendor listing →</a></div>{% endif %}
+        {% if vendor %}<div class="hint"><a href="{{ url_for('admin_vendor_edit', vendor_id=vendor.id) }}" class="action-link">Vendor listing →</a></div>{% endif %}
       {% endif %}
     </td>
     <td>{{ u.title }}</td>

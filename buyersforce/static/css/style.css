@@ -249,6 +249,13 @@ button { font-family: inherit; }
 label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink-primary); }
 .field { margin-bottom: 16px; }
 .hint { font-size: 12.5px; color: var(--ink-muted); margin-top: 4px; }
+/* A text link or disclosure trigger that performs an action right where
+   you are (reveal a form, jump to a sub-page) rather than plain body
+   copy -- colored so it reads as clickable instead of blending into
+   .hint's muted gray or inheriting plain text color. Pair with .hint
+   when the smaller size should stay (e.g. class="hint action-link"). */
+.action-link { color: var(--brand); font-weight: 600; cursor: pointer; }
+.action-link:hover { color: var(--brand-dark); text-decoration: underline; }
 input[type=text], input[type=email], input[type=password], input[type=url],
 input[type=tel], input[type=datetime-local], input[type=number], select, textarea {
   width: 100%; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--border-strong);

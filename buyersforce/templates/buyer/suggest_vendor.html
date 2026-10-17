@@ -82,7 +82,7 @@
     <p style="font-size:13.5px; margin-top:8px;">{{ r.denial_note }}</p>
     {% endif %}
     {% if r.status == 'approved' and r.created_vendor_id %}
-    <a href="{{ url_for('buyer_vendor', vendor_id=r.created_vendor_id) }}" class="hint" style="margin-top:8px; display:inline-block;">View listing →</a>
+    <a href="{{ url_for('buyer_vendor', vendor_id=r.created_vendor_id) }}" class="hint action-link" style="margin-top:8px; display:inline-block;">View listing →</a>
     {% endif %}
   </div>
   {% endfor %}

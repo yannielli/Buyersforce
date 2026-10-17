@@ -15,7 +15,7 @@
     {% endif %}
     {% if can_edit %}
     <details id="edit-project-details" style="margin-top:8px;" {{ 'open' if not template }}>
-      <summary class="hint" style="cursor:pointer; display:inline-block;">Rename or change scorecard &rarr;</summary>
+      <summary class="hint action-link" style="display:inline-block;">Rename or change scorecard &rarr;</summary>
       <form method="post" action="{{ url_for('buyer_project_update_meta', project_id=project.id) }}" style="margin-top:12px; max-width:420px;">
         <div class="field">
           <label for="edit-project-name">Project name</label>
