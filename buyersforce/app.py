@@ -4490,10 +4490,19 @@ def buyer_evaluations():
         {**dict(r), "logo_url": vendor_display_logo_url(r)}
         for r in ready
     ]
+    # New Evaluation's "search for a vendor to add" box -- a buyer who
+    # already knows who they want to evaluate shouldn't have to go through
+    # Discover/Compare and shortlist a vendor first just to start a
+    # project here. Same lightweight id+name list buyer_compare already
+    # loads for its own vendor picker; vendor_ids picked this way are
+    # brand new to the shortlist table, which buyer_start_project already
+    # handles (it inserts a shortlist row for any vendor_id that doesn't
+    # have one yet).
+    all_vendors = dbm.query("SELECT id, company_name FROM vendors ORDER BY company_name")
     return render_template(
         "buyer/evaluations.html", templates=templates_, active=active_data, archive=archive_data,
         ready_to_evaluate=ready_data, no_award_reason_labels=NO_AWARD_REASON_LABELS,
-        past_with_template=past_with_template,
+        past_with_template=past_with_template, all_vendors=all_vendors,
     )
 
 
