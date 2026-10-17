@@ -79,6 +79,9 @@ def run_migrations():
             _widen_eval_scores_score_check(cur)
             _add_eval_project_closing_columns(cur)
             _add_eval_project_no_award_reasons_table(cur)
+            _add_eval_project_collaborators_table(cur)
+            _allow_null_eval_scores_score_2026_10_17(cur)
+            _backfill_eval_project_collaborators_2026_10_17(cur)
     finally:
         con.close()
 
@@ -1822,6 +1825,96 @@ def _add_vendor_intezer_2026_10_15(cur):
             "INSERT INTO vendor_technology_categories (vendor_id, category) VALUES (%s, %s)",
             (vendor_id, "Cybersecurity"),
         )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) "
+        "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
+
+
+def _add_eval_project_collaborators_table(cur):
+    # Per-project access list -- see schema.sql's comment on this table.
+    # An evaluation is now private to its creator (eval_projects.created_by,
+    # the implicit "owner") plus whoever the owner explicitly adds here.
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS eval_project_collaborators (
+            id SERIAL PRIMARY KEY,
+            project_id INTEGER NOT NULL REFERENCES eval_projects(id),
+            user_id INTEGER REFERENCES users(id),
+            email TEXT NOT NULL,
+            role TEXT NOT NULL CHECK (role IN ('viewer', 'commenter', 'editor')),
+            invited_by INTEGER NOT NULL REFERENCES users(id),
+            invite_id INTEGER REFERENCES invites(id),
+            accepted_at TEXT,
+            created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+        )
+        """
+    )
+    cur.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS eval_project_collaborators_uniq
+        ON eval_project_collaborators (project_id, email)
+        """
+    )
+
+
+def _allow_null_eval_scores_score_2026_10_17(cur):
+    # A 'commenter' collaborator (see eval_project_collaborators above) can
+    # leave feedback on a scorecard cell without entering a score -- score
+    # was NOT NULL until now. Same drop-and-recreate-the-CHECK technique as
+    # _widen_eval_scores_score_check; app.py filters NULL scores out of
+    # every average/overall calculation rather than treating them as a zero.
+    cur.execute("ALTER TABLE eval_scores ALTER COLUMN score DROP NOT NULL")
+    cur.execute(
+        "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+        "WHERE conname = 'eval_scores_score_check'"
+    )
+    row = cur.fetchone()
+    if row and "IS NULL" in row[0]:
+        return  # already migrated
+    cur.execute("ALTER TABLE eval_scores DROP CONSTRAINT IF EXISTS eval_scores_score_check")
+    cur.execute(
+        "ALTER TABLE eval_scores ADD CONSTRAINT eval_scores_score_check "
+        "CHECK (score IS NULL OR score BETWEEN 1 AND 10)"
+    )
+
+
+def _backfill_eval_project_collaborators_2026_10_17(cur):
+    # One-time data fix, not a recurring rule (guarded by _data_patches,
+    # same technique as _remove_discontinued_vendor_listings_2026_09_20):
+    # every evaluation project created before today let every buyer at its
+    # company view/score it. Now that access is private to the creator +
+    # explicitly invited collaborators, a project with no backfill would
+    # silently lock out teammates who already had access -- so every
+    # EXISTING project gets every other buyer at its company added as
+    # 'editor', preserving exactly what they could already do. Only
+    # projects created from here on are private-by-default.
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches ("
+        "name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "backfill_eval_project_collaborators_2026_10_17"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    cur.execute("SELECT id, company, created_by FROM eval_projects")
+    projects = cur.fetchall()
+    for project_id, company, created_by in projects:
+        cur.execute(
+            "SELECT id, email FROM users WHERE company = %s AND role = 'buyer' AND id != %s",
+            (company, created_by),
+        )
+        for user_id, email in cur.fetchall():
+            cur.execute(
+                "INSERT INTO eval_project_collaborators "
+                "(project_id, user_id, email, role, invited_by, accepted_at) "
+                "VALUES (%s, %s, %s, 'editor', %s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS')) "
+                "ON CONFLICT (project_id, email) DO NOTHING",
+                (project_id, user_id, email, created_by),
+            )
 
     cur.execute(
         "INSERT INTO _data_patches (name, applied_at) "

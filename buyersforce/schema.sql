@@ -542,6 +542,32 @@ CREATE TABLE eval_project_no_award_reasons (
 CREATE UNIQUE INDEX eval_project_no_award_reasons_uniq
 ON eval_project_no_award_reasons (project_id, reason);
 
+-- Per-project access list (2026-10-17): an evaluation is private to its
+-- creator (eval_projects.created_by, the implicit "owner" -- not a row
+-- here) plus whoever the owner explicitly adds. user_id is NULL for a
+-- brand-new teammate until they accept the invite (invite_id points at
+-- the invites row created for them; accept_invite() backfills user_id +
+-- accepted_at once they set a password). 'editor' can score/comment/add
+-- vendors/close+reopen like an owner; 'commenter' can leave comments
+-- (including a comment with no score -- see eval_scores.score below)
+-- but can't change the official record; 'viewer' is read-only.
+-- Projects created before this table existed were backfilled with every
+-- buyer at the company as 'editor' (see migrate.py), matching exactly
+-- what they could already do -- only NEW projects are private-by-default.
+CREATE TABLE eval_project_collaborators (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES eval_projects(id),
+    user_id INTEGER REFERENCES users(id),
+    email TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('viewer', 'commenter', 'editor')),
+    invited_by INTEGER NOT NULL REFERENCES users(id),
+    invite_id INTEGER REFERENCES invites(id),
+    accepted_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+);
+CREATE UNIQUE INDEX eval_project_collaborators_uniq
+ON eval_project_collaborators (project_id, email);
+
 CREATE TABLE evaluations (
     id SERIAL PRIMARY KEY,
     template_id INTEGER NOT NULL REFERENCES eval_templates(id),
@@ -570,7 +596,10 @@ CREATE TABLE eval_scores (
     -- Widened from the original 1-5 to the broadest scale any template can
     -- pick (see eval_templates.scale_max) -- the actual per-template
     -- ceiling is enforced in app.py's buyer_project_detail, not here.
-    score INTEGER NOT NULL CHECK (score BETWEEN 1 AND 10),
+    -- NULL (2026-10-17) means a 'commenter' collaborator left feedback on
+    -- this cell without scoring it -- every average/overall calculation
+    -- in app.py filters these out rather than treating them as a zero.
+    score INTEGER CHECK (score IS NULL OR score BETWEEN 1 AND 10),
     comment TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
     UNIQUE(evaluation_id, criterion_id, user_id)

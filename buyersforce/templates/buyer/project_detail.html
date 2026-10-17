@@ -5,7 +5,14 @@
   <div>
     <span class="eyebrow">{{ template.name }}</span>
     <h1>{{ project_name }}</h1>
-    <p class="lede">Collaborative scorecard — every reviewer on {{ project.company }} scores all {{ vendors|length }} vendor{{ 's' if vendors|length != 1 }} independently.</p>
+    <p class="lede">Collaborative scorecard — every reviewer with access scores all {{ vendors|length }} vendor{{ 's' if vendors|length != 1 }} independently.</p>
+    {% if my_role != 'owner' %}
+    <p class="hint" style="margin-top:4px;">
+      {% if owner %}Owned by {{ owner.name }} ({{ owner.email }}) ·{% endif %}
+      You have <strong>{{ my_role }}</strong> access on this evaluation
+      {% if my_role == 'commenter' %}— you can leave comments but can't change scores{% elif my_role == 'viewer' %}— read-only{% endif %}.
+    </p>
+    {% endif %}
   </div>
   <a href="{{ url_for('buyer_evaluation_edit', template_id=template.id) }}" class="btn btn-secondary">Manage criteria</a>
 </div>
@@ -27,9 +34,11 @@
       {% endif %}
       {% endif %}
     </div>
+    {% if can_edit %}
     <form method="post" action="{{ url_for('buyer_project_reopen', project_id=project.id) }}">
       <button class="btn btn-secondary" type="submit">Reopen evaluation</button>
     </form>
+    {% endif %}
   </div>
 </div>
 {% endif %}
@@ -68,7 +77,7 @@
               <div class="score-pill-group">
                 {% for n in range(1, template.scale_max + 1) %}
                 <label class="score-dot {{ 'selected' if cell.my_score and cell.my_score.score == n }}">
-                  <input type="radio" name="score_{{ v.evaluation_id }}_{{ c.id }}" value="{{ n }}" {{ 'checked' if cell.my_score and cell.my_score.score == n }} {{ 'disabled' if is_closed }}>
+                  <input type="radio" name="score_{{ v.evaluation_id }}_{{ c.id }}" value="{{ n }}" {{ 'checked' if cell.my_score and cell.my_score.score == n }} {{ 'disabled' if is_closed or not can_edit }}>
                   {{ n }}
                 </label>
                 {% endfor %}
@@ -76,7 +85,7 @@
               {% if cell.avg %}<div class="hint" style="margin-top:4px;">team avg {{ cell.avg }}</div>{% endif %}
               <input type="text" name="comment_{{ v.evaluation_id }}_{{ c.id }}" placeholder="Note on {{ c.label|lower }}…"
                      value="{{ cell.my_score.comment if cell.my_score else '' }}"
-                     class="scorecard-comment-input" {{ 'disabled' if is_closed }}>
+                     class="scorecard-comment-input" {{ 'disabled' if is_closed or not can_comment }}>
             </td>
             {% endfor %}
           </tr>
@@ -86,8 +95,10 @@
     </div>
     {% if is_closed %}
     <p class="hint" style="margin-top:14px;">This evaluation is closed, so scores are read-only. Reopen it above to make changes.</p>
+    {% elif not can_comment %}
+    <p class="hint" style="margin-top:14px;">You have view-only access to this evaluation.</p>
     {% else %}
-    <button class="btn btn-primary" type="submit" style="margin-top:14px;">Save my scores</button>
+    <button class="btn btn-primary" type="submit" style="margin-top:14px;">{{ 'Save my scores' if can_edit else 'Save my comments' }}</button>
     {% endif %}
   </div>
 
@@ -117,7 +128,7 @@
         {% else %}
         <p class="hint" style="margin:0;">No Gartner Peer Insights notes yet — add one below.</p>
         {% endif %}
-        <input type="text" name="gartner_peer_note_{{ v.evaluation_id }}" placeholder="e.g. 4.5/5 stars, 120 reviews — strong marks on support" value="{{ v.gartner_peer_note }}" style="margin-top:10px;" {{ 'disabled' if is_closed }}>
+        <input type="text" name="gartner_peer_note_{{ v.evaluation_id }}" placeholder="e.g. 4.5/5 stars, 120 reviews — strong marks on support" value="{{ v.gartner_peer_note }}" style="margin-top:10px;" {{ 'disabled' if is_closed or not can_edit }}>
         <div class="hint" style="margin-top:4px;">BuyersForce doesn't pull live review data — jot down what your team found so it's visible on Compare too.</div>
         <a href="{{ v.gartner_url }}" target="_blank" rel="noopener" class="hint" style="display:inline-block; margin-top:8px;">Search reviews ↗</a>
       </div>
@@ -142,7 +153,7 @@
   </div>
 </form>
 
-{% if not is_closed %}
+{% if not is_closed and can_edit %}
 <div class="grid grid-2" style="margin-top:24px;">
   {% if other_vendors %}
   <div class="card">
@@ -194,6 +205,64 @@
       </form>
     </details>
   </div>
+</div>
+{% endif %}
+
+{% if my_role == 'owner' %}
+<div class="card" style="margin-top:24px;">
+  <h3 style="font-size:15px;">Team access</h3>
+  <p class="hint">This evaluation is private to you and whoever you add below. Editors can score, add vendors, and close/reopen just like you; commenters can leave feedback but not change scores; viewers are read-only.</p>
+
+  {% if collaborators %}
+  <table class="scorecard-table" style="margin-top:14px; width:100%;">
+    <thead>
+      <tr>
+        <th style="text-align:left;">Person</th>
+        <th style="text-align:left;">Access</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in collaborators %}
+      <tr>
+        <td>
+          {{ c.user_name or c.email }}
+          {% if c.user_name %}<div class="hint">{{ c.email }}</div>{% endif %}
+          {% if not c.accepted_at %}<span class="badge badge-neutral" style="margin-top:4px; display:inline-block;">Invited — not accepted yet</span>{% endif %}
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('buyer_project_collaborator_role', project_id=project.id, collaborator_id=c.id) }}" style="display:flex; gap:8px; align-items:center;">
+            <select name="role">
+              {% for key, label in collab_roles %}
+              <option value="{{ key }}" {{ 'selected' if c.role == key }}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-secondary btn-sm" type="submit">Update</button>
+          </form>
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('buyer_project_remove_collaborator', project_id=project.id, collaborator_id=c.id) }}">
+            <button class="btn btn-secondary btn-sm" type="submit">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="hint" style="margin-top:10px;">Nobody else has access yet.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('buyer_project_invite_collaborator', project_id=project.id) }}" style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
+    <input type="email" name="email" placeholder="teammate@company.com" required style="flex:1; min-width:220px;">
+    <select name="role">
+      {% for key, label in collab_roles %}
+      <option value="{{ key }}" {{ 'selected' if key == 'editor' }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-secondary" type="submit">Give access</button>
+  </form>
+  <p class="hint" style="margin-top:8px;">A teammate without a BuyersForce account yet will get an email to set a password; one who already has an account gets access right away.</p>
 </div>
 {% endif %}
 {% endblock %}

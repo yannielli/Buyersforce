@@ -771,6 +771,18 @@ def accept_invite(token):
                     _ensure_unclaimed_vendor_for_company(invite["company"])
             now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             dbm.execute("UPDATE invites SET used_at = ? WHERE id = ?", (now_str, invite["id"]))
+            # Backfill any evaluation(s) this person was added to as a
+            # brand-new teammate before they had an account -- see
+            # eval_project_collaborators in schema.sql. Keyed by email,
+            # not this one invite's id: a pending invite can be reused
+            # across several project invites (buyer_project_invite_
+            # collaborator) before it's ever accepted, so more than one
+            # collaborator row can be waiting on it.
+            dbm.execute(
+                "UPDATE eval_project_collaborators SET user_id=?, accepted_at=? "
+                "WHERE email=? AND user_id IS NULL",
+                (user_id, now_str, invite["email"]),
+            )
             session.clear()
             session["user_id"] = user_id
             flash("Your account is ready.", "success")
@@ -2963,8 +2975,15 @@ def buyer_dashboard():
         )["c"],
         # Counts projects (scorecards), not individual vendor rows within
         # them, so a 3-vendor comparison counts as one team evaluation.
+        # Scoped to ones this buyer can actually open -- owner or invited
+        # collaborator -- same visibility rule as buyer_evaluations(),
+        # now that evaluations are private-by-default (see
+        # eval_project_collaborators in schema.sql).
         "evaluations": dbm.query(
-            "SELECT COUNT(*) c FROM eval_projects WHERE company=?", (u["company"],), one=True
+            "SELECT COUNT(*) c FROM eval_projects p WHERE p.company=? AND (p.created_by=? OR EXISTS ("
+            "  SELECT 1 FROM eval_project_collaborators c WHERE c.project_id = p.id AND c.user_id = ?"
+            "))",
+            (u["company"], u["id"], u["id"]), one=True
         )["c"],
         "unread_threads": dbm.query(
             "SELECT COUNT(DISTINCT t.id) c FROM threads t JOIN messages m ON m.thread_id=t.id "
@@ -3899,6 +3918,50 @@ def project_display_name(name, vendor_names):
     return " vs. ".join(vendor_names)
 
 
+# Collaborator roles on a single evaluation project, loosest to strictest
+# -- see the comment on eval_project_collaborators in schema.sql for what
+# each can do. 'owner' is implicit (eval_projects.created_by) and is never
+# stored as a row here, so it isn't in this list.
+EVAL_COLLAB_ROLES = [
+    ("viewer", "Viewer"),
+    ("commenter", "Commenter"),
+    ("editor", "Editor"),
+]
+EVAL_COLLAB_ROLE_LABELS = dict(EVAL_COLLAB_ROLES)
+
+
+def eval_project_role(project, user):
+    """This user's access level on an evaluation project -- 'owner',
+    'editor', 'commenter', 'viewer', or None for no access at all. The
+    creator is always 'owner'; everyone else's level comes from their row
+    in eval_project_collaborators, keyed by user_id -- a brand-new
+    teammate's row has no user_id yet (see that table's schema.sql
+    comment) and so grants nothing until accept_invite backfills it.
+    """
+    if project["created_by"] == user["id"]:
+        return "owner"
+    row = dbm.query(
+        "SELECT role FROM eval_project_collaborators WHERE project_id=? AND user_id=?",
+        (project["id"], user["id"]), one=True,
+    )
+    return row["role"] if row else None
+
+
+def eval_project_or_404(project_id, user):
+    """Loads an evaluation project together with this user's role on it,
+    since nearly every project route needs both. A company mismatch and
+    "no role at all" are both treated as a 404 (never a 403) so a buyer
+    poking at project ids can't tell a private evaluation apart from one
+    that doesn't exist."""
+    project = dbm.query("SELECT * FROM eval_projects WHERE id=?", (project_id,), one=True)
+    if not project or project["company"] != user["company"]:
+        abort(404)
+    role = eval_project_role(project, user)
+    if role is None:
+        abort(404)
+    return project, role
+
+
 @app.route("/app/buyer/evaluations")
 @role_required("buyer")
 def buyer_evaluations():
@@ -3910,12 +3973,19 @@ def buyer_evaluations():
     # One project can (and often does) hold several vendors being scored
     # against the same template at once -- see eval_projects in schema.sql.
     # "Active evaluations" / "Archive" below is one card per PROJECT, not
-    # per vendor.
+    # per vendor. Private-by-default (2026-10-17): only a project's owner
+    # (created_by) and its explicitly invited collaborators see it here --
+    # not every buyer at the company, like before eval_project_collaborators
+    # existed (pre-existing projects were backfilled with every buyer as
+    # 'editor' so nobody lost access they already had -- see migrate.py).
     projects = dbm.query(
         "SELECT p.*, t.name template_name FROM eval_projects p "
         "JOIN eval_templates t ON t.id = p.template_id "
-        "WHERE p.company=? ORDER BY p.created_at DESC",
-        (u["company"],),
+        "WHERE p.company=? AND (p.created_by=? OR EXISTS ("
+        "  SELECT 1 FROM eval_project_collaborators c "
+        "  WHERE c.project_id = p.id AND c.user_id = ?"
+        ")) ORDER BY p.created_at DESC",
+        (u["company"], u["id"], u["id"]),
     )
     active_data = []
     archive_data = []
@@ -4291,9 +4361,12 @@ def buyer_start_project():
 @app.route("/app/buyer/evaluations/project/<int:project_id>", methods=("GET", "POST"))
 @role_required("buyer")
 def buyer_project_detail(project_id):
-    project = dbm.query("SELECT * FROM eval_projects WHERE id=?", (project_id,), one=True)
-    if not project or project["company"] != g.user["company"]:
-        abort(404)
+    project, my_role = eval_project_or_404(project_id, g.user)
+    # 'editor'/'owner' can score; 'commenter' can only leave feedback
+    # (comments, with no score attached -- see eval_scores.score in
+    # schema.sql); 'viewer' is read-only and can't POST at all.
+    can_edit = my_role in ("owner", "editor")
+    can_comment = my_role in ("owner", "editor", "commenter")
     template = dbm.query("SELECT * FROM eval_templates WHERE id=?", (project["template_id"],), one=True)
     criteria = dbm.query(
         "SELECT * FROM eval_criteria WHERE template_id=? ORDER BY position", (project["template_id"],)
@@ -4315,36 +4388,55 @@ def buyer_project_detail(project_id):
         if is_closed:
             flash("This evaluation is closed. Reopen it to make changes.", "error")
             return redirect(url_for("buyer_project_detail", project_id=project_id))
+        if not can_comment:
+            flash("You have view-only access to this evaluation.", "error")
+            return redirect(url_for("buyer_project_detail", project_id=project_id))
         # Every criterion x vendor cell in the grid is its own score/comment
         # field, keyed by that vendor's evaluation id so scoring one
         # vendor's "Ease of integration" never collides with another's --
         # see the criterion-cell markup in project_detail.html.
         for ev in evals:
             for c in criteria:
-                score = request.form.get(f"score_{ev['id']}_{c['id']}")
+                raw_score = request.form.get(f"score_{ev['id']}_{c['id']}")
                 comment = request.form.get(f"comment_{ev['id']}_{c['id']}", "").strip()
-                if score:
+                # A commenter's score radios are disabled in the template
+                # (and thus never show up in the submitted form at all) --
+                # can_edit here is belt-and-suspenders against a
+                # hand-crafted request from someone who's only a commenter.
+                score_val = None
+                if can_edit and raw_score:
                     try:
-                        score_val = int(score)
+                        score_val = int(raw_score)
                     except (TypeError, ValueError):
-                        continue
-                    # Belt-and-suspenders: the radio buttons already stop
-                    # at this template's scale_max, but clamp here too in
-                    # case of a hand-crafted request.
-                    score_val = max(1, min(template["scale_max"], score_val))
-                    dbm.execute(
-                        "INSERT INTO eval_scores (evaluation_id, criterion_id, user_id, score, comment) "
-                        "VALUES (?, ?, ?, ?, ?) ON CONFLICT(evaluation_id, criterion_id, user_id) "
-                        "DO UPDATE SET score=excluded.score, comment=excluded.comment",
-                        (ev["id"], c["id"], g.user["id"], score_val, comment),
-                    )
+                        score_val = None
+                    else:
+                        # Belt-and-suspenders: the radio buttons already
+                        # stop at this template's scale_max, but clamp
+                        # here too in case of a hand-crafted request.
+                        score_val = max(1, min(template["scale_max"], score_val))
+                if score_val is None and not comment:
+                    continue  # nothing to save for this cell
+                dbm.execute(
+                    "INSERT INTO eval_scores (evaluation_id, criterion_id, user_id, score, comment) "
+                    "VALUES (?, ?, ?, ?, ?) ON CONFLICT(evaluation_id, criterion_id, user_id) "
+                    # COALESCE, not a flat overwrite: a commenter (or an
+                    # editor who left the score blank) submits score_val
+                    # NULL, which must never clobber a score already on
+                    # record for this cell.
+                    "DO UPDATE SET score=COALESCE(excluded.score, eval_scores.score), "
+                    "comment=excluded.comment",
+                    (ev["id"], c["id"], g.user["id"], score_val, comment),
+                )
             # Free-text space for whatever the team found on Gartner Peer
             # Insights, per vendor -- BF doesn't pull real review data from
-            # Gartner, this is just a manually-typed reference note.
-            gartner_peer_note = request.form.get(f"gartner_peer_note_{ev['id']}", "").strip()
-            dbm.execute(
-                "UPDATE evaluations SET gartner_peer_note=? WHERE id=?", (gartner_peer_note, ev["id"])
-            )
+            # Gartner, this is just a manually-typed reference note. Left
+            # to editors/the owner, same as every other "official record"
+            # field here.
+            if can_edit:
+                gartner_peer_note = request.form.get(f"gartner_peer_note_{ev['id']}", "").strip()
+                dbm.execute(
+                    "UPDATE evaluations SET gartner_peer_note=? WHERE id=?", (gartner_peer_note, ev["id"])
+                )
         log_activity(
             g.user["id"],
             f"submitted scores for {', '.join(ev['company_name'] for ev in evals)}",
@@ -4426,6 +4518,20 @@ def buyer_project_detail(project_id):
             closer = dbm.query("SELECT name FROM users WHERE id=?", (project["closed_by"],), one=True)
             closed_by_name = closer["name"] if closer else None
 
+    # Team access card, owner-only (see the "Team access" section of
+    # project_detail.html) -- everyone else's role is already settled by
+    # my_role above and isn't something they can change themselves.
+    collaborators = []
+    owner = None
+    if my_role == "owner":
+        collaborators = dbm.query(
+            "SELECT c.*, u.name user_name FROM eval_project_collaborators c "
+            "LEFT JOIN users u ON u.id = c.user_id WHERE c.project_id=? ORDER BY c.created_at",
+            (project_id,),
+        )
+    else:
+        owner = dbm.query("SELECT name, email FROM users WHERE id=?", (project["created_by"],), one=True)
+
     return render_template(
         "buyer/project_detail.html",
         project=project, project_name=project_name, template=template,
@@ -4433,15 +4539,18 @@ def buyer_project_detail(project_id):
         is_closed=is_closed, outcome_vendor=outcome_vendor, no_award_reasons=no_award_reasons,
         no_award_other_text=project["no_award_other_text"], no_award_reason_options=NO_AWARD_REASONS,
         closed_by_name=closed_by_name,
+        my_role=my_role, can_edit=can_edit, can_comment=can_comment,
+        collaborators=collaborators, collab_roles=EVAL_COLLAB_ROLES, owner=owner,
     )
 
 
 @app.route("/app/buyer/evaluations/project/<int:project_id>/add-vendor", methods=("POST",))
 @role_required("buyer")
 def buyer_project_add_vendor(project_id):
-    project = dbm.query("SELECT * FROM eval_projects WHERE id=?", (project_id,), one=True)
-    if not project or project["company"] != g.user["company"]:
-        abort(404)
+    project, my_role = eval_project_or_404(project_id, g.user)
+    if my_role not in ("owner", "editor"):
+        flash("You have view-only access to this evaluation.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
     if project["status"] == "closed":
         flash("This evaluation is closed. Reopen it to add a vendor.", "error")
         return redirect(url_for("buyer_project_detail", project_id=project_id))
@@ -4487,9 +4596,10 @@ def buyer_project_close(project_id):
     # only records the outcome and files the project from "Active
     # evaluations" into "Archive" (see buyer_evaluations). A mistaken
     # close is recoverable any time via buyer_project_reopen.
-    project = dbm.query("SELECT * FROM eval_projects WHERE id=?", (project_id,), one=True)
-    if not project or project["company"] != g.user["company"]:
-        abort(404)
+    project, my_role = eval_project_or_404(project_id, g.user)
+    if my_role not in ("owner", "editor"):
+        flash("You have view-only access to this evaluation.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
     if project["status"] == "closed":
         flash("This evaluation is already closed.", "error")
         return redirect(url_for("buyer_project_detail", project_id=project_id))
@@ -4551,9 +4661,10 @@ def buyer_project_close(project_id):
 @app.route("/app/buyer/evaluations/project/<int:project_id>/reopen", methods=("POST",))
 @role_required("buyer")
 def buyer_project_reopen(project_id):
-    project = dbm.query("SELECT * FROM eval_projects WHERE id=?", (project_id,), one=True)
-    if not project or project["company"] != g.user["company"]:
-        abort(404)
+    project, my_role = eval_project_or_404(project_id, g.user)
+    if my_role not in ("owner", "editor"):
+        flash("You have view-only access to this evaluation.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
     dbm.execute(
         "UPDATE eval_projects SET status='active', closed_at=NULL, closed_by=NULL, "
         "selected_vendor_id=NULL, no_award_other_text='' WHERE id=?",
@@ -4562,6 +4673,131 @@ def buyer_project_reopen(project_id):
     dbm.execute("DELETE FROM eval_project_no_award_reasons WHERE project_id=?", (project_id,))
     log_activity(g.user["id"], "reopened an evaluation project")
     flash("Evaluation reopened -- you can make changes again.", "success")
+    return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+
+@app.route("/app/buyer/evaluations/project/<int:project_id>/collaborators/invite", methods=("POST",))
+@role_required("buyer")
+def buyer_project_invite_collaborator(project_id):
+    # Self-serve: the owner grants access themselves, no admin involved --
+    # see the "Team access" card in project_detail.html. Only the owner can
+    # manage who's on a project; an editor can score/close/reopen like an
+    # owner but can't change who else has access.
+    project, my_role = eval_project_or_404(project_id, g.user)
+    if my_role != "owner":
+        flash("Only the evaluation's owner can manage who has access.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    email = request.form.get("email", "").strip().lower()
+    role = request.form.get("role", "editor")
+    if role not in EVAL_COLLAB_ROLE_LABELS:
+        role = "editor"
+    if not email or "@" not in email:
+        flash("Enter a valid email address.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    if email == g.user["email"].strip().lower():
+        flash("You already have full access to your own evaluation.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    if dbm.query(
+        "SELECT 1 FROM eval_project_collaborators WHERE project_id=? AND email=?",
+        (project_id, email), one=True,
+    ):
+        flash(f"{email} already has access to this evaluation.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    existing_user = dbm.query("SELECT * FROM users WHERE email=?", (email,), one=True)
+    if existing_user:
+        # Already has a BuyersForce account -- scoped to buyers at the SAME
+        # company, same population that could already see every project
+        # before this table existed (see migrate.py's backfill). Access
+        # starts immediately, no invite/password flow needed.
+        if existing_user["role"] != "buyer" or existing_user["company"] != project["company"]:
+            flash(f"{email} isn't a buyer at your company.", "error")
+            return redirect(url_for("buyer_project_detail", project_id=project_id))
+        dbm.execute(
+            "INSERT INTO eval_project_collaborators "
+            "(project_id, user_id, email, role, invited_by, accepted_at) "
+            "VALUES (?, ?, ?, ?, ?, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+            (project_id, existing_user["id"], email, role, g.user["id"]),
+        )
+        flash(f"{existing_user['name']} now has {role} access to this evaluation.", "success")
+    else:
+        # Brand-new teammate with no BuyersForce account yet -- reuse a
+        # still-pending invite for this email if one's already outstanding
+        # (e.g. they were just added to a second project before accepting
+        # the first) rather than deleting and recreating it: that invite's
+        # id may already be referenced by another pending collaborator row
+        # via invite_id, and deleting it out from under that row would trip
+        # the foreign key. Otherwise this is the same token/accept-password
+        # flow as admin_invite -- user_id stays NULL here until
+        # accept_invite backfills it.
+        pending_invite = dbm.query(
+            "SELECT * FROM invites WHERE email=? AND used_at IS NULL", (email,), one=True,
+        )
+        if pending_invite:
+            invite_id, token = pending_invite["id"], pending_invite["token"]
+        else:
+            invite_id, token = _create_invite(email, "buyer", project["company"], "", g.user["id"])
+        dbm.execute(
+            "INSERT INTO eval_project_collaborators "
+            "(project_id, user_id, email, role, invited_by, invite_id) "
+            "VALUES (?, NULL, ?, ?, ?, ?)",
+            (project_id, email, role, g.user["id"], invite_id),
+        )
+        emailer.send_email(
+            email,
+            subject=f"{g.user['name']} gave you access to an evaluation on BuyersForce",
+            text=(
+                f"Hi,\n\n{g.user['name']} added you as a{'n' if role == 'editor' else ''} {role} "
+                f"on an evaluation at {project['company']} on BuyersForce.\n\n"
+                f"Set your password here to get started: "
+                f"{url_for('accept_invite', token=token, _external=True)}\n\n"
+                f"This link expires in 7 days."
+            ),
+            reply_to=g.user["email"],
+        )
+        flash(f"Invited {email} as a{'n' if role == 'editor' else ''} {role}.", "success")
+    log_activity(g.user["id"], f"gave {email} access to an evaluation project")
+    return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+
+@app.route(
+    "/app/buyer/evaluations/project/<int:project_id>/collaborators/<int:collaborator_id>/role",
+    methods=("POST",),
+)
+@role_required("buyer")
+def buyer_project_collaborator_role(project_id, collaborator_id):
+    project, my_role = eval_project_or_404(project_id, g.user)
+    if my_role != "owner":
+        flash("Only the evaluation's owner can manage who has access.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    role = request.form.get("role", "")
+    if role not in EVAL_COLLAB_ROLE_LABELS:
+        flash("That's not a valid role.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    dbm.execute(
+        "UPDATE eval_project_collaborators SET role=? WHERE id=? AND project_id=?",
+        (role, collaborator_id, project_id),
+    )
+    flash("Access updated.", "success")
+    return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+
+@app.route(
+    "/app/buyer/evaluations/project/<int:project_id>/collaborators/<int:collaborator_id>/remove",
+    methods=("POST",),
+)
+@role_required("buyer")
+def buyer_project_remove_collaborator(project_id, collaborator_id):
+    project, my_role = eval_project_or_404(project_id, g.user)
+    if my_role != "owner":
+        flash("Only the evaluation's owner can manage who has access.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    dbm.execute(
+        "DELETE FROM eval_project_collaborators WHERE id=? AND project_id=?",
+        (collaborator_id, project_id),
+    )
+    flash("Removed.", "success")
     return redirect(url_for("buyer_project_detail", project_id=project_id))
 
 
