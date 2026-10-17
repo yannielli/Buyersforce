@@ -5088,17 +5088,30 @@ def buyer_project_detail(project_id):
         (project_id,),
     )
 
-    # For the "Rename or change scorecard" picker -- every template this
-    # company can use, same scoping as the "Ready to evaluate" dropdown on
-    # the Evaluate list page.
+    # For the "Rename or change scorecard" picklist -- mirrors the New
+    # Evaluation form on the Evaluate list page: your own templates,
+    # plus every other company's shared ones (see buyer_evaluations'
+    # shared_templates comment -- is_shared defaults to 1 and nothing
+    # ever turns it off, so this is just finally reading it).
     all_templates = dbm.query(
         "SELECT * FROM eval_templates WHERE company=? ORDER BY created_at DESC", (g.user["company"],)
     )
+    shared_templates = dbm.query(
+        "SELECT * FROM eval_templates WHERE is_shared=1 AND company != ? ORDER BY company, name",
+        (g.user["company"],),
+    )
+    if not template:
+        scorecard_initial_mode = "later"
+    elif template["company"] == g.user["company"]:
+        scorecard_initial_mode = "mine"
+    else:
+        scorecard_initial_mode = "shared"
 
     return render_template(
         "buyer/project_detail.html",
         project=project, project_name=project_name, template=template,
-        all_templates=all_templates, any_scores=any_scores,
+        all_templates=all_templates, shared_templates=shared_templates,
+        scorecard_initial_mode=scorecard_initial_mode, any_scores=any_scores,
         criteria=criteria, vendors=vendor_columns, other_vendors=other_vendors,
         is_closed=is_closed, outcome_vendor=outcome_vendor, no_award_reasons=no_award_reasons,
         no_award_other_text=project["no_award_other_text"], no_award_reason_options=NO_AWARD_REASONS,
@@ -5141,11 +5154,11 @@ def buyer_project_update_meta(project_id):
             flash("Choose a scorecard template.", "error")
             return redirect(url_for("buyer_project_detail", project_id=project_id))
         template_owned = dbm.query(
-            "SELECT 1 FROM eval_templates WHERE id=? AND company=?",
+            "SELECT 1 FROM eval_templates WHERE id=? AND (company=? OR is_shared=1)",
             (new_template_id, g.user["company"]), one=True,
         )
         if not template_owned:
-            flash("That scorecard template isn't available to your company.", "error")
+            flash("That scorecard template isn't available to you.", "error")
             return redirect(url_for("buyer_project_detail", project_id=project_id))
 
     dbm.execute(

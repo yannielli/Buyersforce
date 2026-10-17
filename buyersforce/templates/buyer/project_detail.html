@@ -21,18 +21,67 @@
           <label for="edit-project-name">Project name</label>
           <input type="text" name="name" id="edit-project-name" value="{{ project.name or project_name }}" required>
         </div>
+
         <div class="field">
-          <label for="edit-project-template">Scorecard template</label>
-          <select name="template_id" id="edit-project-template" data-current="{{ template.id if template else '' }}" data-has-scores="{{ '1' if any_scores else '0' }}">
-            <option value="" {{ 'selected' if not template }}>No scorecard</option>
+          <label for="edit-scorecard-mode">Scorecard template</label>
+          <select id="edit-scorecard-mode">
+            <option value="later" {{ 'selected' if scorecard_initial_mode == 'later' }}>Add Scorecard later</option>
+            <option value="mine" {{ 'selected' if scorecard_initial_mode == 'mine' }}>Select Scorecard template you used before</option>
+            <option value="shared" {{ 'selected' if scorecard_initial_mode == 'shared' }}>Select Scorecard from library shared by other BuyersForce users</option>
+            <option value="ask">Ask a teammate for a Scorecard</option>
+            <option value="new">+ New Scorecard</option>
+          </select>
+        </div>
+        <input type="hidden" name="template_id" id="edit-project-template"
+               value="{{ template.id if template else '' }}"
+               data-current="{{ template.id if template else '' }}"
+               data-has-scores="{{ '1' if any_scores else '0' }}">
+
+        <div class="field" id="edit-scorecard-mine-wrap" {{ 'hidden' if scorecard_initial_mode != 'mine' }}>
+          <label for="edit-project-template-mine">Choose one of your templates</label>
+          <select id="edit-project-template-mine">
+            <option value="">Choose a template…</option>
             {% for t in all_templates %}<option value="{{ t.id }}" {{ 'selected' if template and t.id == template.id }}>{{ t.name }}</option>{% endfor %}
           </select>
-          {% if any_scores %}
-          <p class="hint" style="margin-top:4px;">Changing the scorecard hides scores tied to criteria that aren't on the new one (or hides all scores if you remove the scorecard) — nothing is deleted, and they come back if you switch back.</p>
+          {% if not all_templates %}
+          <p class="hint" style="margin-top:4px;">You don't have any templates yet — try "+ New Scorecard" instead.</p>
           {% endif %}
-          <p class="hint" style="margin-top:4px;">Don't see the right one? <a href="{{ url_for('buyer_evaluation_new', project_id=project.id) }}">Create a new scorecard</a> — it'll attach to this project automatically.</p>
         </div>
-        <button class="btn btn-secondary btn-sm" type="submit">Save</button>
+
+        <div class="field" id="edit-scorecard-shared-wrap" {{ 'hidden' if scorecard_initial_mode != 'shared' }}>
+          <label for="edit-project-template-shared">Choose a template shared by another company</label>
+          <select id="edit-project-template-shared">
+            <option value="">Choose a shared template…</option>
+            {% for t in shared_templates %}<option value="{{ t.id }}" {{ 'selected' if template and t.id == template.id }}>{{ t.name }} — shared by {{ t.company }}</option>{% endfor %}
+          </select>
+          {% if not shared_templates %}
+          <p class="hint" style="margin-top:4px;">No other company has shared a template yet.</p>
+          {% endif %}
+        </div>
+
+        <div class="field" id="edit-scorecard-ask-wrap" hidden>
+          <div class="card" style="background:var(--surface-2, #f6f6f4); margin:0;">
+            <p class="hint" style="margin:0 0 10px;">Send a teammate a quick message asking them to share a scorecard, checklist, or spreadsheet they've already used — then come back and attach it to this project, or pick it up once they've added it to the library.</p>
+            <div class="form-row">
+              <div class="field" style="margin-bottom:0;">
+                <label for="edit-ask-teammate-email">Teammate's email</label>
+                <input type="email" id="edit-ask-teammate-email" placeholder="teammate@yourcompany.com">
+              </div>
+            </div>
+            <div class="field">
+              <label for="edit-ask-teammate-body">Message</label>
+              <textarea id="edit-ask-teammate-body" rows="2">Hey — I'm working on the "{{ project_name }}" evaluation and could use a document to kick it off, like a scorecard, checklist, or spreadsheet you've already used. Mind sharing one with me?</textarea>
+            </div>
+            <button type="button" id="edit-ask-teammate-send" class="btn btn-secondary">Send request</button>
+            <p class="hint" id="edit-ask-teammate-status" style="margin-top:8px;" hidden></p>
+          </div>
+        </div>
+
+        {% if any_scores %}
+        <p class="hint" style="margin-top:4px;">Changing the scorecard hides scores tied to criteria that aren't on the new one (or hides all scores if you remove the scorecard) — nothing is deleted, and they come back if you switch back.</p>
+        {% endif %}
+
+        <button class="btn btn-secondary btn-sm" type="submit" style="margin-top:14px;">Save</button>
       </form>
     </details>
     {% endif %}
@@ -41,6 +90,83 @@
   <a href="{{ url_for('buyer_evaluation_edit', template_id=template.id) }}" class="btn btn-secondary">Manage criteria</a>
   {% endif %}
 </div>
+
+<script>
+(function() {
+  // Mirrors the "New Evaluation" scorecard picklist on evaluations.html:
+  // one dropdown picks the path (later/mine/shared/ask/new) and reveals
+  // its own little control; only "mine"/"shared" ever feed the hidden
+  // template_id field that actually gets submitted. "edit-project-template"
+  // keeps its original id so the scored-scorecard warning in app.js
+  // (which reads its data-current/data-has-scores) keeps working unchanged.
+  var mode = document.getElementById('edit-scorecard-mode');
+  var finalField = document.getElementById('edit-project-template');
+  var wraps = {
+    mine: document.getElementById('edit-scorecard-mine-wrap'),
+    shared: document.getElementById('edit-scorecard-shared-wrap'),
+    ask: document.getElementById('edit-scorecard-ask-wrap'),
+  };
+  var mineSelect = document.getElementById('edit-project-template-mine');
+  var sharedSelect = document.getElementById('edit-project-template-shared');
+  var NEW_TEMPLATE_URL = {{ url_for('buyer_evaluation_new', project_id=project.id) | tojson }};
+
+  function showMode(value) {
+    Object.keys(wraps).forEach(function(key) {
+      if (wraps[key]) { wraps[key].hidden = (key !== value); }
+    });
+    if (value === 'mine') {
+      finalField.value = mineSelect ? mineSelect.value : '';
+    } else if (value === 'shared') {
+      finalField.value = sharedSelect ? sharedSelect.value : '';
+    } else {
+      finalField.value = '';
+    }
+  }
+
+  if (mode) {
+    mode.addEventListener('change', function() {
+      // The project already exists, so (unlike the New Evaluation form)
+      // this can navigate in the same tab -- buyer_evaluation_new already
+      // supports returning here and auto-attaching the new template.
+      if (mode.value === 'new') {
+        window.location = NEW_TEMPLATE_URL;
+        return;
+      }
+      showMode(mode.value);
+    });
+  }
+  if (mineSelect) {
+    mineSelect.addEventListener('change', function() { finalField.value = mineSelect.value; });
+  }
+  if (sharedSelect) {
+    sharedSelect.addEventListener('change', function() { finalField.value = sharedSelect.value; });
+  }
+
+  var askBtn = document.getElementById('edit-ask-teammate-send');
+  if (askBtn) {
+    askBtn.addEventListener('click', function() {
+      var email = document.getElementById('edit-ask-teammate-email').value.trim();
+      var body = document.getElementById('edit-ask-teammate-body').value.trim();
+      var status = document.getElementById('edit-ask-teammate-status');
+      status.hidden = false;
+      if (!email || !body) {
+        status.textContent = "Enter your teammate's email first.";
+        return;
+      }
+      status.textContent = 'Sending…';
+      var fd = new FormData();
+      fd.append('to_email', email);
+      fd.append('body', body);
+      fetch({{ url_for('messages_start') | tojson }}, { method: 'POST', body: fd })
+        .then(function(resp) {
+          if (resp.redirected) { window.location = resp.url; return; }
+          status.textContent = resp.ok ? 'Message sent.' : "Couldn't send that — try again.";
+        })
+        .catch(function() { status.textContent = "Couldn't send that — try again."; });
+    });
+  }
+})();
+</script>
 
 {% if is_closed %}
 <div class="card" style="margin-bottom:24px;">
