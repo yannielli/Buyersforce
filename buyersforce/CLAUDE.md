@@ -1,11 +1,12 @@
 # CLAUDE.md — BuyersForce project guide
 
-## How to communicate with Kevin
+## How to communicate with Kj
 
-- Use layman's terms. No unexplained jargon — Kevin is the product owner, not a programmer.
+- Address him as "Kj," not "Kevin" (his full name is Kevin Jackson, but he goes by Kj).
+- Use layman's terms. No unexplained jargon — Kj is the product owner, not a programmer.
 - Keep it concise. Get to the heart of the matter first; add detail only when asked.
 - When something breaks, lead with what it means for the product and what the fix is, not the technical play-by-play.
-- When Kevin needs to do something (like commit files on GitHub), give short, numbered, click-by-click steps.
+- When Kj needs to do something (like commit files on GitHub), give short, numbered, click-by-click steps.
 
 ## Project facts
 
@@ -14,11 +15,11 @@
 - Code lives in GitHub repo `yannielli/buyersforce`, in the `buyersforce/` folder.
   Claude commits and pushes file changes directly (via the `claude-ssh` deploy-key remote --
   see the daily backup routine for how it's set up); every push to `main` auto-deploys on
-  Railway. (Before 2026-10-15, Kevin committed changes himself through the GitHub website --
+  Railway. (Before 2026-10-15, Kj committed changes himself through the GitHub website --
   he can still ask Claude to show a diff before pushing if he wants to double check something.)
 - Database: Railway's managed Postgres (service "Postgres" in the `buyersforce` project).
   Do NOT switch back to SQLite or Railway volumes — volumes had an unresolved data-wiping bug.
-- Kevin is the admin account. One email = one role (buyer, seller, or admin);
+- Kj is the admin account. One email = one role (buyer, seller, or admin);
   he uses separate email addresses to test buyer and seller views.
 - seed.py only seeds an empty database, so real data survives redeploys. Never break that guard.
 
@@ -27,7 +28,7 @@
 Claude does not carry memory between chats -- only this file and git history
 do. `git log` has the full detailed record (commit messages are written to
 stand alone); this is the short version so a new chat knows the lay of the
-land in one read, without Kevin having to re-explain months of context.
+land in one read, without Kj having to re-explain months of context.
 
 - **Buyer directory & discovery**: vendor directory with category/segment/
   company-size/technology-category filters, A-Z letter jump, admin CRUD for
@@ -57,5 +58,5 @@ land in one read, without Kevin having to re-explain months of context.
 Known rough edges worth remembering, not yet fixed:
 - The cross-page compare tray (above) is client-side/localStorage only --
   it doesn't sync across devices or browsers, and a cleared browser profile
-  loses it. Fine for now; revisit only if Kevin asks for it to be shared/
+  loses it. Fine for now; revisit only if Kj asks for it to be shared/
   synced.
