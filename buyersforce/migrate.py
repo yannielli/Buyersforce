@@ -84,6 +84,7 @@ def run_migrations():
             _backfill_eval_project_collaborators_2026_10_17(cur)
             _add_eval_project_artifacts_table(cur)
             _allow_null_eval_project_template_2026_10_17(cur)
+            _add_eval_project_shares_table(cur)
     finally:
         con.close()
 
@@ -1953,6 +1954,31 @@ def _allow_null_eval_project_template_2026_10_17(cur):
     # deploy without a guard.
     cur.execute("ALTER TABLE eval_projects ALTER COLUMN template_id DROP NOT NULL")
     cur.execute("ALTER TABLE evaluations ALTER COLUMN template_id DROP NOT NULL")
+
+
+def _add_eval_project_shares_table(cur):
+    # A point-in-time PDF/Excel snapshot sent via "Share via message" on
+    # project_detail.html -- see schema.sql's comment on this table. Same
+    # inline-base64 storage approach as eval_project_artifacts; gated
+    # purely by thread participation (see buyer_download_share), not by
+    # project access, since the whole point is reaching someone who may
+    # have no role on the project at all.
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS eval_project_shares (
+            id SERIAL PRIMARY KEY,
+            project_id INTEGER NOT NULL REFERENCES eval_projects(id),
+            thread_id INTEGER NOT NULL REFERENCES threads(id),
+            message_id INTEGER NOT NULL REFERENCES messages(id),
+            filename TEXT NOT NULL,
+            content_type TEXT NOT NULL,
+            data_url TEXT NOT NULL,
+            size_bytes INTEGER NOT NULL,
+            shared_by INTEGER NOT NULL REFERENCES users(id),
+            created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+        )
+        """
+    )
 
 
 if __name__ == "__main__":

@@ -312,6 +312,22 @@
       <p class="hint" style="margin-bottom:16px;">This project has no scorecard yet, so the export will just be a vendor list with peer review notes.</p>
       {% endif %}
       <button class="btn btn-secondary" type="submit">Download export</button>
+
+      {% if can_edit %}
+      <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--gridline);">
+        <label>Or share it with someone instead</label>
+        <p class="hint" style="margin-top:2px; margin-bottom:10px;">Sends a snapshot of exactly what's checked above as a message &mdash; not live access to this evaluation, so it won't update later if scores change. If they're not a BuyersForce teammate, we'll email it to them directly. Never visible to a vendor/seller contact.</p>
+        <div class="field">
+          <label for="share-to-email">Share with (email address)</label>
+          <input type="email" name="to_email" id="share-to-email" placeholder="name@company.com">
+        </div>
+        <div class="field">
+          <label for="share-note">Add a note (optional)</label>
+          <textarea name="note" id="share-note" placeholder="Why you're sending this"></textarea>
+        </div>
+        <button class="btn btn-secondary" type="submit" formaction="{{ url_for('buyer_project_share', project_id=project.id) }}">Share via message</button>
+      </div>
+      {% endif %}
     </form>
   </details>
 </div>

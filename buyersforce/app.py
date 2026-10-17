@@ -3982,8 +3982,15 @@ def buyer_thread(thread_id):
             )
         return redirect(url_for("buyer_thread", thread_id=thread_id))
     messages = dbm.query(
-        "SELECT m.*, u.name sender_name, u.role sender_role FROM messages m "
-        "JOIN users u ON u.id = m.sender_user_id WHERE thread_id=? ORDER BY m.created_at",
+        # LEFT JOIN eval_project_shares so a message that shared an
+        # evaluation snapshot (see buyer_project_share) can show its own
+        # download link right under it -- share_id is NULL for every
+        # ordinary message.
+        "SELECT m.*, u.name sender_name, u.role sender_role, "
+        "es.id share_id, es.filename share_filename FROM messages m "
+        "JOIN users u ON u.id = m.sender_user_id "
+        "LEFT JOIN eval_project_shares es ON es.message_id = m.id "
+        "WHERE thread_id=? ORDER BY m.created_at",
         (thread_id,),
     )
     mark_thread_read(g.user["id"], thread_id)
@@ -5256,12 +5263,11 @@ def buyer_project_delete_artifact(project_id, artifact_id):
     return redirect(url_for("buyer_project_detail", project_id=project_id))
 
 
-@app.route("/app/buyer/evaluations/project/<int:project_id>/export", methods=("POST",))
-@role_required("buyer")
-def buyer_project_export(project_id):
-    # Exporting is read-only, so it's open to every role with access to
-    # the project -- even 'viewer' -- unlike every other action on this
-    # page. eval_project_or_404 is the only gate needed here.
+def _eval_export_context(project_id):
+    """The lookups both buyer_project_export and buyer_project_share need
+    before they can even validate their form: the project's template (if
+    any), its full criteria list, and every vendor/evaluation in it.
+    Split out so the two routes can't drift on how they load this."""
     project, my_role = eval_project_or_404(project_id, g.user)
     # template_id can be NULL (no scorecard chosen, or one removed) --
     # template/all_criteria both just go empty; the export builders below
@@ -5277,40 +5283,54 @@ def buyer_project_export(project_id):
         "WHERE e.project_id=? ORDER BY e.id",
         (project_id,),
     )
+    return project, my_role, template, all_criteria, all_evals
 
-    export_format = request.form.get("format", "pdf")
+
+def _parse_export_picker(request_form, all_evals, all_criteria):
+    """Reads and validates the vendor/criteria picker shared by the Export
+    and Share forms on project_detail.html (one <form>, two submit
+    buttons -- see that template). Returns (evals, criteria,
+    export_format, include_comments, include_reviewer_breakdown, error) --
+    error is a message to flash when the picker didn't validate; the rest
+    are None in that case.
+
+    Deliberately not "if nothing was checked, export everything" -- an
+    empty picker almost always means the vendor/criteria checkboxes
+    didn't come through on the request, not that the person wants a
+    blank report, so this is caught and reported rather than silently
+    falling back to "all." That rule only applies to criteria when the
+    project actually HAS a scorecard, though -- a no-scorecard project
+    never shows a criteria picker (nothing to pick), so there's nothing
+    to validate there; the export is just a vendor list.
+    """
+    export_format = request_form.get("format", "pdf")
     if export_format not in ("pdf", "xlsx"):
         export_format = "pdf"
-
     try:
-        wanted_eval_ids = {int(x) for x in request.form.getlist("evaluation_ids")}
+        wanted_eval_ids = {int(x) for x in request_form.getlist("evaluation_ids")}
     except (TypeError, ValueError):
         wanted_eval_ids = set()
     try:
-        wanted_criterion_ids = {int(x) for x in request.form.getlist("criterion_ids")}
+        wanted_criterion_ids = {int(x) for x in request_form.getlist("criterion_ids")}
     except (TypeError, ValueError):
         wanted_criterion_ids = set()
-
-    # Deliberately not "if nothing was checked, export everything" -- an
-    # empty picker almost always means the vendor/criteria checkboxes
-    # didn't come through on the request, not that the person wants a
-    # blank report, so this is caught and reported rather than silently
-    # falling back to "all." That rule only applies to criteria when the
-    # project actually HAS a scorecard, though -- a no-scorecard project
-    # never shows a criteria picker (nothing to pick), so there's nothing
-    # to validate there; the export is just a vendor list.
     evals = [e for e in all_evals if e["id"] in wanted_eval_ids]
     criteria = [c for c in all_criteria if c["id"] in wanted_criterion_ids]
     if not evals:
-        flash("Choose at least one vendor to export.", "error")
-        return redirect(url_for("buyer_project_detail", project_id=project_id))
+        return None, None, None, None, None, "Choose at least one vendor"
     if all_criteria and not criteria:
-        flash("Choose at least one success criterion to export.", "error")
-        return redirect(url_for("buyer_project_detail", project_id=project_id))
+        return None, None, None, None, None, "Choose at least one success criterion"
+    include_comments = request_form.get("include_comments") == "on"
+    include_reviewer_breakdown = request_form.get("include_reviewer_breakdown") == "on"
+    return evals, criteria, export_format, include_comments, include_reviewer_breakdown, None
 
-    include_comments = request.form.get("include_comments") == "on"
-    include_reviewer_breakdown = request.form.get("include_reviewer_breakdown") == "on"
 
+def _export_scorecard_bytes(project, template, criteria, evals, export_format,
+                             include_comments, include_reviewer_breakdown):
+    """Shared by buyer_project_export (download) and buyer_project_share
+    (send via messaging) -- turns an already-validated vendor/criteria
+    selection into the actual PDF/XLSX bytes. Returns (data, mimetype,
+    filename, project_name)."""
     reviewers = {r["id"]: r for r in dbm.query(
         "SELECT * FROM users WHERE company=? AND role='buyer'", (g.user["company"],)
     )}
@@ -5370,10 +5390,143 @@ def buyer_project_export(project_id):
             project_name, template, criteria, vendors_data, include_comments, include_reviewer_breakdown
         )
         mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return data, mimetype, filename, project_name
+
+
+@app.route("/app/buyer/evaluations/project/<int:project_id>/export", methods=("POST",))
+@role_required("buyer")
+def buyer_project_export(project_id):
+    # Exporting is read-only, so it's open to every role with access to
+    # the project -- even 'viewer' -- unlike every other action on this
+    # page. eval_project_or_404 is the only gate needed here.
+    project, my_role, template, all_criteria, all_evals = _eval_export_context(project_id)
+    evals, criteria, export_format, include_comments, include_reviewer_breakdown, error = \
+        _parse_export_picker(request.form, all_evals, all_criteria)
+    if error:
+        flash(f"{error} to export.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    data, mimetype, filename, project_name = _export_scorecard_bytes(
+        project, template, criteria, evals, export_format, include_comments, include_reviewer_breakdown
+    )
 
     log_activity(g.user["id"], f"exported {project_name} as {export_format.upper()}")
     resp = Response(data, mimetype=mimetype)
     resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
+
+
+@app.route("/app/buyer/evaluations/project/<int:project_id>/share", methods=("POST",))
+@role_required("buyer")
+def buyer_project_share(project_id):
+    # Shares a point-in-time snapshot over the existing messaging system
+    # -- never live access to the real evaluation -- same picker as
+    # Export (see project_detail.html's one shared <form>). Restricted to
+    # owner/editor, unlike the read-only Export button: sending a copy of
+    # the evaluation outside the project's own access list is a bigger
+    # step than downloading a copy for yourself.
+    project, my_role, template, all_criteria, all_evals = _eval_export_context(project_id)
+    if my_role not in ("owner", "editor"):
+        flash("You have view-only access to this evaluation.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    to_email = request.form.get("to_email", "").strip().lower()
+    note = request.form.get("note", "").strip()[:2000]
+    evals, criteria, export_format, include_comments, include_reviewer_breakdown, error = \
+        _parse_export_picker(request.form, all_evals, all_criteria)
+
+    if not to_email or "@" not in to_email:
+        flash("Enter a valid email address to share with.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    if error:
+        flash(f"{error} to share.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    candidate = dbm.query("SELECT * FROM users WHERE email=?", (to_email,), one=True)
+    if candidate and candidate["id"] == g.user["id"]:
+        flash("You can't share an evaluation with yourself.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    if candidate and candidate["role"] != "buyer":
+        # Never a seller/vendor contact -- see eval_project_shares in
+        # schema.sql for why that's a deliberate rule, not an oversight.
+        flash(
+            "Evaluations can only be shared with another buyer or an email address -- "
+            "not a vendor contact.", "error",
+        )
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    if candidate and not _can_message(g.user, candidate):
+        flash("You can't share an evaluation with that account.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    data, mimetype, filename, project_name = _export_scorecard_bytes(
+        project, template, criteria, evals, export_format, include_comments, include_reviewer_breakdown
+    )
+
+    if candidate:
+        thread = get_or_create_direct_thread(g.user["id"], candidate["id"])
+        ensure_contact(g.user["id"], contact_user_id=candidate["id"])
+        ensure_contact(candidate["id"], contact_user_id=g.user["id"])
+    else:
+        thread = get_or_create_external_thread(g.user["id"], to_email)
+        ensure_contact(g.user["id"], external_email=to_email)
+
+    body_lines = [f'Shared the "{project_name}" evaluation as a {export_format.upper()} snapshot.']
+    if note:
+        body_lines.append(note)
+    message_id = dbm.execute(
+        "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
+        (thread["id"], g.user["id"], "\n\n".join(body_lines)),
+    )
+
+    import base64
+    data_url = f"data:{mimetype};base64,{base64.b64encode(data).decode('ascii')}"
+    dbm.execute(
+        "INSERT INTO eval_project_shares "
+        "(project_id, thread_id, message_id, filename, content_type, data_url, size_bytes, shared_by) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (project_id, thread["id"], message_id, filename, mimetype, data_url, len(data), g.user["id"]),
+    )
+
+    if candidate:
+        flash(f"Shared with {candidate['name']} -- it's in your Messages with them now.", "success")
+    else:
+        sent = emailer.send_evaluation_share(to_email, g.user, project_name, note, data, filename, mimetype)
+        if sent:
+            now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            dbm.execute("UPDATE threads SET pending_email_sent_at=? WHERE id=?", (now_str, thread["id"]))
+            flash(f"Shared with {to_email} -- we emailed them the file since they're not on BuyersForce yet.", "success")
+        else:
+            flash(
+                f"Saved, but we couldn't email {to_email} -- BuyersForce's email sending isn't set up "
+                f"yet. Ask Claude to help you finish connecting it.", "error",
+            )
+    log_activity(
+        g.user["id"], f"shared {project_name} with {candidate['name'] if candidate else to_email}"
+    )
+    return redirect(url_for("buyer_thread", thread_id=thread["id"]))
+
+
+@app.route("/app/buyer/evaluations/shared/<int:share_id>/download")
+@role_required("buyer")
+def buyer_download_share(share_id):
+    # Gated purely by thread participation (same rule buyer_thread itself
+    # uses), never by project access -- the whole point of a share is
+    # reaching someone who may have no role on the project at all. See
+    # eval_project_shares in schema.sql.
+    share = dbm.query("SELECT * FROM eval_project_shares WHERE id=?", (share_id,), one=True)
+    if not share:
+        abort(404)
+    _load_thread_for_user(share["thread_id"], g.user)
+    import base64
+    try:
+        header, b64 = share["data_url"].split(",", 1)
+        raw = base64.b64decode(b64)
+    except Exception:
+        abort(404)
+    resp = Response(raw, mimetype=share["content_type"] or "application/octet-stream")
+    safe_name = share["filename"].replace('"', "'")
+    resp.headers["Content-Disposition"] = f'attachment; filename="{safe_name}"'
     resp.headers["X-Content-Type-Options"] = "nosniff"
     return resp
 

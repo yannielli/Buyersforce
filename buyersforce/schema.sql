@@ -593,6 +593,33 @@ CREATE TABLE eval_project_artifacts (
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
 );
 
+-- A point-in-time PDF/Excel snapshot handed off via "Share via message"
+-- on project_detail.html -- a copy of exactly what was checked in the
+-- vendor/criteria picker at send time, never live access to the real
+-- evaluation (which keeps changing after the share goes out). Same
+-- inline-base64 storage as eval_project_artifacts above. thread_id/
+-- message_id are the direct-message thread and the specific message
+-- that announced it (an existing-buyer recipient, or a brand-new
+-- external-email thread when they're not a BuyersForce member yet --
+-- see get_or_create_external_thread); buyer_download_share gates on
+-- thread participation alone, deliberately not on the project's own
+-- access list, since the recipient usually has no role on the project
+-- at all. Never shared with a seller/vendor contact (app.py enforces
+-- that) -- an evaluation is competitive intelligence about vendors, and
+-- one of them could be the recipient's own employer.
+CREATE TABLE eval_project_shares (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES eval_projects(id),
+    thread_id INTEGER NOT NULL REFERENCES threads(id),
+    message_id INTEGER NOT NULL REFERENCES messages(id),
+    filename TEXT NOT NULL,
+    content_type TEXT NOT NULL,
+    data_url TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    shared_by INTEGER NOT NULL REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+);
+
 CREATE TABLE evaluations (
     id SERIAL PRIMARY KEY,
     -- Mirrors the parent project's template_id (NULL when the project has

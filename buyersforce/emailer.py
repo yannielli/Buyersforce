@@ -13,6 +13,7 @@ get real delivery working today. Sending from your own address (e.g.
 notifications@buyersforce.io) means verifying that domain with Resend
 first and setting EMAIL_FROM to it.
 """
+import base64
 import html as html_lib
 import json
 import os
@@ -23,7 +24,7 @@ RESEND_API_URL = "https://api.resend.com/emails"
 DEFAULT_FROM = "BuyersForce <onboarding@resend.dev>"
 
 
-def send_email(to_email, subject, text, reply_to=None, html=None):
+def send_email(to_email, subject, text, reply_to=None, html=None, attachments=None):
     """Best-effort send. Returns True only on a confirmed successful
     send; False (logged) for anything else, including "not configured
     yet" -- callers should treat False as "message saved, but nobody
@@ -40,6 +41,12 @@ def send_email(to_email, subject, text, reply_to=None, html=None):
     styling (e.g. distinguishing BuyersForce's own note from the
     sender's message). Recipients whose email app can't render HTML
     still get the plain text.
+
+    attachments, when given, is a list of {"filename", "content_bytes",
+    "content_type"} dicts -- raw bytes, never pre-encoded, since this is
+    the one place that talks to Resend's actual wire format (base64
+    strings, no content_type field at all -- Resend infers it from the
+    filename extension).
     """
     api_key = os.environ.get("RESEND_API_KEY")
     if not api_key:
@@ -57,6 +64,14 @@ def send_email(to_email, subject, text, reply_to=None, html=None):
         payload["html"] = html
     if reply_to:
         payload["reply_to"] = [reply_to]
+    if attachments:
+        payload["attachments"] = [
+            {
+                "filename": a["filename"],
+                "content": base64.b64encode(a["content_bytes"]).decode("ascii"),
+            }
+            for a in attachments
+        ]
     payload = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         RESEND_API_URL,
@@ -116,6 +131,49 @@ def send_message_notification(to_email, sender, body, signup_url):
         f"access here</a>.</p>"
     )
     return send_email(to_email, subject, text, reply_to=sender["email"], html=html)
+
+
+def send_evaluation_share(to_email, sender, project_name, note, file_bytes, filename, content_type):
+    """Notifies someone who isn't a BuyersForce member yet that a buyer
+    shared an evaluation snapshot with them -- mirrors
+    send_message_notification, but the point of this one IS the
+    attachment (the recipient has no account to log in and click a
+    download link with, unlike an existing member, who gets the same
+    file as a link in their BuyersForce Messages instead -- see
+    buyer_project_share/buyer_download_share in app.py). note is the
+    optional free-text message the sender added; content_type is unused
+    here (Resend infers it from filename) but kept for a consistent call
+    shape with the rest of this module.
+    """
+    subject = f"{sender['name']} shared a BuyersForce evaluation with you: {project_name}"
+    note_block = f'\n\n"{note}"' if note else ""
+    text = (
+        f"{sender['name']} ({sender['company']}) shared a snapshot of their \"{project_name}\" "
+        f"evaluation on BuyersForce -- see the attached {filename}.{note_block}\n\n"
+        f"This is a point-in-time copy, not live access to their evaluation -- it won't update if "
+        f"they change anything later.\n\n"
+        f"BuyersForce is an invite-only platform connecting technology buyers and vendors. You "
+        f"don't have an account yet, so just hit reply and it'll go straight to {sender['name']}."
+    )
+    note_html = (
+        f"<blockquote style=\"margin:12px 0; padding:8px 12px; border-left:3px solid #ccc; "
+        f"color:#111;\">{html_lib.escape(note)}</blockquote>"
+    ) if note else ""
+    html = (
+        f"<p>{html_lib.escape(sender['name'])} ({html_lib.escape(sender['company'])}) shared a "
+        f"snapshot of their <strong>{html_lib.escape(project_name)}</strong> evaluation on "
+        f"BuyersForce -- see the attached {html_lib.escape(filename)}.</p>"
+        f"{note_html}"
+        f"<p style=\"color:#666; font-size:13px;\">This is a point-in-time copy, not live access "
+        f"to their evaluation -- it won't update if they change anything later.</p>"
+        f"<p style=\"color:teal; font-style:italic;\">BuyersForce is an invite-only platform "
+        f"connecting technology buyers and vendors. You don't have an account yet, so just hit "
+        f"reply and it'll go straight to {html_lib.escape(sender['name'])}.</p>"
+    )
+    return send_email(
+        to_email, subject, text, reply_to=sender["email"], html=html,
+        attachments=[{"filename": filename, "content_bytes": file_bytes}],
+    )
 
 
 def send_signup_decision(to_email, approved, login_url=None):
