@@ -246,6 +246,38 @@
   {% endif %}
 </div>
 
+<div class="card" style="margin-top:24px;">
+  <h3 style="font-size:15px;">Export</h3>
+  <p class="hint">Download this scorecard as a PDF or an Excel file &mdash; choose which vendors and criteria to include. Want a Google Sheet? Download the Excel file and open it in Google Sheets &mdash; it opens .xlsx files natively.</p>
+  <details id="export-details" style="margin-top:10px;">
+    <summary class="btn btn-secondary btn-sm" style="display:inline-block; cursor:pointer;">Export &rarr;</summary>
+    <form method="post" action="{{ url_for('buyer_project_export', project_id=project.id) }}" style="margin-top:14px;">
+      <div class="field">
+        <label>Format</label>
+        <label style="display:inline-block; margin-right:18px; font-weight:400;"><input type="radio" name="format" value="pdf" checked style="width:auto; margin-right:6px;">PDF</label>
+        <label style="display:inline-block; font-weight:400;"><input type="radio" name="format" value="xlsx" style="width:auto; margin-right:6px;">Excel (.xlsx)</label>
+      </div>
+      <div class="field">
+        <label>Vendors to include</label>
+        {% for v in vendors %}
+        <label style="display:block; margin-bottom:4px; font-weight:400;"><input type="checkbox" name="evaluation_ids" value="{{ v.evaluation_id }}" checked style="width:auto; margin-right:6px;">{{ v.company_name }}</label>
+        {% endfor %}
+      </div>
+      <div class="field">
+        <label>Success criteria to include</label>
+        {% for c in criteria %}
+        <label style="display:block; margin-bottom:4px; font-weight:400;"><input type="checkbox" name="criterion_ids" value="{{ c.id }}" checked style="width:auto; margin-right:6px;">{{ c.label }}</label>
+        {% endfor %}
+      </div>
+      <div class="field" style="margin-bottom:16px;">
+        <label style="display:block; margin-bottom:4px; font-weight:400;"><input type="checkbox" name="include_comments" checked style="width:auto; margin-right:6px;">Include comments</label>
+        <label style="display:block; font-weight:400;"><input type="checkbox" name="include_reviewer_breakdown" checked style="width:auto; margin-right:6px;">Include score-by-reviewer breakdown</label>
+      </div>
+      <button class="btn btn-secondary" type="submit">Download export</button>
+    </form>
+  </details>
+</div>
+
 {% if my_role == 'owner' %}
 <div class="card" style="margin-top:24px;">
   <h3 style="font-size:15px;">Team access</h3>

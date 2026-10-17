@@ -1,5 +1,7 @@
 import os
 import re
+import io
+import html
 import json
 import sqlite3
 import secrets
@@ -3968,6 +3970,258 @@ def project_display_name(name, vendor_names):
     return " vs. ".join(vendor_names)
 
 
+def _aggregate_evaluation_scores(criteria, scores):
+    """Shared by buyer_project_detail and the PDF/Excel export: turns
+    one evaluation's (one vendor's) eval_scores rows into per-criterion
+    stats and a weighted overall. `score` is NULL on a row a 'commenter'
+    left as feedback with no rating attached (see eval_scores.score in
+    schema.sql) -- those rows are always excluded from every average
+    here, never counted as a zero.
+
+    Returns (cells, overall, by_reviewer):
+      cells: {criterion_id: {"avg": float|None, "count": int}}
+      overall: float|None -- weighted average, prorated over criteria
+        actually scored so far so an unscored criterion isn't counted
+        as a zero (same fix as buyer_evaluations()).
+      by_reviewer: {user_id: [score, score, ...]} -- scored rows only.
+    """
+    weighted_sum = 0
+    scored_weight = 0
+    cells = {}
+    for c in criteria:
+        vals = [s["score"] for s in scores if s["criterion_id"] == c["id"] and s["score"] is not None]
+        avg = round(sum(vals) / len(vals), 1) if vals else None
+        if avg is not None:
+            weighted_sum += avg * c["weight"]
+            scored_weight += c["weight"]
+        cells[c["id"]] = {"avg": avg, "count": len(vals)}
+    overall = round(weighted_sum / scored_weight, 1) if scored_weight else None
+
+    by_reviewer = {}
+    for s in scores:
+        if s["score"] is not None:
+            by_reviewer.setdefault(s["user_id"], []).append(s["score"])
+    return cells, overall, by_reviewer
+
+
+def _pdf_text(s):
+    """Escapes user-supplied text (comments, Gartner peer notes, company
+    names, criterion labels, the project name) before it goes into a
+    reportlab Paragraph -- Paragraph runs a small HTML-like markup parser
+    on its text, so a stray '<' or '&' in someone's own words could
+    otherwise corrupt the markup or raise. Only text passed through
+    Paragraph(...) needs this: a plain Python string placed directly into
+    a Table cell (see _build_scorecard_pdf's main grid) is never parsed
+    as markup and must NOT be escaped, or an literal "&" would render as
+    the text "&amp;" instead of "&"."""
+    return html.escape(str(s or ""), quote=False)
+
+
+def _build_scorecard_xlsx(project_name, template, criteria, vendors_data, include_comments, include_reviewer_breakdown):
+    """Builds the exported .xlsx workbook for buyer_project_export.
+    vendors_data is a list of dicts (one per selected vendor): company_name,
+    overall, cells ({criterion_id: {"avg", "count"}} from
+    _aggregate_evaluation_scores), gartner_peer_note, comments, reviewer_rows.
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+
+    brand_fill = PatternFill(start_color="E3F2F0", end_color="E3F2F0", fill_type="solid")
+    header_font = Font(bold=True)
+    title_font = Font(bold=True, size=14)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Scorecard"
+
+    ws.cell(row=1, column=1, value=project_name).font = title_font
+    ws.cell(row=2, column=1, value=(
+        f"{template['name']} · scale 1–{template['scale_max']} · "
+        f"exported {datetime.now().strftime('%b %-d, %Y')}"
+    ))
+
+    header_row = 4
+    ws.cell(row=header_row, column=1, value="Success criteria").font = header_font
+    ws.cell(row=header_row, column=2, value="Weight").font = header_font
+    for col, v in enumerate(vendors_data, start=3):
+        cell = ws.cell(row=header_row, column=col, value=v["company_name"])
+        cell.font = header_font
+    for col in range(1, 3 + len(vendors_data)):
+        ws.cell(row=header_row, column=col).fill = brand_fill
+
+    row = header_row + 1
+    for c in criteria:
+        ws.cell(row=row, column=1, value=c["label"])
+        ws.cell(row=row, column=2, value=f"{c['weight']}%")
+        for col, v in enumerate(vendors_data, start=3):
+            avg = v["cells"].get(c["id"], {}).get("avg")
+            ws.cell(row=row, column=col, value=avg if avg is not None else "—")
+        row += 1
+
+    overall_row = row
+    ws.cell(row=overall_row, column=1, value="Overall (weighted)").font = header_font
+    for col, v in enumerate(vendors_data, start=3):
+        cell = ws.cell(row=overall_row, column=col, value=v["overall"] if v["overall"] is not None else "—")
+        cell.font = header_font
+        cell.fill = brand_fill
+    ws.cell(row=overall_row, column=1).fill = brand_fill
+    ws.cell(row=overall_row, column=2).fill = brand_fill
+
+    gartner_row = overall_row + 2
+    ws.cell(row=gartner_row, column=1, value="Peer review notes").font = header_font
+    for col, v in enumerate(vendors_data, start=3):
+        cell = ws.cell(row=gartner_row, column=col, value=v["gartner_peer_note"] or "")
+        cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+    ws.column_dimensions["A"].width = 32
+    ws.column_dimensions["B"].width = 10
+    for col in range(3, 3 + len(vendors_data)):
+        ws.column_dimensions[get_column_letter(col)].width = 24
+
+    if include_comments:
+        cs = wb.create_sheet("Comments")
+        cs.append(["Vendor", "Criterion", "Reviewer", "Score", "Comment"])
+        for cell in cs[1]:
+            cell.font = header_font
+            cell.fill = brand_fill
+        for v in vendors_data:
+            for cm in v["comments"]:
+                cs.append([v["company_name"], cm["criterion_label"], cm["reviewer_name"], cm["score"], cm["comment"]])
+        cs.column_dimensions["A"].width = 22
+        cs.column_dimensions["B"].width = 24
+        cs.column_dimensions["C"].width = 18
+        cs.column_dimensions["D"].width = 8
+        cs.column_dimensions["E"].width = 60
+
+    if include_reviewer_breakdown:
+        rs = wb.create_sheet("By reviewer")
+        rs.append(["Vendor", "Reviewer", "Average score", "Criteria scored"])
+        for cell in rs[1]:
+            cell.font = header_font
+            cell.fill = brand_fill
+        for v in vendors_data:
+            for r in v["reviewer_rows"]:
+                rs.append([v["company_name"], r["name"], r["avg"], r["count"]])
+        rs.column_dimensions["A"].width = 22
+        rs.column_dimensions["B"].width = 18
+        rs.column_dimensions["C"].width = 16
+        rs.column_dimensions["D"].width = 16
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def _build_scorecard_pdf(project_name, template, criteria, vendors_data, include_comments, include_reviewer_breakdown):
+    """Builds the exported PDF for buyer_project_export. The main grid
+    below is a reportlab Table fed plain Python strings/numbers -- those
+    are never run through Table's markup parser (only Paragraph(...) text
+    is), so they're used as-is. Anything that goes into a Paragraph
+    (titles, the meta line, peer notes, comments) is escaped with
+    _pdf_text first, since Paragraph text that mentions this feature
+    itself is otherwise indistinguishable from real markup."""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+
+    brand = colors.HexColor("#17948f")
+    brand_tint = colors.HexColor("#e3f2f0")
+    gridline = colors.HexColor("#e1e0d9")
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle("ScorecardTitle", parent=styles["Title"], fontSize=18, spaceAfter=2)
+    meta_style = ParagraphStyle("ScorecardMeta", parent=styles["Normal"], fontSize=9, textColor=colors.HexColor("#52514e"))
+    body_style = ParagraphStyle("ScorecardBody", parent=styles["Normal"], fontSize=9, leading=12)
+    h3_style = ParagraphStyle("ScorecardH3", parent=styles["Heading3"], fontSize=12, spaceBefore=14, spaceAfter=6)
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=landscape(letter),
+        leftMargin=0.5 * inch, rightMargin=0.5 * inch, topMargin=0.5 * inch, bottomMargin=0.5 * inch,
+    )
+    elements = []
+    elements.append(Paragraph(_pdf_text(project_name), title_style))
+    meta = (
+        f"{_pdf_text(template['name'])} &middot; scale 1&ndash;{template['scale_max']} &middot; "
+        f"exported {datetime.now().strftime('%b %-d, %Y')}"
+    )
+    elements.append(Paragraph(meta, meta_style))
+    elements.append(Spacer(1, 14))
+
+    header = ["Success criteria", "Weight"] + [str(v["company_name"]) for v in vendors_data]
+    table_data = [header]
+    for c in criteria:
+        row = [str(c["label"]), f"{c['weight']}%"]
+        for v in vendors_data:
+            avg = v["cells"].get(c["id"], {}).get("avg")
+            row.append(str(avg) if avg is not None else "—")
+        table_data.append(row)
+    overall_row_idx = len(table_data)
+    table_data.append(
+        ["Overall (weighted)", ""]
+        + [(str(v["overall"]) if v["overall"] is not None else "—") for v in vendors_data]
+    )
+
+    col_widths = [1.8 * inch, 0.6 * inch] + [1.4 * inch] * len(vendors_data)
+    table = Table(table_data, colWidths=col_widths, repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), brand),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("BACKGROUND", (0, overall_row_idx), (-1, overall_row_idx), brand_tint),
+        ("FONTNAME", (0, overall_row_idx), (-1, overall_row_idx), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.5, gridline),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (2, 0), (-1, -1), "CENTER"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, overall_row_idx - 1), [colors.white, colors.HexColor("#fcfcfb")]),
+    ]))
+    elements.append(table)
+
+    gartner_notes = [
+        (v["company_name"], v["gartner_peer_note"]) for v in vendors_data if (v["gartner_peer_note"] or "").strip()
+    ]
+    if gartner_notes:
+        elements.append(Paragraph("Peer review notes", h3_style))
+        for name, note in gartner_notes:
+            elements.append(Paragraph(f"<b>{_pdf_text(name)}:</b> {_pdf_text(note)}", body_style))
+            elements.append(Spacer(1, 4))
+
+    if include_comments and any(v["comments"] for v in vendors_data):
+        elements.append(Paragraph("Comments", h3_style))
+        for v in vendors_data:
+            for cm in v["comments"]:
+                score_part = f" &mdash; score {cm['score']}" if cm["score"] is not None else ""
+                elements.append(Paragraph(
+                    f"<b>{_pdf_text(v['company_name'])} / {_pdf_text(cm['criterion_label'])}</b> "
+                    f"({_pdf_text(cm['reviewer_name'])}{score_part}): {_pdf_text(cm['comment'])}",
+                    body_style,
+                ))
+                elements.append(Spacer(1, 4))
+
+    if include_reviewer_breakdown and any(v["reviewer_rows"] for v in vendors_data):
+        elements.append(Paragraph("Score by reviewer", h3_style))
+        rev_data = [["Vendor", "Reviewer", "Average score", "Criteria scored"]]
+        for v in vendors_data:
+            for r in v["reviewer_rows"]:
+                rev_data.append([v["company_name"], r["name"], str(r["avg"]), str(r["count"])])
+        if len(rev_data) > 1:
+            rev_table = Table(rev_data, colWidths=[2.2 * inch, 2.2 * inch, 1.4 * inch, 1.4 * inch])
+            rev_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), brand_tint),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.5, gridline),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ]))
+            elements.append(rev_table)
+
+    doc.build(elements)
+    return buf.getvalue()
+
+
 # Collaborator roles on a single evaluation project, loosest to strictest
 # -- see the comment on eval_project_collaborators in schema.sql for what
 # each can do. 'owner' is implicit (eval_projects.created_by) and is never
@@ -4501,23 +4755,10 @@ def buyer_project_detail(project_id):
     for ev in evals:
         scores = dbm.query("SELECT * FROM eval_scores WHERE evaluation_id=?", (ev["id"],))
         my_scores = {s["criterion_id"]: s for s in scores if s["user_id"] == g.user["id"]}
-        weighted_sum = 0
-        scored_weight = 0
-        cells = {}
-        for c in criteria:
-            vals = [s["score"] for s in scores if s["criterion_id"] == c["id"]]
-            avg = round(sum(vals) / len(vals), 1) if vals else None
-            if avg is not None:
-                weighted_sum += avg * c["weight"]
-                scored_weight += c["weight"]
-            cells[c["id"]] = {"avg": avg, "count": len(vals), "my_score": my_scores.get(c["id"])}
-        # Prorate over criteria actually scored so far -- see the same
-        # fix in buyer_evaluations() above for why.
-        overall = round(weighted_sum / scored_weight, 1) if scored_weight else None
+        cells, overall, by_reviewer = _aggregate_evaluation_scores(criteria, scores)
+        for cid in cells:
+            cells[cid]["my_score"] = my_scores.get(cid)
 
-        by_reviewer = {}
-        for s in scores:
-            by_reviewer.setdefault(s["user_id"], []).append(s["score"])
         reviewer_rows = []
         for uid, vals in by_reviewer.items():
             reviewer_rows.append({
@@ -4741,6 +4982,120 @@ def buyer_project_delete_artifact(project_id, artifact_id):
     log_activity(g.user["id"], f"removed {artifact['filename']} from an evaluation project")
     flash(f"Removed {artifact['filename']}.", "success")
     return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+
+@app.route("/app/buyer/evaluations/project/<int:project_id>/export", methods=("POST",))
+@role_required("buyer")
+def buyer_project_export(project_id):
+    # Exporting is read-only, so it's open to every role with access to
+    # the project -- even 'viewer' -- unlike every other action on this
+    # page. eval_project_or_404 is the only gate needed here.
+    project, my_role = eval_project_or_404(project_id, g.user)
+    template = dbm.query("SELECT * FROM eval_templates WHERE id=?", (project["template_id"],), one=True)
+    all_criteria = dbm.query(
+        "SELECT * FROM eval_criteria WHERE template_id=? ORDER BY position", (project["template_id"],)
+    )
+    all_evals = dbm.query(
+        "SELECT e.*, v.company_name FROM evaluations e JOIN vendors v ON v.id = e.vendor_id "
+        "WHERE e.project_id=? ORDER BY e.id",
+        (project_id,),
+    )
+
+    export_format = request.form.get("format", "pdf")
+    if export_format not in ("pdf", "xlsx"):
+        export_format = "pdf"
+
+    try:
+        wanted_eval_ids = {int(x) for x in request.form.getlist("evaluation_ids")}
+    except (TypeError, ValueError):
+        wanted_eval_ids = set()
+    try:
+        wanted_criterion_ids = {int(x) for x in request.form.getlist("criterion_ids")}
+    except (TypeError, ValueError):
+        wanted_criterion_ids = set()
+
+    # Deliberately not "if nothing was checked, export everything" -- an
+    # empty picker almost always means the vendor/criteria checkboxes
+    # didn't come through on the request, not that the person wants a
+    # blank report, so this is caught and reported rather than silently
+    # falling back to "all."
+    evals = [e for e in all_evals if e["id"] in wanted_eval_ids]
+    criteria = [c for c in all_criteria if c["id"] in wanted_criterion_ids]
+    if not evals:
+        flash("Choose at least one vendor to export.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    if not criteria:
+        flash("Choose at least one success criterion to export.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    include_comments = request.form.get("include_comments") == "on"
+    include_reviewer_breakdown = request.form.get("include_reviewer_breakdown") == "on"
+
+    reviewers = {r["id"]: r for r in dbm.query(
+        "SELECT * FROM users WHERE company=? AND role='buyer'", (g.user["company"],)
+    )}
+    crit_by_id = {c["id"]: c for c in criteria}
+
+    vendors_data = []
+    for ev in evals:
+        scores = dbm.query("SELECT * FROM eval_scores WHERE evaluation_id=?", (ev["id"],))
+        cells, overall, by_reviewer = _aggregate_evaluation_scores(criteria, scores)
+
+        comments = []
+        if include_comments:
+            for s in scores:
+                if s["criterion_id"] not in crit_by_id or not (s["comment"] or "").strip():
+                    continue
+                reviewer = reviewers.get(s["user_id"])
+                comments.append({
+                    "criterion_label": crit_by_id[s["criterion_id"]]["label"],
+                    "reviewer_name": reviewer["name"] if reviewer else (
+                        g.user["name"] if s["user_id"] == g.user["id"] else "Teammate"
+                    ),
+                    "score": s["score"],
+                    "comment": s["comment"],
+                })
+
+        reviewer_rows = []
+        if include_reviewer_breakdown:
+            for uid, vals in by_reviewer.items():
+                reviewer_rows.append({
+                    "name": reviewers.get(uid, {"name": "Unknown"})["name"] if uid in reviewers else (
+                        g.user["name"] if uid == g.user["id"] else "Teammate"
+                    ),
+                    "avg": round(sum(vals) / len(vals), 1),
+                    "count": len(vals),
+                })
+
+        vendors_data.append({
+            "company_name": ev["company_name"],
+            "overall": overall,
+            "cells": cells,
+            "gartner_peer_note": ev["gartner_peer_note"],
+            "comments": comments,
+            "reviewer_rows": reviewer_rows,
+        })
+
+    project_name = project_display_name(project["name"], [v["company_name"] for v in vendors_data])
+    slug = re.sub(r"[^a-z0-9]+", "-", project_name.lower()).strip("-") or "evaluation"
+    filename = f"{slug}-{datetime.now().strftime('%Y-%m-%d')}.{export_format}"
+
+    if export_format == "pdf":
+        data = _build_scorecard_pdf(
+            project_name, template, criteria, vendors_data, include_comments, include_reviewer_breakdown
+        )
+        mimetype = "application/pdf"
+    else:
+        data = _build_scorecard_xlsx(
+            project_name, template, criteria, vendors_data, include_comments, include_reviewer_breakdown
+        )
+        mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+    log_activity(g.user["id"], f"exported {project_name} as {export_format.upper()}")
+    resp = Response(data, mimetype=mimetype)
+    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
 
 
 @app.route("/app/buyer/evaluations/project/<int:project_id>/close", methods=("POST",))
