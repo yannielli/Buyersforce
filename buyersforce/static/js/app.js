@@ -359,6 +359,27 @@ document.addEventListener("DOMContentLoaded", () => {
     syncOutcomeFields();
   }
 
+  // "Rename or change scorecard" form on project_detail.html: only warn
+  // before submitting if the template is actually being changed AND this
+  // project already has scores recorded -- renaming alone, or switching
+  // on a project nobody has scored yet, needs no confirmation.
+  const editProjectTemplateSelect = document.getElementById("edit-project-template");
+  const editProjectForm = editProjectTemplateSelect && editProjectTemplateSelect.closest("form");
+  if (editProjectForm && editProjectTemplateSelect) {
+    const originalTemplateId = editProjectTemplateSelect.dataset.current;
+    const hasScores = editProjectTemplateSelect.dataset.hasScores === "1";
+    editProjectForm.addEventListener("submit", (e) => {
+      const changingTemplate = editProjectTemplateSelect.value !== originalTemplateId;
+      if (changingTemplate && hasScores) {
+        const ok = confirm(
+          "Switching scorecards hides scores tied to criteria the new one doesn't have. " +
+          "Nothing is deleted -- they'll come back if you switch back. Continue?"
+        );
+        if (!ok) e.preventDefault();
+      }
+    });
+  }
+
   // Auto-scroll message threads to latest
   const msgList = document.querySelector(".msg-list");
   if (msgList) msgList.scrollTop = msgList.scrollHeight;

@@ -4630,6 +4630,15 @@ def buyer_start_project():
         if existing:
             return redirect(url_for("buyer_project_detail", project_id=existing["project_id"]))
 
+    # A brand-new project always gets a deliberate, free-text name -- no
+    # falling back to a vendor-names title. (Reopening an existing project
+    # above never reaches this check, since no new project is created
+    # there.) project_display_name() is kept around only as a safety net
+    # for pre-existing projects created before this was required.
+    if not name:
+        flash("Give this evaluation project a name.", "error")
+        return redirect(fallback)
+
     project_id = dbm.execute(
         "INSERT INTO eval_projects (template_id, company, name, created_by) VALUES (?, ?, ?, ?)",
         (template_id, g.user["company"], name, g.user["id"]),
@@ -4778,6 +4787,10 @@ def buyer_project_detail(project_id):
             "gartner_url": gartner_peer_insights_url(ev["company_name"]),
             "overall": overall, "reviewer_rows": reviewer_rows, "cells": cells,
         })
+    # Whether ANY vendor here has at least one score recorded -- used only
+    # to decide whether switching scorecards (see buyer_project_update_meta)
+    # needs a "this will hide some scores" warning first.
+    any_scores = any(v["overall"] is not None for v in vendor_columns)
 
     project_name = project_display_name(project["name"], [v["company_name"] for v in vendor_columns])
 
@@ -4832,9 +4845,17 @@ def buyer_project_detail(project_id):
         (project_id,),
     )
 
+    # For the "Rename or change scorecard" picker -- every template this
+    # company can use, same scoping as the "Ready to evaluate" dropdown on
+    # the Evaluate list page.
+    all_templates = dbm.query(
+        "SELECT * FROM eval_templates WHERE company=? ORDER BY created_at DESC", (g.user["company"],)
+    )
+
     return render_template(
         "buyer/project_detail.html",
         project=project, project_name=project_name, template=template,
+        all_templates=all_templates, any_scores=any_scores,
         criteria=criteria, vendors=vendor_columns, other_vendors=other_vendors,
         is_closed=is_closed, outcome_vendor=outcome_vendor, no_award_reasons=no_award_reasons,
         no_award_other_text=project["no_award_other_text"], no_award_reason_options=NO_AWARD_REASONS,
@@ -4843,6 +4864,50 @@ def buyer_project_detail(project_id):
         collaborators=collaborators, collab_roles=EVAL_COLLAB_ROLES, owner=owner,
         artifacts=artifacts, max_artifact_mb=MAX_PROJECT_ARTIFACT_BYTES // (1024 * 1024),
     )
+
+
+@app.route("/app/buyer/evaluations/project/<int:project_id>/update-meta", methods=("POST",))
+@role_required("buyer")
+def buyer_project_update_meta(project_id):
+    # Project name and scorecard template are editable at any time, by
+    # design -- unlike every other edit on this page, this is NOT gated on
+    # is_closed. Switching templates never deletes a score: a score stays
+    # in eval_scores forever (same "nothing is hard-deleted" rule as the
+    # rest of Evaluate), it just stops showing here if its criterion isn't
+    # on the new template, and reappears if the project is switched back.
+    project, my_role = eval_project_or_404(project_id, g.user)
+    if my_role not in ("owner", "editor"):
+        flash("You have view-only access to this evaluation.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("Give this evaluation project a name.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    try:
+        new_template_id = int(request.form.get("template_id", ""))
+    except (TypeError, ValueError):
+        flash("Choose a scorecard template.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    template_owned = dbm.query(
+        "SELECT 1 FROM eval_templates WHERE id=? AND company=?",
+        (new_template_id, g.user["company"]), one=True,
+    )
+    if not template_owned:
+        flash("That scorecard template isn't available to your company.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    dbm.execute(
+        "UPDATE eval_projects SET name=?, template_id=? WHERE id=?",
+        (name, new_template_id, project_id),
+    )
+    if new_template_id != project["template_id"]:
+        log_activity(g.user["id"], f"switched the scorecard on an evaluation project to {name}")
+    else:
+        log_activity(g.user["id"], f"renamed an evaluation project to {name}")
+    flash("Project updated.", "success")
+    return redirect(url_for("buyer_project_detail", project_id=project_id))
 
 
 @app.route("/app/buyer/evaluations/project/<int:project_id>/add-vendor", methods=("POST",))

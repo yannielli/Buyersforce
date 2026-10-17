@@ -37,7 +37,7 @@
       </div>
       <div class="field" style="margin-bottom:0;">
         <label for="project-name">Project name</label>
-        <input type="text" name="name" id="project-name" placeholder="e.g. CrowdStrike vs. SentinelOne">
+        <input type="text" name="name" id="project-name" placeholder="e.g. CrowdStrike vs. SentinelOne" required>
       </div>
     </div>
     <button class="btn btn-primary" type="submit" style="margin-top:14px;">Start project</button>
@@ -54,8 +54,7 @@
   {% for p in active %}
   <a class="card" href="{{ url_for('buyer_project_detail', project_id=p.id) }}" style="display:block;">
     <strong>{{ p.name }}</strong>
-    <div class="hint">{{ p.template_name }}</div>
-    <div class="project-vendor-row">
+    <div class="project-vendor-row" style="margin-top:8px;">
       {% for v in p.vendors %}
       <div class="project-vendor-chip">
         <span class="vendor-logo" style="background:{{ v.accent }}; width:26px;height:26px;font-size:10px;">
@@ -82,8 +81,7 @@
   {% for p in archive %}
   <a class="card" href="{{ url_for('buyer_project_detail', project_id=p.id) }}" style="display:block;">
     <strong>{{ p.name }}</strong>
-    <div class="hint">{{ p.template_name }}</div>
-    <div class="project-vendor-row">
+    <div class="project-vendor-row" style="margin-top:8px;">
       {% for v in p.vendors %}
       <div class="project-vendor-chip">
         <span class="vendor-logo" style="background:{{ v.accent }}; width:26px;height:26px;font-size:10px;">
