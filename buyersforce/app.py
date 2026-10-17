@@ -3207,7 +3207,10 @@ def suggest_vendor():
         ensure_contact(g.user["id"], contact_user_id=admin["id"])
         ensure_contact(admin["id"], contact_user_id=g.user["id"])
 
-        summary_lines = [f"New vendor suggestion: {company_name} ({website})"]
+        summary_lines = [
+            f"New vendor suggestion: {company_name} ({website})",
+            "Status: Pending BuyersForce review & approval",
+        ]
         if segments:
             summary_lines.append(f"Segments: {', '.join(segments)}")
         if company_size:
@@ -3236,11 +3239,25 @@ def suggest_vendor():
              hq_location, contact_name, contact_email, contact_phone, notes, thread["id"]),
         )
         log_activity(g.user["id"], f"suggested a vendor ({company_name})")
-        flash("Thank you! You'll be contacted by a BuyersForce admin shortly.", "success")
+        flash(
+            f"Thanks! {company_name} is now pending BuyersForce review & approval -- "
+            f"nothing goes live until an admin signs off, and you'll hear back right here.",
+            "success",
+        )
         return redirect(url_for("buyer_thread", thread_id=thread["id"]))
 
+    # So a buyer can see where every vendor they've ever suggested stands
+    # without having to dig back through Messages -- status mirrors
+    # vendor_requests exactly (see admin_vendor_request_decide, the only
+    # place that ever moves one off 'pending').
+    my_suggestions = dbm.query(
+        "SELECT * FROM vendor_requests WHERE kind='buyer_referral' AND requested_by_user_id=? "
+        "ORDER BY created_at DESC",
+        (g.user["id"],),
+    )
     return render_template(
         "buyer/suggest_vendor.html", all_segments=all_technology_segments(), company_sizes=COMPANY_SIZE_BANDS,
+        my_suggestions=my_suggestions,
     )
 
 

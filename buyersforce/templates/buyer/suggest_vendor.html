@@ -62,6 +62,33 @@
   </form>
 </div>
 
+{% if my_suggestions %}
+<div class="section-title" style="margin-top:30px;"><h2>Your submitted suggestions</h2></div>
+<div class="grid grid-2">
+  {% for r in my_suggestions %}
+  <div class="card">
+    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px;">
+      <strong>{{ r.company_name }}</strong>
+      {% if r.status == 'approved' %}
+      <span class="badge badge-good">Approved — live on BuyersForce</span>
+      {% elif r.status == 'denied' %}
+      <span class="badge badge-neutral">Not added</span>
+      {% else %}
+      <span class="badge badge-warning">Pending BuyersForce review & approval</span>
+      {% endif %}
+    </div>
+    <p class="hint" style="margin-top:6px;">Submitted {{ r.created_at|fmt_time }}</p>
+    {% if r.status == 'denied' and r.denial_note %}
+    <p style="font-size:13.5px; margin-top:8px;">{{ r.denial_note }}</p>
+    {% endif %}
+    {% if r.status == 'approved' and r.created_vendor_id %}
+    <a href="{{ url_for('buyer_vendor', vendor_id=r.created_vendor_id) }}" class="hint" style="margin-top:8px; display:inline-block;">View listing →</a>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <script>
 (function () {
   var nameInput = document.getElementById('suggest-company-name');
