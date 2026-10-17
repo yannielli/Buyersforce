@@ -568,6 +568,27 @@ CREATE TABLE eval_project_collaborators (
 CREATE UNIQUE INDEX eval_project_collaborators_uniq
 ON eval_project_collaborators (project_id, email);
 
+-- Supporting documents for a project (RFP responses, proposals, contract
+-- drafts, etc.) -- a simple per-project file shelf, not tied to any one
+-- vendor/criterion. Stored inline as a base64 data URL (data_url), same
+-- approach as vendors.logo_upload_data_url and users.photo_data_url --
+-- no object storage/volume to keep in sync (see migrate.py's project
+-- facts for why volumes are avoided here). size_bytes is the original
+-- (pre-base64) file size, enforced in app.py since a CHECK can't see the
+-- decoded length. Anyone with access to the project (see
+-- eval_project_collaborators above) can view/download; only the owner
+-- and 'editor' collaborators can upload or remove one (app.py).
+CREATE TABLE eval_project_artifacts (
+    id SERIAL PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES eval_projects(id),
+    filename TEXT NOT NULL,
+    content_type TEXT NOT NULL,
+    data_url TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    uploaded_by INTEGER NOT NULL REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+);
+
 CREATE TABLE evaluations (
     id SERIAL PRIMARY KEY,
     template_id INTEGER NOT NULL REFERENCES eval_templates(id),

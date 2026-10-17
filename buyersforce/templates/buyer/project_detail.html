@@ -208,6 +208,44 @@
 </div>
 {% endif %}
 
+<div class="card" style="margin-top:24px;">
+  <h3 style="font-size:15px;">Project artifacts</h3>
+  <p class="hint">RFP responses, proposals, contract drafts, or anything else worth keeping with this evaluation.</p>
+
+  {% if artifacts %}
+  <div style="display:flex; flex-direction:column; gap:1px; margin-top:14px; border-top:1px solid var(--gridline);">
+    {% for a in artifacts %}
+    <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--gridline);">
+      <div style="flex:1; min-width:0;">
+        <a href="{{ url_for('buyer_project_download_artifact', project_id=project.id, artifact_id=a.id) }}" style="font-weight:500; word-break:break-word;">{{ a.filename }}</a>
+        <div class="hint" style="margin-top:2px;">{{ a.size_bytes|fmt_filesize }} &middot; added {{ a.created_at|fmt_time }}{% if a.uploaded_by_name %} by {{ a.uploaded_by_name }}{% endif %}</div>
+      </div>
+      {% if can_edit %}
+      <form method="post" action="{{ url_for('buyer_project_delete_artifact', project_id=project.id, artifact_id=a.id) }}">
+        <button class="btn btn-secondary btn-sm" type="submit">Remove</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="hint" style="margin-top:10px;">No documents uploaded yet.</p>
+  {% endif %}
+
+  {% if can_edit and not is_closed %}
+  <form method="post" action="{{ url_for('buyer_project_upload_artifact', project_id=project.id) }}" enctype="multipart/form-data" style="margin-top:16px;">
+    <p class="hint" style="margin-bottom:8px;">Before uploading, consider whether this document contains sensitive, personal, or confidential information &mdash; avoid uploading anything that shouldn't leave your company.</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <input type="file" name="artifact_files" multiple style="flex:1; min-width:220px;">
+      <button class="btn btn-secondary" type="submit">Upload</button>
+    </div>
+    <p class="hint" style="margin-top:6px;">Up to {{ max_artifact_mb }}MB per file.</p>
+  </form>
+  {% elif can_edit and is_closed %}
+  <p class="hint" style="margin-top:14px;">This evaluation is closed, so documents are read-only. Reopen it above to add more.</p>
+  {% endif %}
+</div>
+
 {% if my_role == 'owner' %}
 <div class="card" style="margin-top:24px;">
   <h3 style="font-size:15px;">Team access</h3>

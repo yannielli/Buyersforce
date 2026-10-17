@@ -82,6 +82,7 @@ def run_migrations():
             _add_eval_project_collaborators_table(cur)
             _allow_null_eval_scores_score_2026_10_17(cur)
             _backfill_eval_project_collaborators_2026_10_17(cur)
+            _add_eval_project_artifacts_table(cur)
     finally:
         con.close()
 
@@ -1920,6 +1921,26 @@ def _backfill_eval_project_collaborators_2026_10_17(cur):
         "INSERT INTO _data_patches (name, applied_at) "
         "VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
         (patch_name,),
+    )
+
+
+def _add_eval_project_artifacts_table(cur):
+    # Per-project file shelf -- see schema.sql's comment on this table.
+    # Stored inline (base64 data URL), same approach as vendor logos --
+    # no object storage/volume to keep in sync.
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS eval_project_artifacts (
+            id SERIAL PRIMARY KEY,
+            project_id INTEGER NOT NULL REFERENCES eval_projects(id),
+            filename TEXT NOT NULL,
+            content_type TEXT NOT NULL,
+            data_url TEXT NOT NULL,
+            size_bytes INTEGER NOT NULL,
+            uploaded_by INTEGER NOT NULL REFERENCES users(id),
+            created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+        )
+        """
     )
 
 

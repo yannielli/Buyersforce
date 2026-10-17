@@ -9,7 +9,7 @@ from urllib.parse import quote as urlquote
 
 import pytz
 from flask import (
-    Flask, g, render_template, request, redirect, url_for, session, flash, abort, jsonify
+    Flask, g, render_template, request, redirect, url_for, session, flash, abort, jsonify, Response
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -521,6 +521,23 @@ def fmt_time(value):
 app.jinja_env.filters["fmt_time"] = fmt_time
 
 
+def fmt_filesize(num_bytes):
+    """Human-readable file size for a project artifact's listing (e.g.
+    "240 KB", "3.1 MB") -- num_bytes is the original upload size
+    (eval_project_artifacts.size_bytes), not the base64-inflated
+    stored length."""
+    if not num_bytes:
+        return "0 B"
+    size = float(num_bytes)
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024 or unit == "GB":
+            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+        size /= 1024
+
+
+app.jinja_env.filters["fmt_filesize"] = fmt_filesize
+
+
 # ---------------------------------------------------------------------------
 # Public / marketing
 # ---------------------------------------------------------------------------
@@ -839,6 +856,39 @@ def _read_uploaded_vendor_logo(files):
         return None, "Logo must be an image file."
     import base64
     return f"data:{mimetype};base64,{base64.b64encode(raw).decode('ascii')}", None
+
+
+# Project artifacts -- supporting documents (RFP responses, proposals,
+# contracts) uploaded to an evaluation project. A bigger cap than a logo
+# since these are real documents, not thumbnails, but still small
+# enough to store inline (see eval_project_artifacts in schema.sql).
+MAX_PROJECT_ARTIFACT_BYTES = 15 * 1024 * 1024  # 15MB per file
+MAX_PROJECT_ARTIFACTS_PER_PROJECT = 40
+
+
+def _read_uploaded_project_artifact(file_storage):
+    """Validates and base64-encodes one uploaded project artifact (a
+    werkzeug FileStorage, e.g. from request.files.getlist(...)). Returns
+    (data_url, size_bytes, error) -- error is a message to show the user,
+    and the other two are None when it's set. Unlike the logo/photo
+    uploads above, any file type is accepted here (RFP responses,
+    proposals, and contracts aren't images), so there's no mimetype
+    check -- the one real risk of storing an arbitrary file (an uploaded
+    HTML/SVG rendering as if it were this site) is defended against in
+    the download route instead, by always sending the file back as a
+    forced download rather than inline.
+    """
+    if not file_storage or not file_storage.filename:
+        return None, None, "Choose a file to upload."
+    raw = file_storage.read(MAX_PROJECT_ARTIFACT_BYTES + 1)
+    if len(raw) > MAX_PROJECT_ARTIFACT_BYTES:
+        return None, None, f"{file_storage.filename} is larger than 15MB."
+    if not raw:
+        return None, None, f"{file_storage.filename} is empty."
+    import base64
+    mimetype = file_storage.mimetype or "application/octet-stream"
+    data_url = f"data:{mimetype};base64,{base64.b64encode(raw).decode('ascii')}"
+    return data_url, len(raw), None
 
 
 def _apply_profile_form(user, form, files=None):
@@ -4532,6 +4582,15 @@ def buyer_project_detail(project_id):
     else:
         owner = dbm.query("SELECT name, email FROM users WHERE id=?", (project["created_by"],), one=True)
 
+    # Project artifacts (supporting documents) -- visible to anyone with
+    # access to the project; only the owner/editors get the upload form
+    # and remove buttons in the template (gated there on can_edit).
+    artifacts = dbm.query(
+        "SELECT a.*, u.name uploaded_by_name FROM eval_project_artifacts a "
+        "LEFT JOIN users u ON u.id = a.uploaded_by WHERE a.project_id=? ORDER BY a.created_at DESC",
+        (project_id,),
+    )
+
     return render_template(
         "buyer/project_detail.html",
         project=project, project_name=project_name, template=template,
@@ -4541,6 +4600,7 @@ def buyer_project_detail(project_id):
         closed_by_name=closed_by_name,
         my_role=my_role, can_edit=can_edit, can_comment=can_comment,
         collaborators=collaborators, collab_roles=EVAL_COLLAB_ROLES, owner=owner,
+        artifacts=artifacts, max_artifact_mb=MAX_PROJECT_ARTIFACT_BYTES // (1024 * 1024),
     )
 
 
@@ -4586,6 +4646,100 @@ def buyer_project_add_vendor(project_id):
         )
     log_activity(g.user["id"], f"added {vendor['company_name']} to an evaluation project")
     flash(f"{vendor['company_name']} added to this evaluation.", "success")
+    return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+
+@app.route("/app/buyer/evaluations/project/<int:project_id>/artifacts/upload", methods=("POST",))
+@role_required("buyer")
+def buyer_project_upload_artifact(project_id):
+    # Supporting documents for the project (RFP responses, proposals,
+    # contract drafts) -- see eval_project_artifacts in schema.sql.
+    # Same "can change the official record" line as everywhere else on
+    # this page: only the owner/editors can add or remove one.
+    project, my_role = eval_project_or_404(project_id, g.user)
+    if my_role not in ("owner", "editor"):
+        flash("You have view-only access to this evaluation.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    if project["status"] == "closed":
+        flash("This evaluation is closed. Reopen it to add a document.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    uploads = [f for f in request.files.getlist("artifact_files") if f and f.filename]
+    if not uploads:
+        flash("Choose at least one file to upload.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    existing_count = dbm.query(
+        "SELECT COUNT(*) c FROM eval_project_artifacts WHERE project_id=?", (project_id,), one=True
+    )["c"]
+    if existing_count + len(uploads) > MAX_PROJECT_ARTIFACTS_PER_PROJECT:
+        flash(f"A project can hold at most {MAX_PROJECT_ARTIFACTS_PER_PROJECT} documents.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    saved, errors = [], []
+    for f in uploads:
+        data_url, size_bytes, error = _read_uploaded_project_artifact(f)
+        if error:
+            errors.append(error)
+            continue
+        dbm.execute(
+            "INSERT INTO eval_project_artifacts "
+            "(project_id, filename, content_type, data_url, size_bytes, uploaded_by) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (project_id, f.filename, f.mimetype or "application/octet-stream", data_url, size_bytes, g.user["id"]),
+        )
+        saved.append(f.filename)
+
+    if saved:
+        log_activity(g.user["id"], f"uploaded {', '.join(saved)} to an evaluation project")
+        flash(f"Uploaded {len(saved)} file{'s' if len(saved) != 1 else ''}.", "success")
+    for error in errors:
+        flash(error, "error")
+    return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+
+@app.route("/app/buyer/evaluations/project/<int:project_id>/artifacts/<int:artifact_id>/download")
+@role_required("buyer")
+def buyer_project_download_artifact(project_id, artifact_id):
+    project, my_role = eval_project_or_404(project_id, g.user)
+    artifact = dbm.query(
+        "SELECT * FROM eval_project_artifacts WHERE id=? AND project_id=?", (artifact_id, project_id), one=True
+    )
+    if not artifact:
+        abort(404)
+    # The data URL is "data:<mimetype>;base64,<payload>" -- split off the
+    # header and decode just the payload.
+    import base64
+    try:
+        header, b64 = artifact["data_url"].split(",", 1)
+        raw = base64.b64decode(b64)
+    except Exception:
+        abort(404)
+    resp = Response(raw, mimetype=artifact["content_type"] or "application/octet-stream")
+    # Always a forced download, never rendered inline -- an uploaded
+    # HTML or SVG file must never execute as if it were this site (see
+    # _read_uploaded_project_artifact's docstring).
+    safe_name = artifact["filename"].replace('"', "'")
+    resp.headers["Content-Disposition"] = f'attachment; filename="{safe_name}"'
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
+
+
+@app.route("/app/buyer/evaluations/project/<int:project_id>/artifacts/<int:artifact_id>/delete", methods=("POST",))
+@role_required("buyer")
+def buyer_project_delete_artifact(project_id, artifact_id):
+    project, my_role = eval_project_or_404(project_id, g.user)
+    if my_role not in ("owner", "editor"):
+        flash("You have view-only access to this evaluation.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    artifact = dbm.query(
+        "SELECT * FROM eval_project_artifacts WHERE id=? AND project_id=?", (artifact_id, project_id), one=True
+    )
+    if not artifact:
+        abort(404)
+    dbm.execute("DELETE FROM eval_project_artifacts WHERE id=?", (artifact_id,))
+    log_activity(g.user["id"], f"removed {artifact['filename']} from an evaluation project")
+    flash(f"Removed {artifact['filename']}.", "success")
     return redirect(url_for("buyer_project_detail", project_id=project_id))
 
 
