@@ -87,6 +87,7 @@ def run_migrations():
             _add_eval_project_shares_table(cur)
             _add_evaluations_removal_columns_2026_10_19(cur)
             _add_evaluations_manual_rank_2026_10_19(cur)
+            _add_evaluations_manual_rank_note_2026_10_19(cur)
     finally:
         con.close()
 
@@ -2003,6 +2004,14 @@ def _add_evaluations_manual_rank_2026_10_19(cur):
     # buyer_project_set_vendor_rank in app.py and schema.sql's comment on
     # this column; project_detail.html lets it be changed any time.
     cur.execute("ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS manual_rank INTEGER")
+
+
+def _add_evaluations_manual_rank_note_2026_10_19(cur):
+    # Free-text rationale for manual_rank -- why the buyer ranked a vendor
+    # the way they did. Same "Your pick" box and route as manual_rank.
+    cur.execute(
+        "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS manual_rank_note TEXT NOT NULL DEFAULT ''"
+    )
 
 
 if __name__ == "__main__":

@@ -5047,7 +5047,7 @@ def buyer_project_detail(project_id):
             "gartner_peer_note": ev["gartner_peer_note"],
             "gartner_url": gartner_peer_insights_url(ev["company_name"]),
             "overall": overall, "reviewer_rows": reviewer_rows, "cells": cells,
-            "manual_rank": ev["manual_rank"],
+            "manual_rank": ev["manual_rank"], "manual_rank_note": ev["manual_rank_note"],
         })
     # Whether ANY vendor here has at least one score recorded -- used only
     # to decide whether switching scorecards (see buyer_project_update_meta)
@@ -5363,11 +5363,16 @@ def buyer_project_set_vendor_rank(project_id):
             rank_val = int(raw_rank)
         except (TypeError, ValueError):
             rank_val = None
+    # The rationale textarea saves through this same route (it posts
+    # whatever the select is currently set to alongside it) -- belt-and-
+    # suspenders length cap matching no_award_other_text's.
+    note_val = request.form.get("manual_rank_note", "").strip()[:500]
     # Scoped to this project (and to a vendor still in it) so a
     # hand-crafted request can't rank an evaluation on another project.
     dbm.execute(
-        "UPDATE evaluations SET manual_rank=? WHERE id=? AND project_id=? AND removed_at IS NULL",
-        (rank_val, evaluation_id, project_id),
+        "UPDATE evaluations SET manual_rank=?, manual_rank_note=? "
+        "WHERE id=? AND project_id=? AND removed_at IS NULL",
+        (rank_val, note_val, evaluation_id, project_id),
     )
     return redirect(url_for("buyer_project_detail", project_id=project_id))
 

@@ -663,7 +663,12 @@ CREATE TABLE evaluations (
     -- often as the buyer likes. NULL means no preference set. Nothing
     -- enforces one vendor per rank -- two vendors can both be ranked #1
     -- if the buyer sets them that way.
-    manual_rank INTEGER
+    manual_rank INTEGER,
+    -- Free-text rationale for manual_rank -- why the buyer ranked this
+    -- vendor the way they did, independent of the weighted score. Same
+    -- "Your pick" box, saved by the same route. Empty string, not NULL,
+    -- to match gartner_peer_note's convention above.
+    manual_rank_note TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE eval_scores (

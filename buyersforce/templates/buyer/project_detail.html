@@ -286,12 +286,15 @@
         <div class="rank-tag">{% if v.manual_rank %}{{ v.manual_rank|fmt_ordinal }} choice{% else %}&nbsp;{% endif %}</div>
         <h3 style="font-size:14px;">Your pick</h3>
         <p class="hint" style="margin:0 0 8px;">A subjective ranking, separate from the weighted score above &mdash; change it any time.</p>
-        <select class="vendor-rank-select" data-evaluation-id="{{ v.evaluation_id }}" {{ 'disabled' if is_closed or not can_edit }}>
-          <option value="">No preference</option>
-          {% for n in range(1, vendors|length + 1) %}
-          <option value="{{ n }}" {{ 'selected' if v.manual_rank == n }}>{{ n }} ({{ n|fmt_ordinal }} choice)</option>
-          {% endfor %}
-        </select>
+        <div class="vendor-rank-box" data-evaluation-id="{{ v.evaluation_id }}">
+          <select class="vendor-rank-select" {{ 'disabled' if is_closed or not can_edit }}>
+            <option value="">No preference</option>
+            {% for n in range(1, vendors|length + 1) %}
+            <option value="{{ n }}" {{ 'selected' if v.manual_rank == n }}>{{ n }} ({{ n|fmt_ordinal }} choice)</option>
+            {% endfor %}
+          </select>
+          <textarea class="vendor-rank-note" placeholder="Why? (optional) &#10;e.g. great demo, strong references, cultural fit" maxlength="500" style="margin-top:8px; min-height:60px;" {{ 'disabled' if is_closed or not can_edit }}>{{ v.manual_rank_note }}</textarea>
+        </div>
       </div>
 
       <div class="card" style="margin-top:16px;">
@@ -440,22 +443,37 @@
     });
   }
 
-  // "Your pick" select, one per vendor card -- posts to
-  // buyer_project_set_vendor_rank on change (no visible save button,
-  // since the point is it can be changed as often as the buyer likes)
-  // and reloads the page so the new green/yellow highlight shows up.
-  document.querySelectorAll('.vendor-rank-select').forEach(function(sel) {
-    sel.addEventListener('change', function() {
+  // "Your pick" box, one per vendor card -- the rank select and its
+  // rationale textarea save together through buyer_project_set_vendor_rank
+  // (no visible save button, since the point is either can be changed as
+  // often as the buyer likes): the select saves immediately on change,
+  // the textarea saves on blur but only if its text actually changed, so
+  // merely clicking in and tabbing back out doesn't trigger a reload.
+  document.querySelectorAll('.vendor-rank-box').forEach(function(box) {
+    var sel = box.querySelector('.vendor-rank-select');
+    var note = box.querySelector('.vendor-rank-note');
+    var lastNote = note.value;
+    function save() {
       var body = new URLSearchParams();
-      body.set('evaluation_id', sel.dataset.evaluationId);
+      body.set('evaluation_id', box.dataset.evaluationId);
       body.set('manual_rank', sel.value);
+      body.set('manual_rank_note', note.value);
       sel.disabled = true;
+      note.disabled = true;
       fetch('{{ url_for("buyer_project_set_vendor_rank", project_id=project.id) }}', {
         method: 'POST', body: body,
       }).then(function() { location.reload(); }).catch(function() {
         sel.disabled = false;
-        alert('Could not save that ranking -- check your connection and try again.');
+        note.disabled = false;
+        alert('Could not save that -- check your connection and try again.');
       });
+    }
+    sel.addEventListener('change', save);
+    note.addEventListener('blur', function() {
+      if (note.value !== lastNote) {
+        lastNote = note.value;
+        save();
+      }
     });
   });
 })();
