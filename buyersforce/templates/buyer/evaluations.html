@@ -35,9 +35,10 @@
 <div class="card empty-state"><div class="icon">🧮</div>No evaluations in progress yet — start one below.</div>
 {% endif %}
 
-<div class="section-title" style="margin-top:30px;"><h2>New Evaluation</h2></div>
-<p class="hint" style="margin-top:-6px; margin-bottom:14px;">Already know who you want to evaluate? Search for vendors below — or pick up ones you've shortlisted from Discover or Compare.</p>
-<div class="card" style="margin-bottom:30px;">
+<details id="new-evaluation-details" style="margin-top:30px; margin-bottom:30px;" {{ 'open' if not active }}>
+  <summary class="action-link" style="display:inline-block; font-size:16px; cursor:pointer;">New Evaluation &rarr;</summary>
+  <p class="hint" style="margin-top:10px; margin-bottom:14px;">Already know who you want to evaluate? Search for vendors below — or pick up ones you've shortlisted from Discover or Compare.</p>
+  <div class="card">
   <form method="post" action="{{ url_for('buyer_start_project') }}" id="start-project-form" enctype="multipart/form-data">
     <div class="field">
       <label for="project-name">Project name</label>
@@ -153,7 +154,8 @@
     </div>
     <button class="btn btn-primary" type="submit" style="margin-top:14px;">Start project</button>
   </form>
-</div>
+  </div>
+</details>
 
 <script>
 (function() {
@@ -321,36 +323,38 @@
 })();
 </script>
 
-<div class="section-title" style="margin-top:30px;"><h2>Archived Evaluations</h2></div>
-{% if archive %}
-<p class="hint" style="margin-top:-6px; margin-bottom:14px;">Closed evaluations, most recent first — the full scorecard is always still here to view.</p>
-<div class="grid grid-2">
-  {% for p in archive %}
-  <a class="card" href="{{ url_for('buyer_project_detail', project_id=p.id) }}" style="display:block;">
-    <strong>{{ p.name }}</strong>
-    <div class="project-vendor-row" style="margin-top:8px;">
-      {% for v in p.vendors %}
-      <div class="project-vendor-chip">
-        <span class="vendor-logo" style="background:{{ v.accent }}; width:26px;height:26px;font-size:10px;">
-          {% if v.logo_url %}<img src="{{ v.logo_url }}" alt="" onerror="this.remove();">{% endif %}
-          {{ v.initials }}
-        </span>
-        <span class="hint" style="font-size:12px;">{{ v.company_name }}</span>
+<details id="archived-evaluations-details" style="margin-top:30px;">
+  <summary class="action-link" style="display:inline-block; font-size:16px; cursor:pointer;">Archived Evaluations{% if archive %} ({{ archive|length }}){% endif %} &rarr;</summary>
+  {% if archive %}
+  <p class="hint" style="margin-top:10px; margin-bottom:14px;">Closed evaluations, most recent first — the full scorecard is always still here to view.</p>
+  <div class="grid grid-2">
+    {% for p in archive %}
+    <a class="card" href="{{ url_for('buyer_project_detail', project_id=p.id) }}" style="display:block;">
+      <strong>{{ p.name }}</strong>
+      <div class="project-vendor-row" style="margin-top:8px;">
+        {% for v in p.vendors %}
+        <div class="project-vendor-chip">
+          <span class="vendor-logo" style="background:{{ v.accent }}; width:26px;height:26px;font-size:10px;">
+            {% if v.logo_url %}<img src="{{ v.logo_url }}" alt="" onerror="this.remove();">{% endif %}
+            {{ v.initials }}
+          </span>
+          <span class="hint" style="font-size:12px;">{{ v.company_name }}</span>
+        </div>
+        {% endfor %}
       </div>
-      {% endfor %}
-    </div>
-    <p style="margin-top:10px;">
-      {% if p.outcome_vendor %}
-      <span class="badge badge-good">Selected: {{ p.outcome_vendor.company_name }}</span>
-      {% else %}
-      <span class="badge badge-neutral">No vendor selected</span>
-      {% endif %}
-    </p>
-    <p class="hint" style="margin-top:8px;">Closed {{ p.closed_at|fmt_time }}</p>
-  </a>
-  {% endfor %}
-</div>
-{% else %}
-<div class="card empty-state"><div class="icon">🗄️</div>No closed evaluations yet — closing one from its project page files it here.</div>
-{% endif %}
+      <p style="margin-top:10px;">
+        {% if p.outcome_vendor %}
+        <span class="badge badge-good">Selected: {{ p.outcome_vendor.company_name }}</span>
+        {% else %}
+        <span class="badge badge-neutral">No vendor selected</span>
+        {% endif %}
+      </p>
+      <p class="hint" style="margin-top:8px;">Closed {{ p.closed_at|fmt_time }}</p>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card empty-state" style="margin-top:10px;"><div class="icon">🗄️</div>No closed evaluations yet — closing one from its project page files it here.</div>
+  {% endif %}
+</details>
 {% endblock %}
