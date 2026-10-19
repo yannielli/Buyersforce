@@ -451,6 +451,20 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 }
 .shimmer { transform-box: fill-box; transform-origin: center; animation: shimmer 2.8s ease-in-out infinite; }
 
+/* ---- Global "thinking" overlay -- shown briefly between pages, see
+   app.js's navigation-loading block for when it's triggered. Sits over
+   the page's own background (not a dark scrim) so it reads as "the next
+   page is on its way" rather than a modal blocking the current one. ---- */
+.bf-nav-loading {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  background: var(--page);
+  opacity: 0; visibility: hidden; transition: opacity 0.15s ease;
+}
+.bf-nav-loading.is-visible { opacity: 1; visibility: visible; }
+.bf-nav-loading-mark svg { width: 88px; height: 88px; display: block; }
+.bf-nav-loading-label { font-size: 13px; color: var(--ink-muted); letter-spacing: 0.03em; }
+
 .hero { position: relative; overflow: hidden; }
 .hero-inner { position: relative; z-index: 2; }
 .hero-spark { position: absolute; z-index: 1; pointer-events: none; }

@@ -314,7 +314,7 @@
       fd.append('body', body);
       fetch({{ url_for('messages_start') | tojson }}, { method: 'POST', body: fd })
         .then(function(resp) {
-          if (resp.redirected) { window.location = resp.url; return; }
+          if (resp.redirected) { window.BFLoading.show(); window.location = resp.url; return; }
           status.textContent = resp.ok ? 'Message sent.' : "Couldn't send that — try again.";
         })
         .catch(function() { status.textContent = "Couldn't send that — try again."; });

@@ -12,6 +12,33 @@
   <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
 </head>
 <body class="{{ body_class|default('') }}">
+  <!-- "Thinking" overlay shown briefly while a new page (or a real form
+       submit like Start project / Add-remove vendor) is on its way --
+       see app.js's navigation-loading block for exactly what triggers
+       it and what's deliberately excluded (anything that doesn't leave
+       this page, plus the few actions that just download a file). -->
+  <div id="bf-nav-loading" class="bf-nav-loading" aria-hidden="true">
+    <div class="bf-nav-loading-mark">
+      <svg width="88" height="88" viewBox="0 0 100 100" focusable="false">
+        <ellipse cx="50" cy="50" rx="44" ry="16" fill="none" stroke="#e4a72e" stroke-width="3.2" transform="rotate(-18 50 50)"></ellipse>
+        <ellipse cx="50" cy="50" rx="44" ry="16" fill="none" stroke="#e2603a" stroke-width="3.2" transform="rotate(38 50 50)"></ellipse>
+        <ellipse cx="50" cy="50" rx="44" ry="16" fill="none" stroke="#0d5f5c" stroke-width="3.2" transform="rotate(94 50 50)"></ellipse>
+        <circle cx="50" cy="50" r="16" fill="#17948f"></circle>
+        <svg x="39" y="39" width="22" height="22" viewBox="0 0 64 64">
+          <rect x="14" y="12" width="8" height="40" rx="4" fill="#ffffff"></rect>
+          <rect x="26" y="12" width="25" height="16" rx="8" fill="#ffffff"></rect>
+          <rect x="26" y="36" width="25" height="16" rx="8" fill="#ffffff"></rect>
+        </svg>
+        <g transform="rotate(-18 50 50)"><circle r="3.8" fill="#e4a72e"><animateMotion dur="2.2s" begin="-0.3s" repeatCount="indefinite" path="M94,50 A44,16 0 1,1 6,50 A44,16 0 1,1 94,50 Z"/></circle></g>
+        <g transform="rotate(38 50 50)"><circle r="3.8" fill="#e2603a"><animateMotion dur="3.1s" begin="-1s" repeatCount="indefinite" path="M94,50 A44,16 0 1,1 6,50 A44,16 0 1,1 94,50 Z"/></circle></g>
+        <g transform="rotate(94 50 50)"><circle r="3.8" fill="#0d5f5c"><animateMotion dur="4s" begin="-2.3s" repeatCount="indefinite" path="M94,50 A44,16 0 1,1 6,50 A44,16 0 1,1 94,50 Z"/></circle></g>
+        <polygon class="shimmer" style="animation-delay:0s" points="84.5,14 80.03,14.84 81.18,17.18 78.84,16.03 78,23 77.16,16.03 74.82,17.18 75.97,14.84 71.5,14 75.97,13.16 74.82,10.82 77.16,11.97 78,5 78.84,11.97 81.18,10.82 80.03,13.16" fill="#e2603a"></polygon>
+        <polygon class="shimmer" style="animation-delay:0.9s" points="18.5,80 14.27,81.27 13,85.5 11.73,81.27 7.5,80 11.73,78.73 13,74.5 14.27,78.73" fill="#0d5f5c"></polygon>
+        <polygon class="shimmer" style="animation-delay:1.8s" points="89,93 85.919,93.919 85,97 84.081,93.919 81,93 84.081,92.081 85,89 85.919,92.081" fill="#e4a72e"></polygon>
+      </svg>
+    </div>
+    <div class="bf-nav-loading-label">Loading&hellip;</div>
+  </div>
   <header class="topbar">
     <div class="topbar-inner">
       <a class="brand" href="{{ url_for('landing') }}">

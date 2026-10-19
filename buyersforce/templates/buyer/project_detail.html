@@ -129,6 +129,7 @@
       // this can navigate in the same tab -- buyer_evaluation_new already
       // supports returning here and auto-attaching the new template.
       if (mode.value === 'new') {
+        window.BFLoading.show();
         window.location = NEW_TEMPLATE_URL;
         return;
       }
@@ -159,7 +160,7 @@
       fd.append('body', body);
       fetch({{ url_for('messages_start') | tojson }}, { method: 'POST', body: fd })
         .then(function(resp) {
-          if (resp.redirected) { window.location = resp.url; return; }
+          if (resp.redirected) { window.BFLoading.show(); window.location = resp.url; return; }
           status.textContent = resp.ok ? 'Message sent.' : "Couldn't send that — try again.";
         })
         .catch(function() { status.textContent = "Couldn't send that — try again."; });
@@ -580,7 +581,7 @@
           {% for a in artifacts %}
           <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--gridline);">
             <div style="flex:1; min-width:0;">
-              <a href="{{ url_for('buyer_project_download_artifact', project_id=project.id, artifact_id=a.id) }}" style="font-weight:500; word-break:break-word;">{{ a.filename }}</a>
+              <a href="{{ url_for('buyer_project_download_artifact', project_id=project.id, artifact_id=a.id) }}" data-no-loading style="font-weight:500; word-break:break-word;">{{ a.filename }}</a>
               <div class="hint" style="margin-top:2px;">{{ a.size_bytes|fmt_filesize }} &middot; added {{ a.created_at|fmt_time }}{% if a.uploaded_by_name %} by {{ a.uploaded_by_name }}{% endif %}</div>
             </div>
             {% if can_edit %}
@@ -642,7 +643,7 @@
           {% else %}
           <p class="hint" style="margin-bottom:16px;">This project has no scorecard yet, so the export will just be a vendor list with peer review notes.</p>
           {% endif %}
-          <button class="btn btn-secondary" type="submit">Download export</button>
+          <button class="btn btn-secondary" type="submit" data-no-loading>Download export</button>
 
           {% if can_edit %}
           <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--gridline);">

@@ -43,7 +43,7 @@
       <div class="msg-meta">{{ m.sender_name }} · {{ m.created_at|fmt_time }}</div>
       <div class="msg-body">{{ m.body }}</div>
       {% if m.share_id %}
-      <a href="{{ url_for('buyer_download_share', share_id=m.share_id) }}" class="btn btn-secondary btn-sm" style="margin-top:8px; display:inline-block;">⬇ Download {{ m.share_filename }}</a>
+      <a href="{{ url_for('buyer_download_share', share_id=m.share_id) }}" data-no-loading class="btn btn-secondary btn-sm" style="margin-top:8px; display:inline-block;">⬇ Download {{ m.share_filename }}</a>
       {% endif %}
     </div>
     {% else %}

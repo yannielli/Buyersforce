@@ -1,5 +1,79 @@
 // BuyersForce — small progressive-enhancement helpers (no build step, no deps)
 
+// ---- Global "thinking" overlay, shown while a real page load is under
+// way (a link navigation, or a form/button that submits for real --
+// Start project, Add/Remove a vendor, etc.) so moving around the app
+// never looks like a click did nothing. Deliberately does NOT fire for
+// anything that doesn't actually leave this page -- a <details> toggle,
+// a plain type="button" control, a link to "#", a new-tab or external
+// link, or one of the few actions that just download a file (those are
+// tagged data-no-loading below rather than guessed at here).
+//
+// A handful of spots navigate purely from JS (window.location = ...)
+// after already calling preventDefault() on the triggering click/submit
+// -- those can't be caught by the listeners below, so they call
+// window.BFLoading.show() themselves right before navigating: the
+// compare-selection buttons here, and the "ask a teammate" /
+// template-switch redirects in project_detail.html and evaluations.html.
+window.BFLoading = (function () {
+  var overlay = document.getElementById("bf-nav-loading");
+  var showTimer = null;
+  var maxTimer = null;
+
+  function show() {
+    if (!overlay || overlay.classList.contains("is-visible")) { return; }
+    clearTimeout(showTimer);
+    showTimer = setTimeout(function () {
+      overlay.classList.add("is-visible");
+    }, 150);
+    // Safety net: if nothing ever hides this (a popup blocked the
+    // navigation, a download that was missed above, some edge case we
+    // didn't anticipate), don't leave it on screen forever.
+    clearTimeout(maxTimer);
+    maxTimer = setTimeout(hide, 6000);
+  }
+
+  function hide() {
+    clearTimeout(showTimer);
+    clearTimeout(maxTimer);
+    if (overlay) { overlay.classList.remove("is-visible"); }
+  }
+
+  if (overlay) {
+    document.addEventListener("click", function (e) {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) { return; }
+      var link = e.target.closest("a[href]");
+      if (!link || link.dataset.noLoading !== undefined) { return; }
+      if (link.target && link.target !== "" && link.target !== "_self") { return; }
+      if (link.hasAttribute("download")) { return; }
+      var href = link.getAttribute("href") || "";
+      if (!href || href.charAt(0) === "#" || /^(mailto|tel|javascript):/i.test(href)) { return; }
+      var url;
+      try { url = new URL(link.href, window.location.href); } catch (err) { return; }
+      if (url.origin !== window.location.origin) { return; }
+      if (url.href.split("#")[0] === window.location.href.split("#")[0]) { return; }
+      show();
+    });
+
+    document.addEventListener("submit", function (e) {
+      var form = e.target;
+      if (e.defaultPrevented || !(form instanceof HTMLFormElement)) { return; }
+      if (form.dataset.noLoading !== undefined) { return; }
+      var submitter = e.submitter;
+      if (submitter && submitter.dataset.noLoading !== undefined) { return; }
+      show();
+    });
+
+    // Covers the back/forward button (including the browser restoring a
+    // page from its cache, which never re-fires DOMContentLoaded) -- the
+    // overlay should never still be sitting over a page that's already
+    // here and ready.
+    window.addEventListener("pageshow", hide);
+  }
+
+  return { show: show, hide: hide };
+})();
+
 document.addEventListener("DOMContentLoaded", () => {
   // Role toggle on signup page
   document.querySelectorAll(".role-option").forEach((opt) => {
@@ -197,12 +271,14 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
       const sel = readCompareSelection();
       if (sel.length < 2) return;
+      window.BFLoading.show();
       window.location.href = buildCompareUrl(sel);
     });
 
     if (compareTrayButton) {
       compareTrayButton.addEventListener("click", () => {
         if (compareTrayButton.disabled) return;
+        window.BFLoading.show();
         window.location.href = compareTrayButton.dataset.href || buildCompareUrl(readCompareSelection());
       });
     }
