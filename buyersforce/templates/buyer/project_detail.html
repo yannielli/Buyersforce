@@ -285,17 +285,19 @@
 
         {% if v.reviewer_rows %}
         <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--gridline);">
-          <h3 style="font-size:14px;">Score by reviewer</h3>
-          <div class="bar-chart" style="margin-top:10px;">
-            {% set colors = ['var(--series-1)','var(--series-2)','var(--series-3)','var(--series-4)','var(--series-5)'] %}
-            {% for r in v.reviewer_rows %}
-            <div class="bar-row">
-              <span class="bar-label">{{ r.name }}</span>
-              <div class="bar-track"><div class="bar-fill" style="width:{{ (r.avg / template.scale_max * 100)|round(1) }}%; background:{{ colors[loop.index0 % 5] }};"></div></div>
-              <span class="bar-value">{{ r.avg }}</span>
+          <details id="reviewer-breakdown-{{ v.evaluation_id }}">
+            <summary class="action-link" style="display:inline-block; font-size:14px; font-weight:600; cursor:pointer;">Score by reviewer ({{ v.reviewer_rows|length }}) &rarr;</summary>
+            <div class="bar-chart" style="margin-top:12px;">
+              {% set colors = ['var(--series-1)','var(--series-2)','var(--series-3)','var(--series-4)','var(--series-5)'] %}
+              {% for r in v.reviewer_rows %}
+              <div class="bar-row">
+                <span class="bar-label">{{ r.name }}</span>
+                <div class="bar-track"><div class="bar-fill" style="width:{{ (r.avg / template.scale_max * 100)|round(1) }}%; background:{{ colors[loop.index0 % 5] }};"></div></div>
+                <span class="bar-value">{{ r.avg }}</span>
+              </div>
+              {% endfor %}
             </div>
-            {% endfor %}
-          </div>
+          </details>
         </div>
         {% endif %}
       </div>
