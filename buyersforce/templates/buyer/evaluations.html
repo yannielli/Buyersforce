@@ -23,11 +23,11 @@
           {{ v.initials }}
         </span>
         <span class="hint" style="font-size:12px;">{{ v.company_name }}</span>
-        {% if v.overall %}<span class="badge badge-brand" style="font-size:11px;">{{ v.overall }}</span>{% elif p.has_scorecard %}<span class="badge badge-neutral" style="font-size:11px;">Not scored</span>{% else %}<span class="badge badge-neutral" style="font-size:11px;">No scorecard</span>{% endif %}
+        {% if v.overall %}<span class="badge {{ 'badge-good' if v.score_rank == 1 else ('badge-warning' if v.score_rank == 2 else 'badge-neutral') }}" style="font-size:11px;">{{ v.overall }}</span>{% elif p.has_scorecard %}<span class="badge badge-neutral" style="font-size:11px;">Not scored</span>{% else %}<span class="badge badge-neutral" style="font-size:11px;">No scorecard</span>{% endif %}
       </div>
       {% endfor %}
     </div>
-    <p class="hint" style="margin-top:10px;">{{ p.reviewers }} reviewer{{ 's' if p.reviewers != 1 }} · started {{ p.created_at|fmt_time }}</p>
+    <p class="hint" style="margin-top:10px;">{{ p.reviewers }} reviewer{{ 's' if p.reviewers != 1 }} · started {{ p.created_at|fmt_date }}</p>
   </a>
   {% endfor %}
 </div>
@@ -349,7 +349,7 @@
         <span class="badge badge-neutral">No vendor selected</span>
         {% endif %}
       </p>
-      <p class="hint" style="margin-top:8px;">Closed {{ p.closed_at|fmt_time }}</p>
+      <p class="hint" style="margin-top:8px;">Closed {{ p.closed_at|fmt_date }}</p>
     </a>
     {% endfor %}
   </div>

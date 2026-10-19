@@ -523,6 +523,26 @@ def fmt_time(value):
 app.jinja_env.filters["fmt_time"] = fmt_time
 
 
+def fmt_date(value):
+    """Same parsing as fmt_time, but date only -- for places like "started"
+    / "closed" on the Evaluate page where a backdated closed_at (a user
+    picking just a day, not a time, when closing an evaluation) always
+    carries a midnight 00:00:00 that isn't meaningful and shouldn't be
+    shown as if it were the actual time of day."""
+    if not value:
+        return ""
+    for pattern in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M", "%Y-%m-%d"):
+        try:
+            dt = datetime.strptime(value, pattern)
+            return dt.strftime("%b %-d, %Y")
+        except ValueError:
+            continue
+    return value
+
+
+app.jinja_env.filters["fmt_date"] = fmt_date
+
+
 def fmt_filesize(num_bytes):
     """Human-readable file size for a project artifact's listing (e.g.
     "240 KB", "3.1 MB") -- num_bytes is the original upload size
@@ -4471,6 +4491,11 @@ def buyer_evaluations():
                 "company_name": ev["company_name"], "accent": ev["accent"], "initials": ev["initials"],
                 "logo_url": vendor_display_logo_url(ev), "overall": overall,
             })
+        # Same green/yellow top-two highlight as the weighted score on the
+        # project detail page's scorecard rankings (score_rank there) -- so
+        # a vendor's standing reads the same color here as it does once you
+        # open the evaluation.
+        _assign_top_two_rank(vendor_summaries, "overall", "score_rank")
         entry = {
             "id": p["id"],
             "name": project_display_name(p["name"], [v["company_name"] for v in vendor_summaries]),
