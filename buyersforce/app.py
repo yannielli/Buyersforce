@@ -5400,6 +5400,47 @@ def buyer_project_set_vendor_rank(project_id):
     return redirect(url_for("buyer_project_detail", project_id=project_id))
 
 
+@app.route("/app/buyer/evaluations/project/<int:project_id>/gartner-rating", methods=("POST",))
+@role_required("buyer")
+def buyer_project_set_gartner_rating(project_id):
+    # The Gartner star-rating number and note on project_detail.html --
+    # previously these only saved when the whole "Save my scores" form
+    # was submitted, which meant typing a rating didn't persist (or
+    # update the green/yellow highlight) until the buyer scrolled up and
+    # clicked that button. Same auto-submit-on-change pattern as "Your
+    # pick"/buyer_project_set_vendor_rank below: no visible save button,
+    # quiet redirect back, re-render picks up the new rating and its
+    # highlight. The main scores form still has gartner_rating_<id>/
+    # gartner_peer_note_<id> fields too (see buyer_project_detail's POST
+    # handler) as a harmless fallback if that form is ever submitted
+    # with these fields present -- it writes the same columns.
+    project, my_role = eval_project_or_404(project_id, g.user)
+    if my_role not in ("owner", "editor"):
+        flash("You have view-only access to this evaluation.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    if project["status"] == "closed":
+        flash("This evaluation is closed. Reopen it to change ratings.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    try:
+        evaluation_id = int(request.form.get("evaluation_id", ""))
+    except (TypeError, ValueError):
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    raw_rating = request.form.get("gartner_rating", "").strip()
+    rating_val = None
+    if raw_rating:
+        try:
+            rating_val = max(0.0, min(5.0, float(raw_rating)))
+        except (TypeError, ValueError):
+            rating_val = None
+    note_val = request.form.get("gartner_peer_note", "").strip()
+    dbm.execute(
+        "UPDATE evaluations SET gartner_rating=?, gartner_peer_note=? "
+        "WHERE id=? AND project_id=? AND removed_at IS NULL",
+        (rating_val, note_val, evaluation_id, project_id),
+    )
+    return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+
 @app.route("/app/buyer/evaluations/project/<int:project_id>/artifacts/upload", methods=("POST",))
 @role_required("buyer")
 def buyer_project_upload_artifact(project_id):

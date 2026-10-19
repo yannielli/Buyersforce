@@ -310,9 +310,9 @@
         {% else %}
         <p class="hint" style="margin:0;">No Gartner Peer Insights notes yet — add one below.</p>
         {% endif %}
-        <div style="display:flex; gap:8px; margin-top:10px;">
-          <input type="number" name="gartner_rating_{{ v.evaluation_id }}" placeholder="e.g. 4.9" min="0" max="5" step="0.1" value="{{ v.gartner_rating if v.gartner_rating is not none else '' }}" style="width:80px; flex:0 0 auto;" {{ 'disabled' if is_closed or not can_edit }}>
-          <input type="text" name="gartner_peer_note_{{ v.evaluation_id }}" placeholder="e.g. 4.5/5 stars, 120 reviews — strong marks on support" value="{{ v.gartner_peer_note }}" style="flex:1;" {{ 'disabled' if is_closed or not can_edit }}>
+        <div class="gartner-box" data-evaluation-id="{{ v.evaluation_id }}" style="display:flex; gap:8px; margin-top:10px;">
+          <input type="number" class="gartner-rating-input" name="gartner_rating_{{ v.evaluation_id }}" placeholder="e.g. 4.9" min="0" max="5" step="0.1" value="{{ v.gartner_rating if v.gartner_rating is not none else '' }}" style="width:80px; flex:0 0 auto;" {{ 'disabled' if is_closed or not can_edit }}>
+          <input type="text" class="gartner-note-input" name="gartner_peer_note_{{ v.evaluation_id }}" placeholder="e.g. 4.5/5 stars, 120 reviews — strong marks on support" value="{{ v.gartner_peer_note }}" style="flex:1;" {{ 'disabled' if is_closed or not can_edit }}>
         </div>
         <div class="hint" style="margin-top:4px;">Star rating out of 5 (drives the highlight above) plus any notes your team found — BuyersForce doesn't pull live review data.</div>
         <a href="{{ v.gartner_url }}" target="_blank" rel="noopener" class="action-link" style="display:inline-block; margin-top:8px; font-size:12.5px;">Search Gartner Peer Reviews ↗</a>
@@ -477,6 +477,50 @@
       });
     }
     sel.addEventListener('change', save);
+    note.addEventListener('blur', function() {
+      if (note.value !== lastNote) {
+        lastNote = note.value;
+        save();
+      }
+    });
+  });
+
+  // Gartner rating box, one per vendor card -- same auto-save pattern as
+  // "Your pick" above, through buyer_project_set_gartner_rating: the
+  // rating number saves on change (so the green/yellow highlight above
+  // updates right away), the note saves on blur but only if it actually
+  // changed. Previously these fields only saved when the whole "Save my
+  // scores" form was submitted, so typing a rating silently did nothing
+  // until that button was clicked further up the page.
+  document.querySelectorAll('.gartner-box').forEach(function(box) {
+    var rating = box.querySelector('.gartner-rating-input');
+    var note = box.querySelector('.gartner-note-input');
+    var lastNote = note.value;
+    function save() {
+      var body = new URLSearchParams();
+      body.set('evaluation_id', box.dataset.evaluationId);
+      body.set('gartner_rating', rating.value);
+      body.set('gartner_peer_note', note.value);
+      rating.disabled = true;
+      note.disabled = true;
+      fetch('{{ url_for("buyer_project_set_gartner_rating", project_id=project.id) }}', {
+        method: 'POST', body: body,
+      }).then(function() { location.reload(); }).catch(function() {
+        rating.disabled = false;
+        note.disabled = false;
+        alert('Could not save that -- check your connection and try again.');
+      });
+    }
+    // Enter would otherwise implicitly submit the big "Save my scores"
+    // form these inputs sit inside -- blur instead, which fires our own
+    // save via the change/blur handlers below.
+    rating.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); rating.blur(); }
+    });
+    note.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); note.blur(); }
+    });
+    rating.addEventListener('change', save);
     note.addEventListener('blur', function() {
       if (note.value !== lastNote) {
         lastNote = note.value;
