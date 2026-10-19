@@ -223,8 +223,13 @@ button { font-family: inherit; }
    badge-warning; nothing lower than 2nd place gets a color. */
 .rank-first { background: var(--good-tint); border: 1.5px solid var(--good); }
 .rank-second { background: var(--warning-tint); border: 1.5px solid var(--warning-border); }
+/* Always rendered (with a non-breaking space when a vendor has no rank)
+   so every overall-score / "Your pick" card reserves the same line of
+   height whether or not it actually shows a tag -- otherwise the ranked
+   cards grow taller than the unranked ones and the row of vendor cards
+   no longer lines up. */
 .rank-tag {
-  display: inline-flex; align-items: center; gap: 4px;
+  display: flex; align-items: center; gap: 4px; line-height: 14px;
   text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; font-weight: 700;
   margin-bottom: 8px;
 }

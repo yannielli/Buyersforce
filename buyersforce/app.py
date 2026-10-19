@@ -540,6 +540,22 @@ def fmt_filesize(num_bytes):
 app.jinja_env.filters["fmt_filesize"] = fmt_filesize
 
 
+def fmt_ordinal(n):
+    """1 -> "1st", 2 -> "2nd", 3 -> "3rd", 4 -> "4th", 11-13 -> "th" (not
+    "st"/"nd"/"rd") -- used for both the weighted-score rank tag and the
+    "Your pick" dropdown on project_detail.html, so every place that
+    shows a vendor's standing uses the exact same wording."""
+    n = int(n)
+    if 11 <= n % 100 <= 13:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+app.jinja_env.filters["fmt_ordinal"] = fmt_ordinal
+
+
 # ---------------------------------------------------------------------------
 # Public / marketing
 # ---------------------------------------------------------------------------

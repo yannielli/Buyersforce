@@ -265,11 +265,7 @@
     {% for v in vendors %}
     <div>
       <div class="card overall-score {{ 'rank-first' if v.score_rank == 1 else ('rank-second' if v.score_rank == 2 else '') }}">
-        {% if v.score_rank == 1 %}
-        <div class="rank-tag">1st &middot; highest weighted score</div>
-        {% elif v.score_rank == 2 %}
-        <div class="rank-tag">2nd &middot; highest weighted score</div>
-        {% endif %}
+        <div class="rank-tag">{% if v.score_rank %}{{ v.score_rank|fmt_ordinal }} highest weighted score{% else %}&nbsp;{% endif %}</div>
         <div class="stat-label">{{ v.company_name }}{% if template %} — weighted overall{% endif %}</div>
         {% if v.website %}
         <p class="hint" style="margin:4px 0 10px;">
@@ -287,19 +283,13 @@
       </div>
 
       <div class="card {{ 'rank-first' if v.manual_rank == 1 else ('rank-second' if v.manual_rank == 2 else '') }}" style="margin-top:16px;">
-        {% if v.manual_rank == 1 %}
-        <div class="rank-tag">1st choice</div>
-        {% elif v.manual_rank == 2 %}
-        <div class="rank-tag">2nd choice</div>
-        {% endif %}
+        <div class="rank-tag">{% if v.manual_rank %}{{ v.manual_rank|fmt_ordinal }} choice{% else %}&nbsp;{% endif %}</div>
         <h3 style="font-size:14px;">Your pick</h3>
         <p class="hint" style="margin:0 0 8px;">A subjective ranking, separate from the weighted score above &mdash; change it any time.</p>
         <select class="vendor-rank-select" data-evaluation-id="{{ v.evaluation_id }}" {{ 'disabled' if is_closed or not can_edit }}>
           <option value="">No preference</option>
           {% for n in range(1, vendors|length + 1) %}
-          <option value="{{ n }}" {{ 'selected' if v.manual_rank == n }}>
-            {{ n }}{% if n == 1 %} (1st choice){% elif n == 2 %} (2nd choice){% endif %}
-          </option>
+          <option value="{{ n }}" {{ 'selected' if v.manual_rank == n }}>{{ n }} ({{ n|fmt_ordinal }} choice)</option>
           {% endfor %}
         </select>
       </div>
