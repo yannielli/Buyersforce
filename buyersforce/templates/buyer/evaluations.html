@@ -41,7 +41,7 @@
   <form method="post" action="{{ url_for('buyer_start_project') }}" id="start-project-form" enctype="multipart/form-data">
     <div class="field">
       <label for="project-name">Project name</label>
-      <input type="text" name="name" id="project-name" placeholder="e.g. CrowdStrike vs. SentinelOne" required>
+      <input type="text" name="name" id="project-name" placeholder="e.g. CrowdStrike vs. SentinelOne" autocomplete="off" required>
     </div>
 
     <div class="field">
@@ -54,19 +54,23 @@
     </div>
     <div class="ready-vendor-list" id="ready-vendor-list">
       {% for r in ready_to_evaluate %}
-      <label class="ready-vendor-row">
-        <input type="checkbox" name="vendor_ids" value="{{ r.vendor_id }}" class="ready-vendor-checkbox" checked>
-        <span class="vendor-logo" style="background:{{ r.accent }}; width:32px;height:32px;font-size:11px;">
-          {% if r.logo_url %}<img src="{{ r.logo_url }}" alt="" onerror="this.remove();">{% endif %}
-          {{ r.initials }}
-        </span>
-        <strong>{{ r.company_name }}</strong>
-      </label>
+      <div class="ready-vendor-row">
+        <label style="display:flex; align-items:center; gap:8px; margin:0; cursor:pointer;">
+          <input type="checkbox" name="vendor_ids" value="{{ r.vendor_id }}" class="ready-vendor-checkbox" checked>
+          <span class="vendor-logo" style="background:{{ r.accent }}; width:32px;height:32px;font-size:11px;">
+            {% if r.logo_url %}<img src="{{ r.logo_url }}" alt="" onerror="this.remove();">{% endif %}
+            {{ r.initials }}
+          </span>
+          <strong>{{ r.company_name }}</strong>
+        </label>
+        <button type="submit" name="status" value="passed" formaction="{{ url_for('buyer_shortlist_toggle', vendor_id=r.vendor_id) }}" formnovalidate class="ready-vendor-remove" title="Remove {{ r.company_name }} from this list">&times;</button>
+      </div>
       {% endfor %}
     </div>
     {% if not ready_to_evaluate %}
     <p class="hint" id="no-vendors-hint" style="margin-top:8px;">Nothing added yet — search above, or shortlist a vendor from Discover or Compare first.</p>
     {% endif %}
+    <button type="button" id="clear-new-eval-btn" class="hint action-link" style="margin-top:8px; background:none; border:none; padding:0; cursor:pointer;">Clear this form</button>
 
     <div class="field" style="margin-top:14px;">
       <label for="scorecard-mode">Scorecard template</label>
@@ -161,8 +165,11 @@
 
   function addVendorRow(id, name) {
     if (list.querySelector('.ready-vendor-checkbox[value="' + id + '"]')) { return; }
+    var row = document.createElement('div');
+    row.className = 'ready-vendor-row';
+
     var label = document.createElement('label');
-    label.className = 'ready-vendor-row';
+    label.style.cssText = 'display:flex; align-items:center; gap:8px; margin:0; cursor:pointer;';
 
     var checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
@@ -185,7 +192,26 @@
     label.appendChild(checkbox);
     label.appendChild(logo);
     label.appendChild(strong);
-    list.appendChild(label);
+
+    // This vendor isn't shortlisted yet (it only gets added to the
+    // shortlist once "Start project" actually runs) -- so removing it
+    // here is just a DOM removal, not a server call, unlike the "x" on a
+    // row that was already in "ready to evaluate" below.
+    var removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'ready-vendor-remove';
+    removeBtn.title = 'Remove ' + name + ' from this list';
+    removeBtn.innerHTML = '&times;';
+    removeBtn.addEventListener('click', function() {
+      row.remove();
+      if (noVendorsHint && !list.querySelector('.ready-vendor-checkbox')) {
+        noVendorsHint.style.display = '';
+      }
+    });
+
+    row.appendChild(label);
+    row.appendChild(removeBtn);
+    list.appendChild(row);
 
     if (noVendorsHint) { noVendorsHint.style.display = 'none'; }
   }
@@ -199,6 +225,25 @@
       if (!id) { return; }
       addVendorRow(id, name);
       input.value = '';
+    });
+  }
+
+  // "Clear this form": a quick reset for someone who wants a blank slate
+  // right now -- empties the name field, unchecks every vendor currently
+  // listed (without touching their shortlist status -- use the "x" on a
+  // row instead to remove it from this list for good), and drops the
+  // scorecard picklist back to "later". Purely client-side, nothing saved.
+  var clearBtn = document.getElementById('clear-new-eval-btn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function() {
+      var nameField = document.getElementById('project-name');
+      if (nameField) { nameField.value = ''; }
+      list.querySelectorAll('.ready-vendor-checkbox').forEach(function(cb) { cb.checked = false; });
+      if (mode) {
+        mode.value = 'later';
+        showMode('later');
+      }
+      if (nameField) { nameField.focus(); }
     });
   }
 
