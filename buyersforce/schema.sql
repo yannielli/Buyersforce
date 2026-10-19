@@ -642,6 +642,12 @@ CREATE TABLE evaluations (
     -- gartner_peer_insights_url() in app.py), this is a manually-typed
     -- reference note the team fills in themselves, surfaced back on Compare.
     gartner_peer_note TEXT NOT NULL DEFAULT '',
+    -- The actual star number (out of 5) behind gartner_peer_note -- the
+    -- note stays free text ("4.5/5 stars, 120 reviews"), but there's
+    -- nothing to rank vendors by without a real number, so this is what
+    -- project_detail.html's green/yellow Gartner highlight (gartner_rank
+    -- in app.py) is computed from. NULL means no rating entered.
+    gartner_rating REAL CHECK (gartner_rating IS NULL OR gartner_rating BETWEEN 0 AND 5),
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
     -- A buyer can pull a vendor out of the comparison entirely, even one
     -- that's already been scored (see buyer_project_vendor_action in

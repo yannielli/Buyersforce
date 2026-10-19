@@ -88,6 +88,7 @@ def run_migrations():
             _add_evaluations_removal_columns_2026_10_19(cur)
             _add_evaluations_manual_rank_2026_10_19(cur)
             _add_evaluations_manual_rank_note_2026_10_19(cur)
+            _add_evaluations_gartner_rating_2026_10_19(cur)
     finally:
         con.close()
 
@@ -2011,6 +2012,20 @@ def _add_evaluations_manual_rank_note_2026_10_19(cur):
     # the way they did. Same "Your pick" box and route as manual_rank.
     cur.execute(
         "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS manual_rank_note TEXT NOT NULL DEFAULT ''"
+    )
+
+
+def _add_evaluations_gartner_rating_2026_10_19(cur):
+    # The actual star number behind gartner_peer_note's free-text note --
+    # see schema.sql's comment on this column and _assign_top_two_rank in
+    # app.py, which is what the Gartner card's rank highlight uses it for.
+    cur.execute("ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS gartner_rating REAL")
+    cur.execute(
+        "ALTER TABLE evaluations DROP CONSTRAINT IF EXISTS evaluations_gartner_rating_check"
+    )
+    cur.execute(
+        "ALTER TABLE evaluations ADD CONSTRAINT evaluations_gartner_rating_check "
+        "CHECK (gartner_rating IS NULL OR gartner_rating BETWEEN 0 AND 5)"
     )
 
 

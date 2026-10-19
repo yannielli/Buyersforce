@@ -4066,6 +4066,27 @@ def _aggregate_evaluation_scores(criteria, scores):
     return cells, overall, by_reviewer
 
 
+def _assign_top_two_rank(vendor_columns, value_key, rank_key):
+    """Used by buyer_project_detail to highlight the top two vendors on
+    each of the comparison grid's independent rating schemes -- the
+    weighted score (value_key="overall") and the Gartner star rating
+    (value_key="gartner_rating") both call this, writing score_rank /
+    gartner_rank respectively. Green for the single highest value
+    present, yellow for the next distinct value below it; a tie shares a
+    color (two vendors tied for the top value both rank 1), and a vendor
+    with no value for this scheme never gets ranked."""
+    values = sorted({v[value_key] for v in vendor_columns if v[value_key] is not None}, reverse=True)
+    for v in vendor_columns:
+        if v[value_key] is None:
+            v[rank_key] = None
+        elif v[value_key] == values[0]:
+            v[rank_key] = 1
+        elif len(values) > 1 and v[value_key] == values[1]:
+            v[rank_key] = 2
+        else:
+            v[rank_key] = None
+
+
 def _pdf_text(s):
     """Escapes user-supplied text (comments, Gartner peer notes, company
     names, criterion labels, the project name) before it goes into a
@@ -5005,11 +5026,23 @@ def buyer_project_detail(project_id):
             # Insights, per vendor -- BF doesn't pull real review data from
             # Gartner, this is just a manually-typed reference note. Left
             # to editors/the owner, same as every other "official record"
-            # field here.
+            # field here. gartner_rating is the actual star number (out of
+            # 5) behind that note -- the only numeric field here, so it's
+            # what the Gartner card's green/yellow rank highlight on
+            # project_detail.html is computed from (see gartner_rank
+            # below); the note itself stays free text and isn't parsed.
             if can_edit:
                 gartner_peer_note = request.form.get(f"gartner_peer_note_{ev['id']}", "").strip()
+                raw_gartner_rating = request.form.get(f"gartner_rating_{ev['id']}", "").strip()
+                gartner_rating = None
+                if raw_gartner_rating:
+                    try:
+                        gartner_rating = max(0.0, min(5.0, float(raw_gartner_rating)))
+                    except (TypeError, ValueError):
+                        gartner_rating = None
                 dbm.execute(
-                    "UPDATE evaluations SET gartner_peer_note=? WHERE id=?", (gartner_peer_note, ev["id"])
+                    "UPDATE evaluations SET gartner_peer_note=?, gartner_rating=? WHERE id=?",
+                    (gartner_peer_note, gartner_rating, ev["id"]),
                 )
         log_activity(
             g.user["id"],
@@ -5045,6 +5078,7 @@ def buyer_project_detail(project_id):
             "logo_url": vendor_display_logo_url(ev),
             "website": ev["website"],
             "gartner_peer_note": ev["gartner_peer_note"],
+            "gartner_rating": ev["gartner_rating"],
             "gartner_url": gartner_peer_insights_url(ev["company_name"]),
             "overall": overall, "reviewer_rows": reviewer_rows, "cells": cells,
             "manual_rank": ev["manual_rank"], "manual_rank_note": ev["manual_rank_note"],
@@ -5054,25 +5088,14 @@ def buyer_project_detail(project_id):
     # needs a "this will hide some scores" warning first.
     any_scores = any(v["overall"] is not None for v in vendor_columns)
 
-    # Highlights the top two weighted scores so the leading choice(s) are
-    # obvious on the comparison grid -- green for the single highest
-    # "weighted overall" value present, yellow for the next distinct value
-    # below it (see .rank-first/.rank-second in style.css). Ties share a
-    # color: if two vendors are tied for the top score, both show green
-    # and the next-highest DIFFERENT score (if any) is what shows yellow.
-    # Vendors with no score yet never get a color.
-    scored_values = sorted(
-        {v["overall"] for v in vendor_columns if v["overall"] is not None}, reverse=True
-    )
-    for v in vendor_columns:
-        if v["overall"] is None:
-            v["score_rank"] = None
-        elif v["overall"] == scored_values[0]:
-            v["score_rank"] = 1
-        elif len(scored_values) > 1 and v["overall"] == scored_values[1]:
-            v["score_rank"] = 2
-        else:
-            v["score_rank"] = None
+    # Highlights the top two vendors on each of the grid's two independent
+    # rating schemes -- the weighted score (score_rank) and the Gartner
+    # star rating (gartner_rank) -- green for 1st, yellow for 2nd (see
+    # _assign_top_two_rank's docstring and .rank-first/.rank-second in
+    # style.css). The two schemes are ranked separately, so a vendor can
+    # be 1st on one and unranked -- or even 2nd -- on the other.
+    _assign_top_two_rank(vendor_columns, "overall", "score_rank")
+    _assign_top_two_rank(vendor_columns, "gartner_rating", "gartner_rank")
 
     project_name = project_display_name(project["name"], [v["company_name"] for v in vendor_columns])
 

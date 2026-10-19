@@ -300,15 +300,19 @@
         {% endif %}
       </div>
 
-      <div class="card" style="margin-top:16px;">
+      <div class="card {{ 'rank-first' if v.gartner_rank == 1 else ('rank-second' if v.gartner_rank == 2 else '') }}" style="margin-top:16px;">
+        <div class="rank-tag">{% if v.gartner_rank %}{{ v.gartner_rank|fmt_ordinal }} highest Gartner rating{% else %}&nbsp;{% endif %}</div>
         <h3 style="font-size:14px;">Gartner Peer review rating</h3>
         {% if v.gartner_peer_note %}
         <p style="font-size:13.5px; margin:0;">{{ v.gartner_peer_note }}</p>
         {% else %}
         <p class="hint" style="margin:0;">No Gartner Peer Insights notes yet — add one below.</p>
         {% endif %}
-        <input type="text" name="gartner_peer_note_{{ v.evaluation_id }}" placeholder="e.g. 4.5/5 stars, 120 reviews — strong marks on support" value="{{ v.gartner_peer_note }}" style="margin-top:10px;" {{ 'disabled' if is_closed or not can_edit }}>
-        <div class="hint" style="margin-top:4px;">BuyersForce doesn't pull live review data — jot down what your team found so it's visible on Compare too.</div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <input type="number" name="gartner_rating_{{ v.evaluation_id }}" placeholder="/5" min="0" max="5" step="0.1" value="{{ v.gartner_rating if v.gartner_rating is not none else '' }}" style="width:70px; flex:0 0 auto;" {{ 'disabled' if is_closed or not can_edit }}>
+          <input type="text" name="gartner_peer_note_{{ v.evaluation_id }}" placeholder="e.g. 4.5/5 stars, 120 reviews — strong marks on support" value="{{ v.gartner_peer_note }}" style="flex:1;" {{ 'disabled' if is_closed or not can_edit }}>
+        </div>
+        <div class="hint" style="margin-top:4px;">Star rating out of 5 (drives the highlight above) plus any notes your team found — BuyersForce doesn't pull live review data.</div>
         <a href="{{ v.gartner_url }}" target="_blank" rel="noopener" class="action-link" style="display:inline-block; margin-top:8px; font-size:12.5px;">Search Gartner Peer Reviews ↗</a>
       </div>
 
