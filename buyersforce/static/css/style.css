@@ -215,6 +215,21 @@ button { font-family: inherit; }
   text-transform: uppercase; letter-spacing: 0.06em; font-size: 11.5px; font-weight: 700;
   color: var(--good-ink); margin-bottom: 8px;
 }
+/* Highlights a vendor's "1st choice"/"2nd choice" standing on an
+   evaluation's comparison grid (project_detail.html) -- used on both the
+   weighted-score card (v.score_rank, computed from the scorecard math)
+   and the separate manual "Your pick" card (v.manual_rank, set by the
+   buyer). Same green/yellow pair as .card-next-step and badge-good/
+   badge-warning; nothing lower than 2nd place gets a color. */
+.rank-first { background: var(--good-tint); border: 1.5px solid var(--good); }
+.rank-second { background: var(--warning-tint); border: 1.5px solid var(--warning-border); }
+.rank-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; font-weight: 700;
+  margin-bottom: 8px;
+}
+.rank-first .rank-tag { color: var(--good-ink); }
+.rank-second .rank-tag { color: var(--warning-ink); }
 .grid { display: grid; gap: 18px; }
 .grid-2 { grid-template-columns: repeat(2, 1fr); }
 .grid-3 { grid-template-columns: repeat(3, 1fr); }

@@ -654,7 +654,16 @@ CREATE TABLE evaluations (
     -- instead of inserting a fresh row, but with a clean, scoreless
     -- slate since the history is really gone.
     removed_at TEXT,
-    removed_by INTEGER REFERENCES users(id)
+    removed_by INTEGER REFERENCES users(id),
+    -- A buyer's own gut-feel ranking of this vendor (1 = their first
+    -- choice, 2 = second, etc.), entirely separate from -- and allowed to
+    -- disagree with -- the weighted score computed from eval_scores.
+    -- Set from the "Your pick" select on project_detail.html
+    -- (buyer_project_set_vendor_rank in app.py), which can change it as
+    -- often as the buyer likes. NULL means no preference set. Nothing
+    -- enforces one vendor per rank -- two vendors can both be ranked #1
+    -- if the buyer sets them that way.
+    manual_rank INTEGER
 );
 
 CREATE TABLE eval_scores (

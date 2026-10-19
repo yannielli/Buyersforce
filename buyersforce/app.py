@@ -5031,11 +5031,32 @@ def buyer_project_detail(project_id):
             "gartner_peer_note": ev["gartner_peer_note"],
             "gartner_url": gartner_peer_insights_url(ev["company_name"]),
             "overall": overall, "reviewer_rows": reviewer_rows, "cells": cells,
+            "manual_rank": ev["manual_rank"],
         })
     # Whether ANY vendor here has at least one score recorded -- used only
     # to decide whether switching scorecards (see buyer_project_update_meta)
     # needs a "this will hide some scores" warning first.
     any_scores = any(v["overall"] is not None for v in vendor_columns)
+
+    # Highlights the top two weighted scores so the leading choice(s) are
+    # obvious on the comparison grid -- green for the single highest
+    # "weighted overall" value present, yellow for the next distinct value
+    # below it (see .rank-first/.rank-second in style.css). Ties share a
+    # color: if two vendors are tied for the top score, both show green
+    # and the next-highest DIFFERENT score (if any) is what shows yellow.
+    # Vendors with no score yet never get a color.
+    scored_values = sorted(
+        {v["overall"] for v in vendor_columns if v["overall"] is not None}, reverse=True
+    )
+    for v in vendor_columns:
+        if v["overall"] is None:
+            v["score_rank"] = None
+        elif v["overall"] == scored_values[0]:
+            v["score_rank"] = 1
+        elif len(scored_values) > 1 and v["overall"] == scored_values[1]:
+            v["score_rank"] = 2
+        else:
+            v["score_rank"] = None
 
     project_name = project_display_name(project["name"], [v["company_name"] for v in vendor_columns])
 
@@ -5296,6 +5317,43 @@ def buyer_project_vendor_action(project_id):
     else:
         flash("Choose whether to add or remove this vendor.", "error")
         return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+
+@app.route("/app/buyer/evaluations/project/<int:project_id>/vendor-rank", methods=("POST",))
+@role_required("buyer")
+def buyer_project_set_vendor_rank(project_id):
+    # The "Your pick" select on project_detail.html -- a buyer's own
+    # gut-feel ranking of a vendor, separate from (and allowed to
+    # disagree with) the weighted scorecard math. See manual_rank's
+    # comment in schema.sql. It auto-submits on change via JS (no visible
+    # save button), so this route is deliberately quiet: no flash, just a
+    # redirect back to the page, which re-renders with the new
+    # green/yellow highlight already applied.
+    project, my_role = eval_project_or_404(project_id, g.user)
+    if my_role not in ("owner", "editor"):
+        flash("You have view-only access to this evaluation.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    if project["status"] == "closed":
+        flash("This evaluation is closed. Reopen it to change rankings.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    try:
+        evaluation_id = int(request.form.get("evaluation_id", ""))
+    except (TypeError, ValueError):
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+    raw_rank = request.form.get("manual_rank", "").strip()
+    rank_val = None
+    if raw_rank:
+        try:
+            rank_val = int(raw_rank)
+        except (TypeError, ValueError):
+            rank_val = None
+    # Scoped to this project (and to a vendor still in it) so a
+    # hand-crafted request can't rank an evaluation on another project.
+    dbm.execute(
+        "UPDATE evaluations SET manual_rank=? WHERE id=? AND project_id=? AND removed_at IS NULL",
+        (rank_val, evaluation_id, project_id),
+    )
+    return redirect(url_for("buyer_project_detail", project_id=project_id))
 
 
 @app.route("/app/buyer/evaluations/project/<int:project_id>/artifacts/upload", methods=("POST",))

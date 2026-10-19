@@ -86,6 +86,7 @@ def run_migrations():
             _allow_null_eval_project_template_2026_10_17(cur)
             _add_eval_project_shares_table(cur)
             _add_evaluations_removal_columns_2026_10_19(cur)
+            _add_evaluations_manual_rank_2026_10_19(cur)
     finally:
         con.close()
 
@@ -1994,6 +1995,14 @@ def _add_evaluations_removal_columns_2026_10_19(cur):
         "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS removed_by INTEGER REFERENCES users(id)",
     ):
         cur.execute(ddl)
+
+
+def _add_evaluations_manual_rank_2026_10_19(cur):
+    # A buyer's own gut-feel ranking of a vendor -- 1st choice, 2nd, etc.
+    # -- separate from the weighted score computed from eval_scores. See
+    # buyer_project_set_vendor_rank in app.py and schema.sql's comment on
+    # this column; project_detail.html lets it be changed any time.
+    cur.execute("ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS manual_rank INTEGER")
 
 
 if __name__ == "__main__":
