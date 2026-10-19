@@ -345,11 +345,21 @@
     <p class="hint">Add a late entry to score alongside these {{ vendors|length }}, or pull one out entirely &mdash; even one that's already been scored.</p>
     <p class="hint warning-text" style="margin-top:4px;">Removing a vendor deletes its rating history for good &mdash; every score and comment left on it. This can't be undone.</p>
     <form method="post" action="{{ url_for('buyer_project_vendor_action', project_id=project.id) }}" id="vendor-action-form" style="margin-top:10px;">
-      <input type="text" id="vendor-action-search" list="vendor-action-datalist" placeholder="Start typing a company name…" autocomplete="off" style="margin-bottom:8px;">
-      <datalist id="vendor-action-datalist">
-        {% for cv in vendor_action_candidates %}<option value="{{ cv.company_name }}">{% endfor %}
-      </datalist>
-      <input type="hidden" name="vendor_id" id="vendor-action-id">
+      <div id="vendor-action-add-row">
+        <input type="text" id="vendor-action-search" list="vendor-action-datalist" placeholder="Start typing a company name…" autocomplete="off" style="margin-bottom:8px;">
+        <datalist id="vendor-action-datalist">
+          {% for cv in vendor_action_candidates %}<option value="{{ cv.company_name }}">{% endfor %}
+        </datalist>
+        <input type="hidden" name="vendor_id" id="vendor-action-id">
+      </div>
+      <div id="vendor-action-remove-row" style="display:none;">
+        <select id="vendor-action-remove-select" name="vendor_id" disabled style="margin-bottom:8px;">
+          <option value="">Choose a vendor to remove…</option>
+          {% for v in vendors %}
+          <option value="{{ v.vendor_id }}">{{ v.company_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <div style="display:flex; gap:8px;">
         <select name="action" id="vendor-action-select" style="flex:1;">
           <option value="add">Add to this evaluation</option>
@@ -404,48 +414,72 @@
 
 <script>
 (function() {
-  // "Add or Remove a Vendor": one search box, one Go button. Typing a
-  // name resolves it to an id via vendorMap (same datalist-driven search
-  // as the New Evaluation form's "search for vendors to add"), and the
-  // action dropdown defaults to whichever makes sense for that vendor --
-  // "Remove" if they're already one of this project's vendors, "Add"
-  // otherwise -- though the buyer can still flip it; the backend route
-  // rejects a mismatched choice with a plain error either way.
+  // "Add or Remove a Vendor": the action dropdown picks which of two
+  // widgets is actually live. "Add" keeps the free-text, type-ahead
+  // search across every active vendor it always has (typing a name
+  // resolves it to an id via vendorMap, same as the New Evaluation
+  // form's "search for vendors to add"). "Remove" swaps in a plain
+  // dropdown listing only the vendors currently in THIS evaluation --
+  // typing a name to remove something already right in front of you
+  // was more friction than it was worth. Both post the same "vendor_id"
+  // field; whichever row is hidden also gets disabled, so a disabled
+  // field is left out of the submit and only the active one's value
+  // goes through.
   var vendorMap = {};
   ({{ vendor_action_candidates | tojson }}).forEach(function(v) { vendorMap[v.company_name] = v.id; });
-  var inProjectIds = {{ in_project_vendor_ids | tojson }};
+  var actionSelect = document.getElementById('vendor-action-select');
+  var addRow = document.getElementById('vendor-action-add-row');
+  var removeRow = document.getElementById('vendor-action-remove-row');
   var input = document.getElementById('vendor-action-search');
   var idField = document.getElementById('vendor-action-id');
-  var actionSelect = document.getElementById('vendor-action-select');
+  var removeSelect = document.getElementById('vendor-action-remove-select');
   var hint = document.getElementById('vendor-action-hint');
   var form = document.getElementById('vendor-action-form');
+
+  function syncVendorActionMode() {
+    var isRemove = actionSelect.value === 'remove';
+    if (addRow) addRow.style.display = isRemove ? 'none' : '';
+    if (removeRow) removeRow.style.display = isRemove ? '' : 'none';
+    if (input) input.disabled = isRemove;
+    if (idField) idField.disabled = isRemove;
+    if (removeSelect) removeSelect.disabled = !isRemove;
+    if (isRemove) {
+      if (input) input.value = '';
+      if (idField) idField.value = '';
+    } else if (removeSelect) {
+      removeSelect.value = '';
+    }
+    hint.textContent = '';
+  }
+  if (actionSelect) {
+    actionSelect.addEventListener('change', syncVendorActionMode);
+    syncVendorActionMode();
+  }
 
   if (input) {
     input.addEventListener('input', function() {
       var name = input.value.trim();
-      var id = vendorMap[name];
-      if (!id) {
-        idField.value = '';
-        return;
-      }
-      idField.value = id;
-      actionSelect.value = inProjectIds.indexOf(id) !== -1 ? 'remove' : 'add';
+      idField.value = vendorMap[name] || '';
     });
   }
   if (form) {
     form.addEventListener('submit', function(e) {
-      if (!idField.value) {
-        e.preventDefault();
-        hint.textContent = 'Pick a vendor from the suggestions first.';
-        return;
-      }
       if (actionSelect.value === 'remove') {
-        var name = input.value.trim() || 'this vendor';
+        if (!removeSelect.value) {
+          e.preventDefault();
+          hint.textContent = 'Choose a vendor to remove first.';
+          return;
+        }
+        var name = removeSelect.options[removeSelect.selectedIndex].text;
         var ok = confirm(
           'Remove ' + name + ' from this evaluation? Rating history for a removed vendor will ' +
           'be deleted -- every score and comment left on it, for good. This can\'t be undone.'
         );
         if (!ok) { e.preventDefault(); return; }
+      } else if (!idField.value) {
+        e.preventDefault();
+        hint.textContent = 'Pick a vendor from the suggestions first.';
+        return;
       }
       hint.textContent = '';
     });
