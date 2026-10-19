@@ -9,6 +9,7 @@
   --gridline: #e1e0d9;
   --border: rgba(11,11,11,0.10);
   --border-strong: rgba(11,11,11,0.16);
+  --overlay-scrim: rgba(249,249,247,0.74);
 
   /* Primary brand color = teal, from the Sputnik Orbit / Bar-Mark logos.
      Coral is kept out of --brand on purpose: it's close in hue to
@@ -73,6 +74,7 @@ html[data-theme="dark"] {
   --gridline: #34373d;
   --border: rgba(255,255,255,0.10);
   --border-strong: rgba(255,255,255,0.20);
+  --overlay-scrim: rgba(21,23,27,0.74);
 
   --brand: #2bb0aa;
   --brand-dark: #17948f;
@@ -452,13 +454,17 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .shimmer { transform-box: fill-box; transform-origin: center; animation: shimmer 2.8s ease-in-out infinite; }
 
 /* ---- Global "thinking" overlay -- shown briefly between pages, see
-   app.js's navigation-loading block for when it's triggered. Sits over
-   the page's own background (not a dark scrim) so it reads as "the next
-   page is on its way" rather than a modal blocking the current one. ---- */
+   app.js's navigation-loading block for when it's triggered. The page
+   you're leaving stays visible underneath, softened by a translucent
+   scrim + blur, rather than blanking out to a solid color -- so it
+   reads as "the next page is on its way" rather than "this page is
+   gone." A browser without backdrop-filter support just gets the scrim
+   on its own, which still works fine. ---- */
 .bf-nav-loading {
   position: fixed; inset: 0; z-index: 9999;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-  background: var(--page);
+  background: var(--overlay-scrim);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
   opacity: 0; visibility: hidden; transition: opacity 0.15s ease;
 }
 .bf-nav-loading.is-visible { opacity: 1; visibility: visible; }
