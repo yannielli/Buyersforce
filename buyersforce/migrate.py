@@ -85,6 +85,7 @@ def run_migrations():
             _add_eval_project_artifacts_table(cur)
             _allow_null_eval_project_template_2026_10_17(cur)
             _add_eval_project_shares_table(cur)
+            _add_evaluations_removal_columns_2026_10_19(cur)
     finally:
         con.close()
 
@@ -1979,6 +1980,20 @@ def _add_eval_project_shares_table(cur):
         )
         """
     )
+
+
+def _add_evaluations_removal_columns_2026_10_19(cur):
+    # Lets a buyer pull a vendor out of an evaluation entirely, even one
+    # that's already been scored (see buyer_project_vendor_action and
+    # schema.sql's comment on these two columns) -- the evaluation row
+    # itself is kept, flagged removed rather than deleted, but its
+    # eval_scores rows (the actual rating history) get a real DELETE,
+    # which project_detail.html warns about up front.
+    for ddl in (
+        "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS removed_at TEXT",
+        "ALTER TABLE evaluations ADD COLUMN IF NOT EXISTS removed_by INTEGER REFERENCES users(id)",
+    ):
+        cur.execute(ddl)
 
 
 if __name__ == "__main__":

@@ -3628,7 +3628,8 @@ def buyer_vendor(vendor_id):
         (g.user["company"],),
     )
     existing_eval = dbm.query(
-        "SELECT * FROM evaluations WHERE vendor_id=? AND company=? ORDER BY created_at DESC LIMIT 1",
+        "SELECT * FROM evaluations WHERE vendor_id=? AND company=? AND removed_at IS NULL "
+        "ORDER BY created_at DESC LIMIT 1",
         (vendor_id, g.user["company"]), one=True
     )
     rating_summary = vendor_rating_summary(vendor_id)
@@ -4401,7 +4402,7 @@ def buyer_evaluations():
         evals = dbm.query(
             "SELECT e.*, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.logo_link_url, v.logo_upload_data_url, v.website "
             "FROM evaluations e JOIN vendors v ON v.id = e.vendor_id "
-            "WHERE e.project_id=? ORDER BY e.id",
+            "WHERE e.project_id=? AND e.removed_at IS NULL ORDER BY e.id",
             (p["id"],),
         )
         if not evals:
@@ -4467,7 +4468,7 @@ def buyer_evaluations():
         "SELECT s.vendor_id, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.logo_link_url, v.logo_upload_data_url, v.website "
         "FROM shortlist s JOIN vendors v ON v.id = s.vendor_id "
         "WHERE s.buyer_user_id=? AND s.status IN ('shortlisted', 'evaluating') "
-        "AND s.vendor_id NOT IN (SELECT vendor_id FROM evaluations WHERE company=?) "
+        "AND s.vendor_id NOT IN (SELECT vendor_id FROM evaluations WHERE company=? AND removed_at IS NULL) "
         "ORDER BY s.created_at DESC",
         (u["id"], u["company"]),
     )
@@ -4840,7 +4841,8 @@ def buyer_start_project():
     # since that's a deliberate new round of comparison.
     if len(vendor_ids) == 1:
         existing = dbm.query(
-            "SELECT * FROM evaluations WHERE template_id=? AND vendor_id=? AND company=?",
+            "SELECT * FROM evaluations WHERE template_id=? AND vendor_id=? AND company=? "
+            "AND removed_at IS NULL",
             (template_id, vendor_ids[0], g.user["company"]), one=True,
         )
         if existing:
@@ -4930,7 +4932,7 @@ def buyer_project_detail(project_id):
     evals = dbm.query(
         "SELECT e.*, v.company_name, v.accent, v.initials, v.wiki_logo_url, v.logo_link_url, v.logo_upload_data_url, v.website "
         "FROM evaluations e JOIN vendors v ON v.id = e.vendor_id "
-        "WHERE e.project_id=? ORDER BY e.id",
+        "WHERE e.project_id=? AND e.removed_at IS NULL ORDER BY e.id",
         (project_id,),
     )
     if not evals:
@@ -5037,15 +5039,20 @@ def buyer_project_detail(project_id):
 
     project_name = project_display_name(project["name"], [v["company_name"] for v in vendor_columns])
 
-    # "+ Add another vendor": any active vendor not already part of this
-    # project -- a late entry the team wants pulled into the same
-    # scorecard instead of starting a separate one.
+    # "Add or Remove a Vendor": one combined search box covers both --
+    # a late entry the team wants pulled into the same scorecard instead
+    # of starting a separate one, or one already in it they've decided
+    # to eliminate (see buyer_project_vendor_action). The candidate list
+    # has to include every active vendor (to add) AND every vendor
+    # currently in this project (to remove), even one a seller later
+    # delisted company-wide -- otherwise typing that name wouldn't
+    # resolve to anything.
     in_project_ids = [ev["vendor_id"] for ev in evals]
-    placeholders = ",".join(["?"] * len(in_project_ids))
-    other_vendors = dbm.query(
-        f"SELECT id, company_name FROM vendors WHERE status='active' AND id NOT IN ({placeholders}) "
+    vendor_action_candidates = dbm.query(
+        "SELECT id, company_name FROM vendors WHERE status='active' "
+        "OR id IN (SELECT vendor_id FROM evaluations WHERE project_id=? AND removed_at IS NULL) "
         "ORDER BY company_name",
-        tuple(in_project_ids),
+        (project_id,),
     )
 
     outcome_vendor = None
@@ -5112,7 +5119,8 @@ def buyer_project_detail(project_id):
         project=project, project_name=project_name, template=template,
         all_templates=all_templates, shared_templates=shared_templates,
         scorecard_initial_mode=scorecard_initial_mode, any_scores=any_scores,
-        criteria=criteria, vendors=vendor_columns, other_vendors=other_vendors,
+        criteria=criteria, vendors=vendor_columns,
+        vendor_action_candidates=vendor_action_candidates, in_project_vendor_ids=in_project_ids,
         is_closed=is_closed, outcome_vendor=outcome_vendor, no_award_reasons=no_award_reasons,
         no_award_other_text=project["no_award_other_text"], no_award_reason_options=NO_AWARD_REASONS,
         closed_by_name=closed_by_name,
@@ -5180,49 +5188,114 @@ def buyer_project_update_meta(project_id):
     return redirect(url_for("buyer_project_detail", project_id=project_id))
 
 
-@app.route("/app/buyer/evaluations/project/<int:project_id>/add-vendor", methods=("POST",))
+@app.route("/app/buyer/evaluations/project/<int:project_id>/vendor-action", methods=("POST",))
 @role_required("buyer")
-def buyer_project_add_vendor(project_id):
+def buyer_project_vendor_action(project_id):
+    # One route behind the combined "Add or Remove a Vendor" box on
+    # project_detail.html -- a buyer searches for a vendor by name and
+    # picks which to do. Unlike most "remove" actions on this page,
+    # removing a vendor here is NOT the usual "nothing is hard-deleted"
+    # soft-hide -- the project_detail.html UI warns up front that a
+    # vendor's rating history is deleted when they're removed, so this
+    # route actually deletes that vendor's eval_scores rows (every score
+    # and comment left on it) for real. The evaluations row itself stays,
+    # flagged via removed_at/removed_by (so it drops out of the
+    # comparison grid, counts correctly against the "at least one
+    # vendor" rule below, and can be reused if the same vendor is added
+    # back) -- but adding it back starts that vendor's scoring fresh,
+    # since its history is really gone.
     project, my_role = eval_project_or_404(project_id, g.user)
     if my_role not in ("owner", "editor"):
         flash("You have view-only access to this evaluation.", "error")
         return redirect(url_for("buyer_project_detail", project_id=project_id))
     if project["status"] == "closed":
-        flash("This evaluation is closed. Reopen it to add a vendor.", "error")
+        flash("This evaluation is closed. Reopen it to add or remove a vendor.", "error")
         return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    action = request.form.get("action", "")
     try:
         vendor_id = int(request.form.get("vendor_id", ""))
     except (TypeError, ValueError):
-        flash("Choose a vendor to add.", "error")
+        flash("Choose a vendor first.", "error")
         return redirect(url_for("buyer_project_detail", project_id=project_id))
+
     existing = dbm.query(
-        "SELECT 1 FROM evaluations WHERE project_id=? AND vendor_id=?", (project_id, vendor_id), one=True
+        "SELECT * FROM evaluations WHERE project_id=? AND vendor_id=?", (project_id, vendor_id), one=True
     )
-    if existing:
-        flash("That vendor is already part of this evaluation.", "error")
-        return redirect(url_for("buyer_project_detail", project_id=project_id))
-    vendor = dbm.query("SELECT * FROM vendors WHERE id=? AND status='active'", (vendor_id,), one=True)
-    if not vendor:
-        flash("That vendor isn't available.", "error")
-        return redirect(url_for("buyer_project_detail", project_id=project_id))
-    dbm.execute(
-        "INSERT INTO evaluations (template_id, vendor_id, company, created_by, project_id) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (project["template_id"], vendor_id, g.user["company"], g.user["id"], project_id),
-    )
-    existing_sl = dbm.query(
-        "SELECT * FROM shortlist WHERE buyer_user_id=? AND vendor_id=?", (g.user["id"], vendor_id), one=True
-    )
-    if existing_sl:
-        dbm.execute("UPDATE shortlist SET status='evaluating' WHERE id=?", (existing_sl["id"],))
-    else:
+
+    if action == "remove":
+        if not existing or existing["removed_at"] is not None:
+            flash("That vendor isn't part of this evaluation.", "error")
+            return redirect(url_for("buyer_project_detail", project_id=project_id))
+        still_in = dbm.query(
+            "SELECT COUNT(*) n FROM evaluations WHERE project_id=? AND removed_at IS NULL",
+            (project_id,), one=True,
+        )["n"]
+        if still_in <= 1:
+            flash(
+                "An evaluation needs at least one vendor -- add a replacement before removing "
+                "the last one, or close the evaluation instead.", "error",
+            )
+            return redirect(url_for("buyer_project_detail", project_id=project_id))
+        vendor = dbm.query("SELECT company_name FROM vendors WHERE id=?", (vendor_id,), one=True)
+        # The actual deletion the project_detail.html warning promises --
+        # every score and comment any reviewer left for this vendor on
+        # this evaluation, gone for good (not recoverable the way
+        # switching scorecards or reopening a project is elsewhere).
+        dbm.execute("DELETE FROM eval_scores WHERE evaluation_id=?", (existing["id"],))
         dbm.execute(
-            "INSERT INTO shortlist (buyer_user_id, vendor_id, status) VALUES (?, ?, 'evaluating')",
-            (g.user["id"], vendor_id),
+            "UPDATE evaluations SET removed_at=?, removed_by=? WHERE id=?",
+            (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), g.user["id"], existing["id"]),
         )
-    log_activity(g.user["id"], f"added {vendor['company_name']} to an evaluation project")
-    flash(f"{vendor['company_name']} added to this evaluation.", "success")
-    return redirect(url_for("buyer_project_detail", project_id=project_id))
+        # Can't actually happen today -- removal is blocked on a closed
+        # project, and that's the only state selected_vendor_id is ever
+        # set in -- belt-and-suspenders in case that changes later.
+        if project["selected_vendor_id"] == vendor_id:
+            dbm.execute("UPDATE eval_projects SET selected_vendor_id=NULL WHERE id=?", (project_id,))
+        vendor_name = vendor["company_name"] if vendor else "A vendor"
+        log_activity(g.user["id"], f"removed {vendor_name} (and its rating history) from an evaluation project")
+        flash(f"{vendor_name} removed from this evaluation, and its rating history was deleted.", "success")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    elif action == "add":
+        if existing and existing["removed_at"] is None:
+            flash("That vendor is already part of this evaluation.", "error")
+            return redirect(url_for("buyer_project_detail", project_id=project_id))
+        vendor = dbm.query("SELECT * FROM vendors WHERE id=? AND status='active'", (vendor_id,), one=True)
+        if not vendor:
+            flash("That vendor isn't available.", "error")
+            return redirect(url_for("buyer_project_detail", project_id=project_id))
+        if existing:
+            # Reuses the same row rather than inserting a duplicate --
+            # its scores are already gone (deleted on removal, above),
+            # so this just un-hides it with a clean slate, same as a
+            # vendor added for the first time.
+            dbm.execute(
+                "UPDATE evaluations SET removed_at=NULL, removed_by=NULL WHERE id=?", (existing["id"],)
+            )
+        else:
+            dbm.execute(
+                "INSERT INTO evaluations (template_id, vendor_id, company, created_by, project_id) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (project["template_id"], vendor_id, g.user["company"], g.user["id"], project_id),
+            )
+        existing_sl = dbm.query(
+            "SELECT * FROM shortlist WHERE buyer_user_id=? AND vendor_id=?", (g.user["id"], vendor_id), one=True
+        )
+        if existing_sl:
+            dbm.execute("UPDATE shortlist SET status='evaluating' WHERE id=?", (existing_sl["id"],))
+        else:
+            dbm.execute(
+                "INSERT INTO shortlist (buyer_user_id, vendor_id, status) VALUES (?, ?, 'evaluating')",
+                (g.user["id"], vendor_id),
+            )
+        log_activity(g.user["id"], f"added {vendor['company_name']} to an evaluation project")
+        flash(f"{vendor['company_name']} added to this evaluation.", "success")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+    else:
+        flash("Choose whether to add or remove this vendor.", "error")
+        return redirect(url_for("buyer_project_detail", project_id=project_id))
 
 
 @app.route("/app/buyer/evaluations/project/<int:project_id>/artifacts/upload", methods=("POST",))
@@ -5336,7 +5409,7 @@ def _eval_export_context(project_id):
     ) if project["template_id"] else []
     all_evals = dbm.query(
         "SELECT e.*, v.company_name FROM evaluations e JOIN vendors v ON v.id = e.vendor_id "
-        "WHERE e.project_id=? ORDER BY e.id",
+        "WHERE e.project_id=? AND e.removed_at IS NULL ORDER BY e.id",
         (project_id,),
     )
     return project, my_role, template, all_criteria, all_evals
@@ -5623,7 +5696,7 @@ def buyer_project_close(project_id):
             flash("Choose which vendor was selected.", "error")
             return redirect(url_for("buyer_project_detail", project_id=project_id))
         in_project = dbm.query(
-            "SELECT 1 FROM evaluations WHERE project_id=? AND vendor_id=?",
+            "SELECT 1 FROM evaluations WHERE project_id=? AND vendor_id=? AND removed_at IS NULL",
             (project_id, selected_vendor_id), one=True,
         )
         if not in_project:
@@ -5648,7 +5721,8 @@ def buyer_project_close(project_id):
             (project_id, reason),
         )
     vendor_names = [r["company_name"] for r in dbm.query(
-        "SELECT v.company_name FROM evaluations e JOIN vendors v ON v.id=e.vendor_id WHERE e.project_id=?",
+        "SELECT v.company_name FROM evaluations e JOIN vendors v ON v.id=e.vendor_id "
+        "WHERE e.project_id=? AND e.removed_at IS NULL",
         (project_id,),
     )]
     log_activity(g.user["id"], f"closed the evaluation for {', '.join(vendor_names) or 'a project'}")

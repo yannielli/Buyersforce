@@ -642,7 +642,19 @@ CREATE TABLE evaluations (
     -- gartner_peer_insights_url() in app.py), this is a manually-typed
     -- reference note the team fills in themselves, surfaced back on Compare.
     gartner_peer_note TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+    -- A buyer can pull a vendor out of the comparison entirely, even one
+    -- that's already been scored (see buyer_project_vendor_action in
+    -- app.py), unlike most "remove" actions here this one is NOT
+    -- recoverable: that route deletes every eval_scores row tied to
+    -- this evaluation when it sets removed_at, and project_detail.html
+    -- warns the buyer of that before they confirm. NULL means still in
+    -- the comparison. The row itself is kept (not deleted) so it can be
+    -- reused -- adding the same vendor back clears these two columns
+    -- instead of inserting a fresh row, but with a clean, scoreless
+    -- slate since the history is really gone.
+    removed_at TEXT,
+    removed_by INTEGER REFERENCES users(id)
 );
 
 CREATE TABLE eval_scores (
