@@ -1026,6 +1026,51 @@ def _read_uploaded_support_attachment(file_storage):
     return file_storage.filename, mimetype, data_url, len(raw), None
 
 
+def _insert_thread_message(thread_id, sender_id, body, file_storage):
+    """Shared by every thread POST handler (buyer/seller/admin): inserts a
+    reply with an optional attachment, reusing the same encode/validate
+    helper the initial support-ticket submission uses -- so anyone in an
+    ongoing conversation (not just the person who opened it) can keep
+    attaching screenshots/files to it, no new thread required. Returns an
+    error string to flash, or None on success (including the no-op case
+    where neither a body nor a file was actually given)."""
+    body = (body or "").strip()
+    (attachment_filename, attachment_content_type, attachment_data_url,
+     attachment_size_bytes, attachment_error) = _read_uploaded_support_attachment(file_storage)
+    if attachment_error:
+        return attachment_error
+    if not body and not attachment_data_url:
+        return None
+    dbm.execute(
+        "INSERT INTO messages (thread_id, sender_user_id, body, attachment_filename, "
+        "attachment_content_type, attachment_data_url, attachment_size_bytes) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (thread_id, sender_id, body, attachment_filename, attachment_content_type,
+         attachment_data_url, attachment_size_bytes),
+    )
+    return None
+
+
+@app.route("/app/messages/attachment/<int:message_id>")
+@login_required
+def message_attachment(message_id):
+    msg = dbm.query("SELECT * FROM messages WHERE id=?", (message_id,), one=True)
+    if not msg or not msg["attachment_data_url"]:
+        flash("That attachment couldn't be found -- it may have been removed.", "error")
+        return redirect(url_for(_messages_route_for(g.user)))
+    # _load_thread_for_user 403s/404s if g.user isn't actually a party to
+    # this message's thread -- same access rule as reading the thread at
+    # all, so there's no separate check to keep in sync here.
+    _load_thread_for_user(msg["thread_id"], g.user)
+    resp = _send_decoded_attachment(
+        msg["attachment_data_url"], msg["attachment_content_type"], msg["attachment_filename"]
+    )
+    if resp is None:
+        flash("That attachment is corrupted and can't be opened.", "error")
+        return redirect(url_for(_thread_route_for(g.user), thread_id=msg["thread_id"]))
+    return resp
+
+
 def _apply_profile_form(user, form, files=None):
     """Validates and saves the shared profile fields (used by both the
     mandatory first-completion screen and later edits from Account >
@@ -2576,88 +2621,82 @@ def mark_thread_read(user_id, thread_id):
 
 
 # ---------------------------------------------------------------------------
-# Inbox / Sent / Deleted folders -- an email-style view over the same
-# threads every messaging page already lists, computed per-viewer rather
-# than stored on the thread itself (the thread is shared with the other
-# party; a "folder" never is).
+# Conversation-thread listings -- every Messages page (buyer/seller/admin)
+# lists threads newest-message-first, like a chat app rather than an email
+# inbox: no Inbox/Sent split. Two things are still computed per-viewer
+# (never stored on the thread itself, since it's shared with the other
+# party):
 #
-#   Deleted: this viewer deleted the thread (thread_reads.deleted_at is
-#     set). Every query below also requires it to be within the last
+#   Archived: this viewer archived the thread (thread_reads.deleted_at is
+#     set). Every query below also checks it's within the last
 #     THREAD_DELETE_RETENTION_DAYS days -- once that window passes, the
-#     row simply stops being selected by ANY of the three folders, which
-#     is what makes it "permanently deleted" without a separate purge job.
-#   Sent: the LATEST message in the thread was sent by this viewer --
-#     they're the one waiting on a reply. A thread with no messages yet
-#     counts as Inbox, never Sent.
-#   Inbox: everything else -- something here needs this viewer's
-#     attention, whether that's the opening message of a new conversation
-#     or the other party's latest reply.
+#     row simply stops being selected by either view, which is what makes
+#     it "gone for good" without a separate purge job. Archiving (or
+#     restoring) a thread only ever touches the archiver's own row here;
+#     the other party's view of the thread never changes.
+#   Unread: this viewer has at least one message in the thread, from
+#     someone else, newer than the last one they've read (thread_reads.
+#     last_read_message_id, bumped by mark_thread_read on every visit).
+#     Drives the bold row styling and the unread counters.
 #
-# Every thread-listing query needs two extra pieces of data to compute
-# this: who sent the last message (THREAD_LAST_SENDER_SQL, a correlated
-# subquery meant to sit in a SELECT list) and whether/when *this* viewer
-# deleted it (a LEFT JOIN against thread_reads, via THREAD_READS_JOIN_SQL).
+# Every thread-listing query needs a LEFT JOIN against thread_reads (for
+# THIS viewer, via thread_reads_join_sql) plus the two SELECT-list
+# fragments below, which read off that join.
 # ---------------------------------------------------------------------------
 
 THREAD_DELETE_RETENTION_DAYS = 30
 
-THREAD_LAST_SENDER_SQL = (
-    "(SELECT sender_user_id FROM messages WHERE thread_id=t.id "
-    "ORDER BY created_at DESC, id DESC LIMIT 1) last_sender_id"
+THREAD_UNREAD_SQL = (
+    "EXISTS (SELECT 1 FROM messages um WHERE um.thread_id=t.id AND um.sender_user_id <> ? "
+    "AND um.id > COALESCE(tr.last_read_message_id, 0)) is_unread"
+)
+
+THREAD_ARCHIVED_SQL = (
+    "(tr.deleted_at IS NOT NULL AND tr.deleted_at::timestamp > "
+    f"(now() - interval '{THREAD_DELETE_RETENTION_DAYS} days')) is_archived"
 )
 
 
 def thread_reads_join_sql(alias="tr"):
-    """A LEFT JOIN clause bringing in deleted_at for ONE viewer (bind the
-    viewer's id as the next '?' after this fragment's own placeholder).
-    Also excludes a deleted_at past the retention window right here, so
-    it reads back as NULL (not-deleted) everywhere the join is used --
-    an aged-out deletion should never re-surface a thread as Sent/Inbox,
-    only stop appearing in Deleted too."""
-    return (
-        f"LEFT JOIN thread_reads {alias} ON {alias}.thread_id=t.id AND {alias}.user_id=? "
-        f"AND {alias}.deleted_at IS NOT NULL "
-        f"AND {alias}.deleted_at::timestamp > (now() - interval '{THREAD_DELETE_RETENTION_DAYS} days')"
-    )
+    """A plain LEFT JOIN against thread_reads for ONE viewer (bind the
+    viewer's id as the next '?' after this fragment's own placeholder) --
+    unconditional, so both THREAD_UNREAD_SQL (last_read_message_id) and
+    THREAD_ARCHIVED_SQL (deleted_at) can read off the same join."""
+    return f"LEFT JOIN thread_reads {alias} ON {alias}.thread_id=t.id AND {alias}.user_id=?"
 
 
-def thread_folder(row, viewer_id):
-    if row.get("deleted_at"):
-        return "deleted"
-    if row.get("last_sender_id") == viewer_id:
-        return "sent"
-    return "inbox"
+def current_view():
+    """Which of the two views a Messages page is showing -- 'active'
+    (the default) or 'archived'."""
+    view = request.args.get("view", "active")
+    return view if view in ("active", "archived") else "active"
 
 
-def split_by_folder(rows, viewer_id):
-    """Buckets already-annotated thread rows (each carrying last_sender_id
-    and deleted_at, from THREAD_LAST_SENDER_SQL / thread_reads_join_sql)
-    into {"inbox": [...], "sent": [...], "deleted": [...]}, each still in
-    the caller's original order (newest-first, since every listing query
-    already orders that way)."""
-    buckets = {"inbox": [], "sent": [], "deleted": []}
+def split_by_archived(rows):
+    """Buckets already-annotated thread rows (each carrying is_archived,
+    from THREAD_ARCHIVED_SQL) into (active_rows, archived_rows), each
+    still in the caller's original order."""
+    active, archived = [], []
     for row in rows:
-        buckets[thread_folder(row, viewer_id)].append(row)
-    return buckets
+        (archived if row.get("is_archived") else active).append(row)
+    return active, archived
 
 
-def current_folder():
-    folder = request.args.get("folder", "inbox")
-    return folder if folder in ("inbox", "sent", "deleted") else "inbox"
+SUPPORT_STATUS_ORDER = {"open": 0, "in_progress": 1, "resolved": 2}
 
 
-def _split_section(rows, viewer_id, folder):
-    """One messages-page section's rows -> (rows in the requested folder,
-    {inbox/sent/deleted: count}) for that section alone."""
-    buckets = split_by_folder(rows, viewer_id)
-    counts = {k: len(v) for k, v in buckets.items()}
-    return buckets[folder], counts
-
-
-def _merge_counts(*count_dicts):
-    """Adds several sections' {inbox/sent/deleted: count} dicts together
-    into one page-level total, for the Inbox/Sent/Deleted tab labels."""
-    return {k: sum(c[k] for c in count_dicts) for k in ("inbox", "sent", "deleted")}
+def sort_support_rows(rows):
+    """Support-ticket thread rows (each carrying a 'latest_ticket' dict or
+    None, set by whoever enriched them) ordered open-first, then in
+    progress, then resolved -- a thread with no ticket at all (a vendor
+    suggestion) sorts last. A stable sort, so rows that share a status
+    keep their original newest-first order."""
+    return sorted(
+        rows,
+        key=lambda r: SUPPORT_STATUS_ORDER.get(
+            (r.get("latest_ticket") or {}).get("status"), 3
+        ),
+    )
 
 
 def set_thread_deleted(user_id, thread_id, deleted):
@@ -2683,6 +2722,10 @@ def set_thread_deleted(user_id, thread_id, deleted):
 
 
 def thread_is_deleted(user_id, thread_id):
+    """Despite the name (kept to match thread_reads.deleted_at and avoid
+    a wider rename), this is the "is this conversation in the Archived
+    view for this person" check -- the user-facing term for the same
+    mechanism is "Archived", never "Deleted"."""
     row = dbm.query(
         "SELECT deleted_at FROM thread_reads WHERE user_id=? AND thread_id=? "
         f"AND deleted_at IS NOT NULL AND deleted_at::timestamp > (now() - interval '{THREAD_DELETE_RETENTION_DAYS} days')",
@@ -2696,7 +2739,7 @@ def thread_is_deleted(user_id, thread_id):
 def delete_thread(thread_id):
     _load_thread_for_user(thread_id, g.user)  # 403s if g.user isn't a party to it
     set_thread_deleted(g.user["id"], thread_id, True)
-    flash("Conversation deleted -- it's kept for 30 days in case you want it back.", "success")
+    flash("Conversation archived -- it's kept for 30 days in case you want it back.", "success")
     return redirect(_safe_redirect_target(request.form.get("next"), url_for(_messages_route_for(g.user))))
 
 
@@ -2716,7 +2759,11 @@ def _messages_route_for(user):
 
 
 def _thread_route_for(user):
-    return "buyer_thread" if user["role"] == "buyer" else "seller_thread"
+    if user["role"] == "buyer":
+        return "buyer_thread"
+    if user["role"] == "seller":
+        return "seller_thread"
+    return "admin_thread"
 
 
 @app.route("/app/messages/new")
@@ -3117,23 +3164,22 @@ def admin_messages():
     suggestions" box for admin-contact threads that carry no ticket at
     all (the vendor-suggestion flow doesn't create a support_requests
     row, only a vendor_requests one)."""
-    folder = current_folder()
+    view = current_view()
     rows = dbm.query(
         "SELECT t.*, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_LAST_SENDER_SQL}, tr.deleted_at "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL} "
         "FROM threads t " + thread_reads_join_sql() + " "
         "WHERE t.type='direct' AND (t.participant_a_id=? OR t.participant_b_id=?) "
         "ORDER BY last_at DESC",
-        (g.user["id"], g.user["id"], g.user["id"]),
+        (g.user["id"], g.user["id"], g.user["id"], g.user["id"]),
     )
     vendor_suggestion_thread_ids = {
         r["thread_id"] for r in
         dbm.query("SELECT DISTINCT thread_id FROM vendor_requests WHERE thread_id IS NOT NULL")
     }
-    direct_buckets = {"inbox": [], "sent": [], "deleted": []}
-    support_buckets = {"inbox": [], "sent": [], "deleted": []}
+    direct_rows, support_rows = [], []
     for t in rows:
         info = thread_display_info(t, g.user)
         row = {**dict(t), **info}
@@ -3148,27 +3194,30 @@ def admin_messages():
         row["latest_ticket"] = tickets[0] if tickets else None
         row["open_ticket_count"] = sum(1 for tk in tickets if tk["status"] != "resolved")
         row["has_attachment"] = any(tk["attachment_data_url"] for tk in tickets)
-        fld = thread_folder(row, g.user["id"])
         if tickets or t["id"] in vendor_suggestion_thread_ids:
-            support_buckets[fld].append(row)
+            support_rows.append(row)
         else:
-            direct_buckets[fld].append(row)
+            direct_rows.append(row)
+    direct_active, direct_archived = split_by_archived(direct_rows)
+    support_active, support_archived = split_by_archived(support_rows)
     team_rows = dbm.query(
         "SELECT t.*, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_LAST_SENDER_SQL}, tr.deleted_at "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL} "
         "FROM threads t " + thread_reads_join_sql() + " WHERE t.type='teammate' AND "
         "(t.created_by=? OR t.id IN (SELECT thread_id FROM messages WHERE sender_user_id=?)) "
         "AND t.subject LIKE ? ORDER BY last_at DESC",
-        (g.user["id"], g.user["id"], g.user["id"], f"%{g.user['company']}%"),
+        (g.user["id"], g.user["id"], g.user["id"], g.user["id"], f"%{g.user['company']}%"),
     )
-    team_threads, team_counts = _split_section(team_rows, g.user["id"], folder)
+    team_active, team_archived = split_by_archived(team_rows)
+    team_threads = team_archived if view == "archived" else team_active
 
+    support_shown = sort_support_rows(support_archived if view == "archived" else support_active)
     category_order = [key for key, _label in SUPPORT_CATEGORIES] + ["_vendor_suggestion"]
     category_label = dict(SUPPORT_CATEGORY_LABELS, _vendor_suggestion="Vendor suggestions")
     by_category = {key: [] for key in category_order}
-    for row in support_buckets[folder]:
+    for row in support_shown:
         key = row["latest_ticket"]["category"] if row["latest_ticket"] else "_vendor_suggestion"
         by_category.setdefault(key, []).append(row)
     support_boxes = [
@@ -3176,15 +3225,11 @@ def admin_messages():
         for key in category_order if by_category[key]
     ]
 
-    folder_counts = _merge_counts(
-        {k: len(direct_buckets[k]) for k in ("inbox", "sent", "deleted")},
-        team_counts,
-        {k: len(support_buckets[k]) for k in ("inbox", "sent", "deleted")},
-    )
     return render_template(
-        "admin/messages.html", direct_threads=direct_buckets[folder], team_threads=team_threads,
-        support_boxes=support_boxes, category_labels=SUPPORT_CATEGORY_LABELS,
-        folder=folder, folder_counts=folder_counts,
+        "admin/messages.html",
+        direct_threads=direct_archived if view == "archived" else direct_active,
+        team_threads=team_threads, support_boxes=support_boxes,
+        category_labels=SUPPORT_CATEGORY_LABELS, view=view,
     )
 
 
@@ -3193,12 +3238,11 @@ def admin_messages():
 def admin_thread(thread_id):
     thread = _load_thread_for_user(thread_id, g.user)
     if request.method == "POST":
-        body = request.form.get("body", "").strip()
-        if body:
-            dbm.execute(
-                "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-                (thread_id, g.user["id"], body),
-            )
+        error = _insert_thread_message(
+            thread_id, g.user["id"], request.form.get("body"), request.files.get("attachment")
+        )
+        if error:
+            flash(error, "error")
         return redirect(url_for("admin_thread", thread_id=thread_id))
     messages = dbm.query(
         "SELECT m.*, u.name sender_name, u.role sender_role FROM messages m "
@@ -4338,69 +4382,70 @@ def buyer_request_meeting(vendor_id):
 @role_required("buyer")
 def buyer_messages():
     u = g.user
-    folder = current_folder()
+    view = current_view()
     vendor_rows = dbm.query(
         "SELECT t.*, v.company_name, v.initials, v.accent, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_LAST_SENDER_SQL}, tr.deleted_at "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL} "
         "FROM threads t JOIN vendors v ON v.id = t.vendor_id " + thread_reads_join_sql() + " "
         "WHERE t.type='vendor' AND t.buyer_user_id=? ORDER BY last_at DESC",
-        (u["id"], u["id"]),
+        (u["id"], u["id"], u["id"]),
     )
-    vendor_threads, vendor_counts = _split_section(vendor_rows, u["id"], folder)
+    vendor_active, vendor_archived = split_by_archived(vendor_rows)
     team_rows = dbm.query(
         "SELECT t.*, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_LAST_SENDER_SQL}, tr.deleted_at "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL} "
         "FROM threads t " + thread_reads_join_sql() + " WHERE t.type='teammate' AND "
         "(t.created_by=? OR t.buyer_user_id=? OR t.id IN "
         "(SELECT thread_id FROM messages WHERE sender_user_id=?)) "
         "AND t.subject LIKE ? ORDER BY last_at DESC",
-        (u["id"], u["id"], u["id"], u["id"], f"%{u['company']}%"),
+        (u["id"], u["id"], u["id"], u["id"], u["id"], f"%{u['company']}%"),
     )
-    team_threads, team_counts = _split_section(team_rows, u["id"], folder)
-    direct_threads, support_threads, direct_support_counts = _direct_threads_for(u, folder)
-    folder_counts = _merge_counts(vendor_counts, team_counts, direct_support_counts)
+    team_active, team_archived = split_by_archived(team_rows)
+    direct_active, direct_archived, support_active, support_archived = _direct_threads_for(u)
+    if view == "archived":
+        vendor_threads, team_threads = vendor_archived, team_archived
+        direct_threads, support_threads = direct_archived, support_archived
+    else:
+        vendor_threads, team_threads = vendor_active, team_active
+        direct_threads, support_threads = direct_active, support_active
+    support_threads = sort_support_rows(support_threads)
     return render_template(
         "buyer/messages.html", vendor_threads=vendor_threads, team_threads=team_threads,
         direct_threads=direct_threads, support_threads=support_threads,
-        folder=folder, folder_counts=folder_counts, category_labels=SUPPORT_CATEGORY_LABELS,
+        view=view, category_labels=SUPPORT_CATEGORY_LABELS,
     )
 
 
-def _direct_threads_for(user, folder="inbox"):
-    """1:1 'direct' threads for the inbox list -- teammate DMs, pending
+def _direct_threads_for(user):
+    """1:1 'direct' threads for the Messages page -- teammate DMs, pending
     conversations with someone who isn't a member yet, AND contact threads
     with the BuyersForce admin (support tickets, vendor suggestions, etc.
     -- anything routed via get_or_create_direct_thread(user, admin), or a
     dedicated support ticket thread from create_support_ticket_thread).
 
-    Returns (direct_threads, support_threads, folder_counts): the
-    admin-contact ones are split out into their own list so they don't
-    get mixed in with actual peer-to-peer messages and outside-email
-    threads on the inbox page -- they're a different kind of
-    conversation (with BuyersForce itself, not another user). Both lists
-    are already filtered down to just `folder` ('inbox'/'sent'/
-    'deleted'); folder_counts has the combined total for each of the
-    three, for the page's folder tabs."""
+    Returns (direct_active, direct_archived, support_active,
+    support_archived): the admin-contact ones are split out into their
+    own pair of lists so they don't get mixed in with actual peer-to-peer
+    messages and outside-email threads -- they're a different kind of
+    conversation (with BuyersForce itself, not another user)."""
     rows = dbm.query(
         "SELECT t.*, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_LAST_SENDER_SQL}, tr.deleted_at "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL} "
         "FROM threads t " + thread_reads_join_sql() + " "
         "WHERE t.type='direct' AND (t.participant_a_id=? OR t.participant_b_id=?) "
         "ORDER BY last_at DESC",
-        (user["id"], user["id"], user["id"]),
+        (user["id"], user["id"], user["id"], user["id"]),
     )
-    direct_buckets = {"inbox": [], "sent": [], "deleted": []}
-    support_buckets = {"inbox": [], "sent": [], "deleted": []}
+    direct_rows, support_rows = [], []
     for t in rows:
         info = thread_display_info(t, user)
         row = {**dict(t), **info}
-        fld = thread_folder(row, user["id"])
         other = info.get("other_user")
         if other and other["is_admin"]:
             # Pull this person's own ticket(s) on the thread so the row can
@@ -4411,11 +4456,12 @@ def _direct_threads_for(user, folder="inbox"):
             )
             row["tickets"] = tickets
             row["latest_ticket"] = tickets[0] if tickets else None
-            support_buckets[fld].append(row)
+            support_rows.append(row)
         else:
-            direct_buckets[fld].append(row)
-    counts = {k: len(direct_buckets[k]) + len(support_buckets[k]) for k in ("inbox", "sent", "deleted")}
-    return direct_buckets[folder], support_buckets[folder], counts
+            direct_rows.append(row)
+    direct_active, direct_archived = split_by_archived(direct_rows)
+    support_active, support_archived = split_by_archived(support_rows)
+    return direct_active, direct_archived, support_active, support_archived
 
 
 @app.route("/app/buyer/messages/team/new", methods=("POST",))
@@ -4464,12 +4510,11 @@ def _load_thread_for_user(thread_id, user):
 def buyer_thread(thread_id):
     thread = _load_thread_for_user(thread_id, g.user)
     if request.method == "POST":
-        body = request.form.get("body", "").strip()
-        if body:
-            dbm.execute(
-                "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-                (thread_id, g.user["id"], body),
-            )
+        error = _insert_thread_message(
+            thread_id, g.user["id"], request.form.get("body"), request.files.get("attachment")
+        )
+        if error:
+            flash(error, "error")
         return redirect(url_for("buyer_thread", thread_id=thread_id))
     messages = dbm.query(
         # LEFT JOIN eval_project_shares so a message that shared an
@@ -7246,35 +7291,41 @@ def seller_messages():
     if not vendor:
         abort(404)
     u = g.user
-    folder = current_folder()
+    view = current_view()
     vendor_rows = dbm.query(
         "SELECT t.*, u.name buyer_name, u.company buyer_company, u.photo_data_url buyer_photo, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_LAST_SENDER_SQL}, tr.deleted_at "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL} "
         "FROM threads t JOIN users u ON u.id = t.buyer_user_id " + thread_reads_join_sql() + " "
         "WHERE t.type='vendor' AND t.vendor_id=? ORDER BY last_at DESC",
-        (u["id"], vendor["id"]),
+        (u["id"], u["id"], vendor["id"]),
     )
-    threads, vendor_counts = _split_section(vendor_rows, u["id"], folder)
+    vendor_active, vendor_archived = split_by_archived(vendor_rows)
     team_rows = dbm.query(
         "SELECT t.*, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_LAST_SENDER_SQL}, tr.deleted_at "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL} "
         "FROM threads t " + thread_reads_join_sql() + " WHERE t.type='teammate' AND "
         "(t.created_by=? OR t.id IN "
         "(SELECT thread_id FROM messages WHERE sender_user_id=?)) "
         "AND t.subject LIKE ? ORDER BY last_at DESC",
-        (u["id"], u["id"], u["id"], f"%{u['company']}%"),
+        (u["id"], u["id"], u["id"], u["id"], f"%{u['company']}%"),
     )
-    team_threads, team_counts = _split_section(team_rows, u["id"], folder)
-    direct_threads, support_threads, direct_support_counts = _direct_threads_for(g.user, folder)
-    folder_counts = _merge_counts(vendor_counts, team_counts, direct_support_counts)
+    team_active, team_archived = split_by_archived(team_rows)
+    direct_active, direct_archived, support_active, support_archived = _direct_threads_for(g.user)
+    if view == "archived":
+        threads, team_threads = vendor_archived, team_archived
+        direct_threads, support_threads = direct_archived, support_archived
+    else:
+        threads, team_threads = vendor_active, team_active
+        direct_threads, support_threads = direct_active, support_active
+    support_threads = sort_support_rows(support_threads)
     return render_template(
         "seller/messages.html", threads=threads, vendor=vendor, direct_threads=direct_threads,
         team_threads=team_threads, support_threads=support_threads,
-        folder=folder, folder_counts=folder_counts, category_labels=SUPPORT_CATEGORY_LABELS,
+        view=view, category_labels=SUPPORT_CATEGORY_LABELS,
     )
 
 
@@ -7303,14 +7354,14 @@ def seller_thread(thread_id):
     info = thread_display_info(thread, g.user)
     buyer = info.get("buyer") or info.get("other_user")
     if request.method == "POST":
-        body = request.form.get("body", "").strip()
         if buyer and is_message_blocked(buyer["id"], g.user):
             flash("This buyer isn't available to message right now.", "error")
-        elif body:
-            dbm.execute(
-                "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-                (thread_id, g.user["id"], body),
+        else:
+            error = _insert_thread_message(
+                thread_id, g.user["id"], request.form.get("body"), request.files.get("attachment")
             )
+            if error:
+                flash(error, "error")
         return redirect(url_for("seller_thread", thread_id=thread_id))
     messages = dbm.query(
         "SELECT m.*, u.name sender_name, u.role sender_role FROM messages m "

@@ -4,19 +4,19 @@
 <div class="page-header">
   <div>
     <span class="eyebrow">Communications</span>
-    <h1>Messages</h1>
+    <h1>Messages {% if g.unread_count %}<span class="badge badge-brand" style="vertical-align:middle;">{{ g.unread_count }} unread</span>{% endif %}</h1>
     <p class="lede">Support tickets, vendor suggestions, and anything else sent to BuyersForce,
       split the same way buyers and sellers see their own Messages page.</p>
   </div>
   <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">← Back to dashboard</a>
 </div>
 
-{% include "_folder_tabs.html" %}
+{% include "_archive_toggle.html" %}
 
 <div class="section-title"><h2>Direct messages</h2></div>
 <div class="thread-list" style="margin-bottom:28px;">
   {% for t in direct_threads %}
-  <a class="thread-row" href="{{ url_for('admin_thread', thread_id=t.id) }}">
+  <a class="thread-row{{ ' unread' if t.is_unread }}" href="{{ url_for('admin_thread', thread_id=t.id) }}">
     {% if t.other_user.photo_data_url %}
     <img src="{{ t.other_user.photo_data_url }}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
     {% else %}
@@ -31,7 +31,7 @@
   </a>
   {% else %}
   <div class="card empty-state"><div class="icon">💬</div>
-    {% if folder == 'inbox' %}Nothing here yet -- a plain message to BuyersForce (not a support ticket or vendor suggestion) will show up here.{% elif folder == 'sent' %}Nothing in Sent.{% else %}Nothing in Deleted.{% endif %}
+    {% if view == 'active' %}Nothing here yet -- a plain message to BuyersForce (not a support ticket or vendor suggestion) will show up here.{% else %}Nothing archived.{% endif %}
   </div>
   {% endfor %}
 </div>
@@ -39,7 +39,7 @@
 <div class="section-title"><h2>Team</h2></div>
 <div class="thread-list" style="margin-bottom:28px;">
   {% for t in team_threads %}
-  <a class="thread-row" href="{{ url_for('admin_thread', thread_id=t.id) }}">
+  <a class="thread-row{{ ' unread' if t.is_unread }}" href="{{ url_for('admin_thread', thread_id=t.id) }}">
     <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:14px;">{{ g.user.company[0] }}</span>
     <div style="flex:1; min-width:0;">
       <strong style="font-size:14px;">{{ t.subject.split('] ')[1] if '] ' in t.subject else t.subject }}</strong>
@@ -49,13 +49,13 @@
   </a>
   {% else %}
   <div class="card empty-state"><div class="icon">👥</div>
-    {% if folder == 'inbox' %}No team threads yet -- once there's more than one BuyersForce teammate, conversations with them will show up here.{% elif folder == 'sent' %}Nothing in Sent.{% else %}Nothing in Deleted.{% endif %}
+    {% if view == 'active' %}No team threads yet -- once there's more than one BuyersForce teammate, conversations with them will show up here.{% else %}Nothing archived.{% endif %}
   </div>
   {% endfor %}
 </div>
 
 <div class="section-title" style="margin-top:28px;"><h2>Support tickets</h2></div>
-<p class="hint" style="margin-top:-6px; margin-bottom:14px;">Boxed by category, newest first in each box.</p>
+<p class="hint" style="margin-top:-6px; margin-bottom:14px;">Boxed by category -- open requests first, then in progress, then resolved.</p>
 {% if support_boxes %}
   {% for box in support_boxes %}
   <div class="category-box">
@@ -65,7 +65,7 @@
     </div>
     <div class="category-box-body">
       {% for t in box.threads %}
-      <a class="thread-row" href="{{ url_for('admin_thread', thread_id=t.id) }}" style="align-items:flex-start;">
+      <a class="thread-row{{ ' unread' if t.is_unread }}" href="{{ url_for('admin_thread', thread_id=t.id) }}" style="align-items:flex-start;">
         {% if t.other_user.photo_data_url %}
         <img src="{{ t.other_user.photo_data_url }}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
         {% else %}
@@ -77,6 +77,7 @@
           <span class="hint">· {{ t.other_user.company }}</span>
           {% if t.latest_ticket %}
           <span class="ref-badge" style="margin-left:4px;">#BF-{{ t.latest_ticket.reference_number }}</span>
+          <span class="badge {{ 'badge-good' if t.latest_ticket.status == 'resolved' else ('badge-brand' if t.latest_ticket.status == 'in_progress' else 'badge-warning') }}" style="margin-left:4px;">{{ t.latest_ticket.status.replace('_', ' ')|capitalize }}</span>
           {% endif %}
           {% if t.open_ticket_count %}
           <span class="badge badge-warning" style="margin-left:4px;">{{ t.open_ticket_count }} open ticket{{ 's' if t.open_ticket_count != 1 }}</span>
@@ -92,7 +93,7 @@
   {% endfor %}
 {% else %}
   <div class="card empty-state"><div class="icon">💬</div>
-    {% if folder == 'inbox' %}Nothing here yet — support tickets and vendor suggestions from buyers and sellers will show up here.{% elif folder == 'sent' %}Nothing in Sent.{% else %}Nothing in Deleted.{% endif %}
+    {% if view == 'active' %}Nothing here yet — support tickets and vendor suggestions from buyers and sellers will show up here.{% else %}Nothing archived.{% endif %}
   </div>
 {% endif %}
 {% endblock %}

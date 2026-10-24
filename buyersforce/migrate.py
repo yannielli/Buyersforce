@@ -93,6 +93,7 @@ def run_migrations():
             _add_support_requests_other_category_2026_10_24(cur)
             _add_support_requests_reference_number_2026_10_24(cur)
             _add_thread_reads_deleted_at_2026_10_24(cur)
+            _add_messages_attachment_columns_2026_10_24(cur)
     finally:
         con.close()
 
@@ -2082,11 +2083,21 @@ def _add_support_requests_reference_number_2026_10_24(cur):
 
 
 def _add_thread_reads_deleted_at_2026_10_24(cur):
-    # Backs the Inbox/Sent/Deleted folders: a per-user, per-thread
-    # "I deleted this out of MY view" timestamp (the other party in the
-    # conversation keeps seeing it normally). See schema.sql's comment
-    # on this column for new installs.
+    # Backs the Archived view: a per-user, per-thread "I archived this
+    # out of MY view" timestamp (the other party in the conversation
+    # keeps seeing it normally). See schema.sql's comment on this column
+    # for new installs.
     cur.execute("ALTER TABLE thread_reads ADD COLUMN IF NOT EXISTS deleted_at TEXT")
+
+
+def _add_messages_attachment_columns_2026_10_24(cur):
+    # Lets any reply in a conversation carry its own screenshot/file,
+    # same base64 data-URL columns support_requests already has. See
+    # schema.sql's comment on these columns for new installs.
+    cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_filename TEXT")
+    cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_content_type TEXT")
+    cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_data_url TEXT")
+    cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_size_bytes INTEGER")
 
 
 if __name__ == "__main__":

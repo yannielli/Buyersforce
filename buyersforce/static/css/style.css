@@ -661,6 +661,16 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 }
 .thread-row:hover { border-color: var(--brand); }
 .thread-row .snippet { font-size: 13px; color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* An unread conversation -- bolder name/snippet and a small brand dot
+   up front, so a glance at the list (not just the nav badge) shows
+   what's new. */
+.thread-row.unread { border-color: var(--brand); position: relative; }
+.thread-row.unread strong { font-weight: 800; }
+.thread-row.unread .snippet { color: var(--ink-primary); font-weight: 600; }
+.thread-row.unread::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--brand);
+  flex-shrink: 0; margin-right: -4px;
+}
 .thread-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--gridline); }
 .recipient-chip {
   display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--gridline);

@@ -475,7 +475,14 @@ CREATE TABLE messages (
     thread_id INTEGER NOT NULL REFERENCES threads(id),
     sender_user_id INTEGER NOT NULL REFERENCES users(id),
     body TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+    -- An optional screenshot/file on a reply, same base64 data-URL pattern
+    -- support_requests already uses -- lets either side keep attaching
+    -- files to an ongoing conversation, not just the opening message.
+    attachment_filename TEXT,
+    attachment_content_type TEXT,
+    attachment_data_url TEXT,
+    attachment_size_bytes INTEGER
 );
 
 CREATE TABLE meetings (
