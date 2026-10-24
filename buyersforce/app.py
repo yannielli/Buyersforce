@@ -219,6 +219,7 @@ SUPPORT_CATEGORIES = [
     ("tech_support", "Technical support"),
     ("bug_report", "Report a bug or issue"),
     ("feature_request", "Feature enhancement request"),
+    ("other", "Something else"),
 ]
 SUPPORT_CATEGORY_LABELS = dict(SUPPORT_CATEGORIES)
 
@@ -927,6 +928,36 @@ def _read_uploaded_project_artifact(file_storage):
     mimetype = file_storage.mimetype or "application/octet-stream"
     data_url = f"data:{mimetype};base64,{base64.b64encode(raw).decode('ascii')}"
     return data_url, len(raw), None
+
+
+# An optional screenshot or file on a support request (see support_new) --
+# smaller than MAX_PROJECT_ARTIFACT_BYTES since this is normally a single
+# screenshot, not a document, but still generous enough for a short screen
+# recording or a log file.
+MAX_SUPPORT_ATTACHMENT_BYTES = 10 * 1024 * 1024  # 10MB
+
+
+def _read_uploaded_support_attachment(file_storage):
+    """Validates and base64-encodes an optional support-request attachment.
+    Returns (filename, content_type, data_url, size_bytes, error) -- the
+    first four are all None when nothing was attached (file_storage has no
+    filename, i.e. the field was left empty), and error is set when
+    something was attached but rejected. Any file type is accepted, same
+    reasoning as _read_uploaded_project_artifact: the XSS risk of an
+    uploaded HTML/SVG file is defended against in the download route
+    instead, never by trusting the mimetype here.
+    """
+    if not file_storage or not file_storage.filename:
+        return None, None, None, None, None
+    raw = file_storage.read(MAX_SUPPORT_ATTACHMENT_BYTES + 1)
+    if len(raw) > MAX_SUPPORT_ATTACHMENT_BYTES:
+        return None, None, None, None, f"{file_storage.filename} is larger than 10MB."
+    if not raw:
+        return None, None, None, None, f"{file_storage.filename} is empty."
+    import base64
+    mimetype = file_storage.mimetype or "application/octet-stream"
+    data_url = f"data:{mimetype};base64,{base64.b64encode(raw).decode('ascii')}"
+    return file_storage.filename, mimetype, data_url, len(raw), None
 
 
 def _apply_profile_form(user, form, files=None):
@@ -2581,10 +2612,23 @@ def support_new():
             flash("Add a few details before sending your request.", "error")
             return redirect(url_for("support_new"))
 
+        (attachment_filename, attachment_content_type, attachment_data_url,
+         attachment_size_bytes, attachment_error) = _read_uploaded_support_attachment(
+            request.files.get("attachment")
+        )
+        if attachment_error:
+            flash(attachment_error, "error")
+            return redirect(url_for("support_new"))
+
         admin = get_admin_user()
         if not admin:
             flash("Support isn't set up yet — there's no BuyersForce admin account to reach.", "error")
             return redirect(url_for("support_new"))
+
+        # Reserved up front (rather than left to the INSERT's column
+        # default) so the same number can go in both the support_requests
+        # row and the auto-generated message below.
+        reference_number = dbm.query("SELECT nextval('support_request_ref_seq') AS n", one=True)["n"]
 
         label = SUPPORT_CATEGORY_LABELS[category]
         thread = get_or_create_direct_thread(g.user["id"], admin["id"])
@@ -2595,16 +2639,26 @@ def support_new():
         # head start on tech-support requests without adding a form field.
         user_agent = request.headers.get("User-Agent", "").strip()
         context_line = f"\n\n— Browser: {user_agent}" if user_agent else ""
+        attachment_line = f"\n\n📎 Attached: {attachment_filename}" if attachment_filename else ""
         dbm.execute(
             "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-            (thread["id"], g.user["id"], f"New {label.lower()} request:\n\n{notes}{context_line}"),
+            (thread["id"], g.user["id"],
+             f"New {label.lower()} request (ref #BF-{reference_number}):\n\n{notes}{attachment_line}{context_line}"),
         )
         dbm.execute(
-            "INSERT INTO support_requests (user_id, category, notes, thread_id) VALUES (?, ?, ?, ?)",
-            (g.user["id"], category, notes, thread["id"]),
+            "INSERT INTO support_requests "
+            "(user_id, category, notes, thread_id, reference_number, "
+            "attachment_filename, attachment_content_type, attachment_data_url, attachment_size_bytes) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (g.user["id"], category, notes, thread["id"], reference_number,
+             attachment_filename, attachment_content_type, attachment_data_url, attachment_size_bytes),
         )
         log_activity(g.user["id"], f"submitted a support request ({label})")
-        flash("Your request has been sent — reply here any time to keep the conversation going.", "success")
+        flash(
+            f"Your request has been sent (reference #BF-{reference_number}) — "
+            "reply here any time to keep the conversation going.",
+            "success",
+        )
 
         if g.user["role"] == "buyer":
             return redirect(url_for("buyer_thread", thread_id=thread["id"]))
@@ -2613,6 +2667,32 @@ def support_new():
         return redirect(url_for("admin_thread", thread_id=thread["id"]))
 
     return render_template("support/new.html", categories=SUPPORT_CATEGORIES)
+
+
+@app.route("/app/support/<int:request_id>/attachment")
+@login_required
+def support_download_attachment(request_id):
+    req = dbm.query("SELECT * FROM support_requests WHERE id=?", (request_id,), one=True)
+    if not req or not req["attachment_data_url"]:
+        abort(404)
+    # Only the person who submitted the ticket, or an admin, can download
+    # its attachment.
+    if req["user_id"] != g.user["id"] and not g.user["is_admin"]:
+        abort(403)
+    import base64
+    try:
+        header, b64 = req["attachment_data_url"].split(",", 1)
+        raw = base64.b64decode(b64)
+    except Exception:
+        abort(404)
+    resp = Response(raw, mimetype=req["attachment_content_type"] or "application/octet-stream")
+    # Always a forced download, never rendered inline -- same reasoning as
+    # buyer_project_download_artifact: an uploaded HTML/SVG file must never
+    # execute as if it were this site.
+    safe_name = (req["attachment_filename"] or "attachment").replace('"', "'")
+    resp.headers["Content-Disposition"] = f'attachment; filename="{safe_name}"'
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
 
 
 @app.route("/app/support/history")
@@ -2796,12 +2876,16 @@ def admin_thread(thread_id):
     )
     mark_thread_read(g.user["id"], thread_id)
     info = thread_display_info(thread, g.user)
-    support_request = dbm.query(
-        "SELECT * FROM support_requests WHERE thread_id = ?", (thread_id,), one=True
+    # A buyer/seller's support requests all land in the same direct thread
+    # with the admin, so a thread can carry more than one ticket (e.g. they
+    # filed a bug report last week and a feature request today) -- show a
+    # banner for every one of them, not just an arbitrary first match.
+    support_requests = dbm.query(
+        "SELECT * FROM support_requests WHERE thread_id = ? ORDER BY created_at", (thread_id,)
     )
     return render_template(
         "admin/thread.html", thread=thread, messages=messages, info=info,
-        support_request=support_request, category_labels=SUPPORT_CATEGORY_LABELS,
+        support_requests=support_requests, category_labels=SUPPORT_CATEGORY_LABELS,
     )
 
 

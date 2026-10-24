@@ -12,7 +12,7 @@
 </div>
 
 <div class="card" style="max-width:640px;">
-  <form method="post">
+  <form method="post" enctype="multipart/form-data">
     <div class="field">
       <label>What do you need help with?</label>
       <select name="category" required>
@@ -27,6 +27,11 @@
       <textarea name="notes" style="min-height:150px;"
         placeholder="What happened, what you expected instead, and anything else that would help us look into it."
         required></textarea>
+    </div>
+    <div class="field">
+      <label>Screenshot or file <span class="hint">(optional, up to 10MB)</span></label>
+      <input type="file" name="attachment">
+      <div class="hint" style="margin-top:4px;">Attach a screenshot if it'll help us see what you're seeing.</div>
     </div>
     <button class="btn btn-primary btn-block" type="submit">Send to BuyersForce support</button>
   </form>

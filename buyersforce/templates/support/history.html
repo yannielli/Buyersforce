@@ -15,10 +15,11 @@
   {% for r in requests %}
   <a class="thread-row" href="{{ url_for('buyer_thread' if g.user.role == 'buyer' else ('seller_thread' if g.user.role == 'seller' else 'admin_thread'), thread_id=r.thread_id) }}">
     <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:14px;">
-      {{ '🛠' if r.category == 'tech_support' else ('🐛' if r.category == 'bug_report' else '💡') }}
+      {{ '🛠' if r.category == 'tech_support' else ('🐛' if r.category == 'bug_report' else ('💡' if r.category == 'feature_request' else '❓')) }}
     </span>
     <div style="flex:1; min-width:0;">
       <strong style="font-size:14px;">{{ category_labels[r.category] }}</strong>
+      {% if r.reference_number %}<span class="hint" style="margin-left:6px;">#BF-{{ r.reference_number }}</span>{% endif %}
       <span class="badge {{ 'badge-good' if r.status == 'resolved' else ('badge-brand' if r.status == 'in_progress' else 'badge-neutral') }}" style="margin-left:6px;">
         {{ r.status.replace('_', ' ')|capitalize }}
       </span>

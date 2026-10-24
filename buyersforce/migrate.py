@@ -89,6 +89,9 @@ def run_migrations():
             _add_evaluations_manual_rank_2026_10_19(cur)
             _add_evaluations_manual_rank_note_2026_10_19(cur)
             _add_evaluations_gartner_rating_2026_10_19(cur)
+            _add_support_requests_attachment_columns_2026_10_24(cur)
+            _add_support_requests_other_category_2026_10_24(cur)
+            _add_support_requests_reference_number_2026_10_24(cur)
     finally:
         con.close()
 
@@ -2026,6 +2029,54 @@ def _add_evaluations_gartner_rating_2026_10_19(cur):
     cur.execute(
         "ALTER TABLE evaluations ADD CONSTRAINT evaluations_gartner_rating_check "
         "CHECK (gartner_rating IS NULL OR gartner_rating BETWEEN 0 AND 5)"
+    )
+
+
+def _add_support_requests_attachment_columns_2026_10_24(cur):
+    # Lets a buyer/seller attach a screenshot or file to any support
+    # request (tech support, bug report, or feature request) so an admin
+    # can see what they're looking at -- see
+    # _read_uploaded_support_attachment in app.py. All four are NULL when
+    # nothing was attached.
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS attachment_filename TEXT")
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS attachment_content_type TEXT")
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS attachment_data_url TEXT")
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS attachment_size_bytes INTEGER")
+
+
+def _add_support_requests_other_category_2026_10_24(cur):
+    # Adds "other" as a 4th support-request category (see SUPPORT_CATEGORIES
+    # in app.py) for anything that doesn't fit tech support / bug report /
+    # feature request.
+    cur.execute("ALTER TABLE support_requests DROP CONSTRAINT IF EXISTS support_requests_category_check")
+    cur.execute(
+        "ALTER TABLE support_requests ADD CONSTRAINT support_requests_category_check "
+        "CHECK (category IN ('tech_support', 'bug_report', 'feature_request', 'other'))"
+    )
+
+
+def _add_support_requests_reference_number_2026_10_24(cur):
+    # A short ticket number (e.g. "BF-4001") shown to the requester and the
+    # admin so a specific request is easy to reference in follow-up --
+    # especially once there are a lot of them around launch. Starts well
+    # above 1 on purpose, so the numbering doesn't read as "request #1, #2,
+    # #3..." on a brand new platform. See schema.sql's comment on this
+    # column for new installs.
+    cur.execute("CREATE SEQUENCE IF NOT EXISTS support_request_ref_seq START 4000")
+    cur.execute(
+        "ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS reference_number INTEGER "
+        "DEFAULT nextval('support_request_ref_seq')"
+    )
+    # Postgres evaluates a volatile default (like nextval) for every existing
+    # row when the column is added, but just in case that ever isn't true,
+    # make sure nothing is left NULL.
+    cur.execute(
+        "UPDATE support_requests SET reference_number = nextval('support_request_ref_seq') "
+        "WHERE reference_number IS NULL"
+    )
+    cur.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS support_requests_reference_number_idx "
+        "ON support_requests (reference_number)"
     )
 
 

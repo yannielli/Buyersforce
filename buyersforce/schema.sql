@@ -374,13 +374,29 @@ CREATE TABLE threads (
 -- thread_id, a 'direct' thread with the admin account) -- this table exists
 -- so the admin dashboard can list, badge, and triage requests by category
 -- and status without scanning every direct-message thread.
+--
+-- reference_number is a short ticket number (e.g. "BF-4001") shown to the
+-- requester and the admin so a specific request is easy to reference in
+-- follow-up -- especially once there are a lot of them around launch. It
+-- starts well above 1 on purpose, so the numbering doesn't read as "request
+-- #1, #2, #3..." on a brand new platform.
+CREATE SEQUENCE IF NOT EXISTS support_request_ref_seq START 4000;
 CREATE TABLE support_requests (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id),
-    category TEXT NOT NULL CHECK (category IN ('tech_support', 'bug_report', 'feature_request')),
+    category TEXT NOT NULL CHECK (category IN ('tech_support', 'bug_report', 'feature_request', 'other')),
     notes TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved')),
     thread_id INTEGER REFERENCES threads(id),
+    reference_number INTEGER UNIQUE DEFAULT nextval('support_request_ref_seq'),
+    -- An optional screenshot/file the requester attached (see
+    -- _read_uploaded_support_attachment in app.py) -- all four are NULL
+    -- when nothing was attached. Stored inline as a base64 data URL, same
+    -- pattern as eval_project_artifacts.
+    attachment_filename TEXT,
+    attachment_content_type TEXT,
+    attachment_data_url TEXT,
+    attachment_size_bytes INTEGER,
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
 );
 

@@ -78,6 +78,7 @@
   <div class="mock-row">
     <span>
       <strong style="font-size:14px;">{{ r.requester_name }}</strong>
+      {% if r.reference_number %}<span class="hint" style="margin-left:4px;">#BF-{{ r.reference_number }}</span>{% endif %}
       <span class="badge badge-neutral" style="margin-left:6px;">{{ r.requester_role|capitalize }}</span>
       <span class="badge badge-brand" style="margin-left:4px;">{{ support_category_labels[r.category] }}</span>
       <span class="badge {{ 'badge-good' if r.status == 'in_progress' else 'badge-warning' }}" style="margin-left:4px;">{{ r.status.replace('_', ' ')|capitalize }}</span>
