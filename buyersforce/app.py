@@ -509,13 +509,33 @@ def log_activity(user_id, verb, detail=""):
     )
 
 
+# Every created_at/resolved_at/etc. timestamp in the database is stored in
+# UTC -- Postgres's now() (via to_char(now(), ...)) and Python's
+# datetime.utcnow() both are. fmt_time below converts that into whatever
+# timezone the page's viewer should see, instead of just printing the raw
+# UTC clock as if it were already local (which is what it did before, and
+# is why support-ticket times looked wrong on the admin side). BuyersForce
+# itself is based in the Pacific timezone, so that's the fallback for
+# anyone who hasn't set their own timezone in Account settings.
+DISPLAY_TIMEZONE_FALLBACK = "America/Los_Angeles"
+
+
+def _display_timezone():
+    user = g.get("user")
+    tz_name = user["timezone"] if user and user.get("timezone") else None
+    if tz_name and tz_name in WORLD_TIMEZONE_CODES:
+        return pytz.timezone(tz_name)
+    return pytz.timezone(DISPLAY_TIMEZONE_FALLBACK)
+
+
 def fmt_time(value):
     if not value:
         return ""
     for pattern in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M"):
         try:
             dt = datetime.strptime(value, pattern)
-            return dt.strftime("%b %-d, %Y · %-I:%M %p")
+            local_dt = pytz.UTC.localize(dt).astimezone(_display_timezone())
+            return local_dt.strftime("%b %-d, %Y · %-I:%M %p")
         except ValueError:
             continue
     return value
