@@ -423,7 +423,7 @@ def load_logged_in_user():
     # the account being viewed (so every existing buyer/seller page just
     # works, unchanged) and impersonator_id remembers who to snap back to.
     g.impersonating = session.get("impersonator_id") is not None
-    g.unread_count = unread_count_for(g.user) if g.user and g.user["role"] in ("buyer", "seller") else 0
+    g.unread_count = unread_count_for(g.user) if g.user and g.user["role"] in ("buyer", "seller", "admin") else 0
 
 
 @app.before_request
@@ -2703,18 +2703,28 @@ def support_new():
 @login_required
 def support_download_attachment(request_id):
     req = dbm.query("SELECT * FROM support_requests WHERE id=?", (request_id,), one=True)
+    # These used to be bare abort(404)/abort(403) -- which show Flask's
+    # stock "Not Found"/"Forbidden" page, exactly the kind of unexplained
+    # "error message" that's confusing to hit from a Reply link. Flash a
+    # plain-English reason and send the admin back to the thread (or the
+    # dashboard, if we don't even know which thread) instead.
+    fallback = url_for("admin_dashboard") if g.user["is_admin"] else url_for("support_history")
+    back_to = url_for("admin_thread", thread_id=req["thread_id"]) if req and req["thread_id"] and g.user["is_admin"] else fallback
     if not req or not req["attachment_data_url"]:
-        abort(404)
+        flash("That attachment couldn't be found -- it may have been removed.", "error")
+        return redirect(back_to)
     # Only the person who submitted the ticket, or an admin, can download
     # its attachment.
     if req["user_id"] != g.user["id"] and not g.user["is_admin"]:
-        abort(403)
+        flash("You don't have access to that attachment.", "error")
+        return redirect(fallback)
     import base64
     try:
         header, b64 = req["attachment_data_url"].split(",", 1)
         raw = base64.b64decode(b64)
     except Exception:
-        abort(404)
+        flash("That attachment is corrupted and can't be opened. Ask the person who filed the ticket to re-attach it.", "error")
+        return redirect(back_to)
     resp = Response(raw, mimetype=req["attachment_content_type"] or "application/octet-stream")
     # Always a forced download, never rendered inline -- same reasoning as
     # buyer_project_download_artifact: an uploaded HTML/SVG file must never
@@ -2887,6 +2897,38 @@ def admin_vendor_request_decide(request_id):
     return redirect(url_for("admin_access_control"))
 
 
+@app.route("/app/admin/messages")
+@admin_required
+def admin_messages():
+    rows = dbm.query(
+        "SELECT t.*, "
+        "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC LIMIT 1) last_body, "
+        "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC LIMIT 1) last_at "
+        "FROM threads t WHERE t.type='direct' AND (t.participant_a_id=? OR t.participant_b_id=?) "
+        "ORDER BY last_at DESC",
+        (g.user["id"], g.user["id"]),
+    )
+    threads = []
+    for t in rows:
+        info = thread_display_info(t, g.user)
+        row = {**dict(t), **info}
+        # Every support ticket (and vendor suggestion) from this person
+        # lands in this same thread -- pull them so the inbox row can show
+        # a reference number / category badge and flag an attachment,
+        # without having to open the thread first.
+        tickets = dbm.query(
+            "SELECT * FROM support_requests WHERE thread_id=? ORDER BY created_at DESC", (t["id"],)
+        )
+        row["tickets"] = tickets
+        row["latest_ticket"] = tickets[0] if tickets else None
+        row["open_ticket_count"] = sum(1 for tk in tickets if tk["status"] != "resolved")
+        row["has_attachment"] = any(tk["attachment_data_url"] for tk in tickets)
+        threads.append(row)
+    return render_template(
+        "admin/messages.html", threads=threads, category_labels=SUPPORT_CATEGORY_LABELS,
+    )
+
+
 @app.route("/app/admin/messages/<int:thread_id>", methods=("GET", "POST"))
 @admin_required
 def admin_thread(thread_id):
@@ -2901,7 +2943,7 @@ def admin_thread(thread_id):
         return redirect(url_for("admin_thread", thread_id=thread_id))
     messages = dbm.query(
         "SELECT m.*, u.name sender_name, u.role sender_role FROM messages m "
-        "JOIN users u ON u.id = m.sender_user_id WHERE thread_id=? ORDER BY m.created_at",
+        "JOIN users u ON u.id = m.sender_user_id WHERE thread_id=? ORDER BY m.created_at DESC",
         (thread_id,),
     )
     mark_thread_read(g.user["id"], thread_id)
@@ -2911,7 +2953,7 @@ def admin_thread(thread_id):
     # filed a bug report last week and a feature request today) -- show a
     # banner for every one of them, not just an arbitrary first match.
     support_requests = dbm.query(
-        "SELECT * FROM support_requests WHERE thread_id = ? ORDER BY created_at", (thread_id,)
+        "SELECT * FROM support_requests WHERE thread_id = ? ORDER BY created_at DESC", (thread_id,)
     )
     return render_template(
         "admin/thread.html", thread=thread, messages=messages, info=info,
@@ -4054,16 +4096,24 @@ def buyer_messages():
         "AND t.subject LIKE ? ORDER BY last_at DESC",
         (u["id"], u["id"], u["id"], f"%{u['company']}%"),
     )
-    direct_threads = _direct_threads_for(u)
+    direct_threads, support_threads = _direct_threads_for(u)
     return render_template(
         "buyer/messages.html", vendor_threads=vendor_threads, team_threads=team_threads,
-        direct_threads=direct_threads,
+        direct_threads=direct_threads, support_threads=support_threads,
     )
 
 
 def _direct_threads_for(user):
-    """1:1 'direct' threads for the inbox list -- teammate DMs, and
-    pending conversations with someone who isn't a member yet."""
+    """1:1 'direct' threads for the inbox list -- teammate DMs, pending
+    conversations with someone who isn't a member yet, AND contact threads
+    with the BuyersForce admin (support tickets, vendor suggestions, etc.
+    -- anything routed via get_or_create_direct_thread(user, admin)).
+
+    Returns (direct_threads, support_threads): the admin-contact ones are
+    split out into their own list so they don't get mixed in with actual
+    peer-to-peer messages and outside-email threads on the inbox page --
+    they're a different kind of conversation (with BuyersForce itself,
+    not another user)."""
     rows = dbm.query(
         "SELECT t.*, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC LIMIT 1) last_body, "
@@ -4072,11 +4122,16 @@ def _direct_threads_for(user):
         "ORDER BY last_at DESC",
         (user["id"], user["id"]),
     )
-    out = []
+    direct, support = [], []
     for t in rows:
         info = thread_display_info(t, user)
-        out.append({**dict(t), **info})
-    return out
+        row = {**dict(t), **info}
+        other = info.get("other_user")
+        if other and other["is_admin"]:
+            support.append(row)
+        else:
+            direct.append(row)
+    return direct, support
 
 
 @app.route("/app/buyer/messages/team/new", methods=("POST",))
@@ -4144,7 +4199,7 @@ def buyer_thread(thread_id):
         # eval_project_shares has its own thread_id column, so once it's
         # joined in, a bare "thread_id" is ambiguous to Postgres -- has to
         # be qualified as m.thread_id (the messages row), not es.thread_id.
-        "WHERE m.thread_id=? ORDER BY m.created_at",
+        "WHERE m.thread_id=? ORDER BY m.created_at DESC",
         (thread_id,),
     )
     mark_thread_read(g.user["id"], thread_id)
@@ -6934,10 +6989,10 @@ def seller_messages():
         "AND t.subject LIKE ? ORDER BY last_at DESC",
         (u["id"], u["id"], f"%{u['company']}%"),
     )
-    direct_threads = _direct_threads_for(g.user)
+    direct_threads, support_threads = _direct_threads_for(g.user)
     return render_template(
         "seller/messages.html", threads=threads, vendor=vendor, direct_threads=direct_threads,
-        team_threads=team_threads,
+        team_threads=team_threads, support_threads=support_threads,
     )
 
 
@@ -6977,7 +7032,7 @@ def seller_thread(thread_id):
         return redirect(url_for("seller_thread", thread_id=thread_id))
     messages = dbm.query(
         "SELECT m.*, u.name sender_name, u.role sender_role FROM messages m "
-        "JOIN users u ON u.id = m.sender_user_id WHERE thread_id=? ORDER BY m.created_at",
+        "JOIN users u ON u.id = m.sender_user_id WHERE thread_id=? ORDER BY m.created_at DESC",
         (thread_id,),
     )
     mark_thread_read(g.user["id"], thread_id)

@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block title %}{% if info.kind == 'direct' %}{{ info.other_user.name }}{% else %}{{ thread.subject }}{% endif %}{% endblock %}
 {% block content %}
-<a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">← Back to dashboard</a>
+<div style="display:flex; gap:8px; margin-bottom:16px;">
+  <a href="{{ url_for('admin_messages') }}" class="btn btn-ghost btn-sm">← All messages</a>
+  <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">Dashboard</a>
+</div>
 <div class="card" style="max-width:760px; margin:0 auto;">
   <div class="thread-header">
     {% if info.kind == 'direct' %}

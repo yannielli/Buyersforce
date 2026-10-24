@@ -88,4 +88,21 @@
     </div>
   </div>
 </div>
+
+<div class="section-title" style="margin-top:28px;"><h2>Support &amp; BuyersForce</h2></div>
+<p class="hint" style="margin-top:-6px; margin-bottom:12px;">Support tickets, vendor suggestions, and anything else you've sent to the BuyersForce team -- kept separate from messages with other users.</p>
+<div class="thread-list">
+  {% for t in support_threads %}
+  <a class="thread-row" href="{{ url_for('seller_thread', thread_id=t.id) }}">
+    <span class="vendor-logo" style="background:var(--brand-mcm-mustard); width:36px;height:36px;font-size:13px;">🛟</span>
+    <div style="flex:1; min-width:0;">
+      <strong style="font-size:14px;">BuyersForce Support</strong>
+      <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
+    </div>
+    <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
+  </a>
+  {% else %}
+  <div class="card empty-state"><div class="icon">🛟</div>No support requests yet — visit <a href="{{ url_for('support_new') }}">Contact support</a> to send one.</div>
+  {% endfor %}
+</div>
 {% endblock %}

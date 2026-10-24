@@ -84,6 +84,20 @@
       <span class="badge {{ 'badge-good' if r.status == 'in_progress' else 'badge-warning' }}" style="margin-left:4px;">{{ r.status.replace('_', ' ')|capitalize }}</span>
       <div class="hint">{{ r.requester_company }} · {{ r.created_at|fmt_time }}</div>
       <div class="snippet">{{ r.notes }}</div>
+      {% if r.attachment_data_url %}
+      <div style="margin-top:8px;">
+        {% if r.attachment_content_type and r.attachment_content_type.startswith('image/') %}
+        <a href="{{ url_for('support_download_attachment', request_id=r.id) }}" target="_blank">
+          <img src="{{ url_for('support_download_attachment', request_id=r.id) }}" alt="Attached screenshot"
+            style="max-width:180px; max-height:120px; border-radius:8px; border:1px solid var(--border); display:block;">
+        </a>
+        {% else %}
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('support_download_attachment', request_id=r.id) }}">
+          📎 {{ r.attachment_filename }}
+        </a>
+        {% endif %}
+      </div>
+      {% endif %}
     </span>
     <span style="display:flex; gap:6px; align-items:flex-start;">
       <a class="btn btn-primary btn-sm" href="{{ url_for('admin_thread', thread_id=r.thread_id) }}">Reply</a>

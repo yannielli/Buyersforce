@@ -64,6 +64,7 @@
             <a href="{{ url_for('seller_schedule') }}" class="{{ 'active' if request.endpoint == 'seller_schedule' }}">Calendar</a>
           {% elif g.user.role == 'admin' %}
             <a href="{{ url_for('admin_dashboard') }}" class="{{ 'active' if request.endpoint == 'admin_dashboard' }}">Dashboard</a>
+            <a href="{{ url_for('admin_messages') }}" class="{{ 'active' if request.endpoint in ['admin_messages','admin_thread'] }}">Messages{% if g.unread_count %}<span class="nav-badge">{{ g.unread_count }}</span>{% endif %}</a>
             <a href="{{ url_for('admin_access_control') }}" class="{{ 'active' if request.endpoint == 'admin_access_control' }}">Access control</a>
             <a href="{{ url_for('admin_vendors_page') }}" class="{{ 'active' if request.endpoint in ['admin_vendors_page','admin_vendor_new','admin_vendor_edit'] }}">Vendors</a>
             <a href="{{ url_for('admin_buyers_page') }}" class="{{ 'active' if request.endpoint == 'admin_buyers_page' }}">Buyers</a>

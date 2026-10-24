@@ -456,9 +456,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Auto-scroll message threads to latest
-  const msgList = document.querySelector(".msg-list");
-  if (msgList) msgList.scrollTop = msgList.scrollHeight;
+  // Message threads list newest-first now (see app.py's thread queries),
+  // so the latest message is already the first thing in view at the top
+  // -- no auto-scroll needed (this used to scroll to the bottom, back
+  // when oldest-first put the latest message there instead).
 
   // Time zone picker: a search box layered over the real <select> (built
   // server-side in _timezone_field.html, with optgroups and GMT-offset
