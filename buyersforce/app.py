@@ -223,6 +223,15 @@ SUPPORT_CATEGORIES = [
 ]
 SUPPORT_CATEGORY_LABELS = dict(SUPPORT_CATEGORIES)
 
+# A reserved, never-shown thread subject that marks a thread as one
+# dedicated support ticket's own conversation (see
+# create_support_ticket_thread below). Tagging it this way -- rather than
+# adding a new thread type -- is what lets get_or_create_direct_thread's
+# lookup (used by vendor-suggestion flows, eval shares, etc.) keep working
+# unchanged: it only ever matches the ordinary subject='' contact thread,
+# never one of these one-ticket-only threads.
+SUPPORT_TICKET_THREAD_SUBJECT = "__support_ticket__"
+
 
 # "Technology Category" -- BuyersForce's top-level vendor classification,
 # shown ahead of "Sub-Categories / Segments" everywhere a vendor is
@@ -2363,8 +2372,13 @@ def ensure_contact(owner_id, contact_user_id=None, external_name=None, external_
 
 def get_or_create_direct_thread(a_id, b_id):
     lo, hi = sorted((a_id, b_id))
+    # subject='' excludes dedicated support-ticket threads (see
+    # create_support_ticket_thread) -- without it, once someone has filed a
+    # few tickets with admin this lookup could resolve to an arbitrary past
+    # ticket's thread instead of their one ongoing contact thread.
     thread = dbm.query(
-        "SELECT * FROM threads WHERE type='direct' AND participant_a_id=? AND participant_b_id=?",
+        "SELECT * FROM threads WHERE type='direct' AND participant_a_id=? AND participant_b_id=? "
+        "AND subject=''",
         (lo, hi), one=True,
     )
     if thread:
@@ -2373,6 +2387,22 @@ def get_or_create_direct_thread(a_id, b_id):
         "INSERT INTO threads (type, participant_a_id, participant_b_id, subject, created_by) "
         "VALUES ('direct', ?, ?, '', ?)",
         (lo, hi, a_id),
+    )
+    return dbm.query("SELECT * FROM threads WHERE id=?", (thread_id,), one=True)
+
+
+def create_support_ticket_thread(user_id, admin_id):
+    """Every support request gets its own brand-new thread -- unlike
+    get_or_create_direct_thread (which looks for, and reuses, an existing
+    conversation), this always INSERTs a fresh one. That's what keeps a
+    person's support tickets from running together into a single merged
+    conversation: each submission is its own thread, with its own
+    reference number, its own timestamp, and its own message -- never
+    mixed with an older or newer ticket."""
+    thread_id = dbm.execute(
+        "INSERT INTO threads (type, participant_a_id, participant_b_id, subject, created_by) "
+        "VALUES ('direct', ?, ?, ?, ?)",
+        (user_id, admin_id, SUPPORT_TICKET_THREAD_SUBJECT, user_id),
     )
     return dbm.query("SELECT * FROM threads WHERE id=?", (thread_id,), one=True)
 
@@ -2651,7 +2681,7 @@ def support_new():
         reference_number = dbm.query("SELECT nextval('support_request_ref_seq') AS n", one=True)["n"]
 
         label = SUPPORT_CATEGORY_LABELS[category]
-        thread = get_or_create_direct_thread(g.user["id"], admin["id"])
+        thread = create_support_ticket_thread(g.user["id"], admin["id"])
         ensure_contact(g.user["id"], contact_user_id=admin["id"])
         ensure_contact(admin["id"], contact_user_id=g.user["id"])
 
@@ -2659,11 +2689,13 @@ def support_new():
         # head start on tech-support requests without adding a form field.
         user_agent = request.headers.get("User-Agent", "").strip()
         context_line = f"\n\n— Browser: {user_agent}" if user_agent else ""
-        attachment_line = f"\n\n📎 Attached: {attachment_filename}" if attachment_filename else ""
+        # No plain-text "Attached: filename" mention here -- that used to
+        # look clickable but wasn't. The actual, clickable attachment link
+        # lives in the ticket banner at the top of the thread (both sides).
         dbm.execute(
             "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
             (thread["id"], g.user["id"],
-             f"New {label.lower()} request (ref #BF-{reference_number}):\n\n{notes}{attachment_line}{context_line}"),
+             f"New {label.lower()} request (ref #BF-{reference_number}):\n\n{notes}{context_line}"),
         )
         dbm.execute(
             "INSERT INTO support_requests "
@@ -4204,7 +4236,16 @@ def buyer_thread(thread_id):
     )
     mark_thread_read(g.user["id"], thread_id)
     info = thread_display_info(thread, g.user)
-    return render_template("buyer/thread.html", thread=thread, messages=messages, info=info)
+    # Dedicated support-ticket threads carry exactly one support_requests
+    # row (see create_support_ticket_thread); older, pre-fix threads may
+    # still carry more than one -- show a banner for each.
+    support_requests = dbm.query(
+        "SELECT * FROM support_requests WHERE thread_id = ? ORDER BY created_at DESC", (thread_id,)
+    )
+    return render_template(
+        "buyer/thread.html", thread=thread, messages=messages, info=info,
+        support_requests=support_requests, category_labels=SUPPORT_CATEGORY_LABELS,
+    )
 
 
 def project_display_name(name, vendor_names):
@@ -7036,7 +7077,16 @@ def seller_thread(thread_id):
         (thread_id,),
     )
     mark_thread_read(g.user["id"], thread_id)
-    return render_template("seller/thread.html", thread=thread, messages=messages, info=info)
+    # Dedicated support-ticket threads carry exactly one support_requests
+    # row (see create_support_ticket_thread); older, pre-fix threads may
+    # still carry more than one -- show a banner for each.
+    support_requests = dbm.query(
+        "SELECT * FROM support_requests WHERE thread_id = ? ORDER BY created_at DESC", (thread_id,)
+    )
+    return render_template(
+        "seller/thread.html", thread=thread, messages=messages, info=info,
+        support_requests=support_requests, category_labels=SUPPORT_CATEGORY_LABELS,
+    )
 
 
 @app.route("/app/seller/meetings/<int:meeting_id>/<action>", methods=("POST",))
