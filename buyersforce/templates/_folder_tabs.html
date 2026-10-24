@@ -1,0 +1,11 @@
+{# Shared Inbox / Sent / Deleted tab bar for a Messages page. Expects
+   `folder` (current selection) and `folder_counts` ({'inbox':n,'sent':n,
+   'deleted':n}) in context -- every *_messages() route sets both. #}
+<div class="folder-tabs">
+  <a href="{{ request.path }}?folder=inbox" class="{{ 'active' if folder == 'inbox' }}">Inbox <span class="count">({{ folder_counts.inbox }})</span></a>
+  <a href="{{ request.path }}?folder=sent" class="{{ 'active' if folder == 'sent' }}">Sent <span class="count">({{ folder_counts.sent }})</span></a>
+  <a href="{{ request.path }}?folder=deleted" class="{{ 'active' if folder == 'deleted' }}">Deleted <span class="count">({{ folder_counts.deleted }})</span></a>
+</div>
+{% if folder == 'deleted' %}
+<p class="hint" style="margin-top:-12px; margin-bottom:18px;">Deleted conversations stay here for 30 days, then they're gone for good. Open one and restore it to bring it back.</p>
+{% endif %}

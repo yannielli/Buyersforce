@@ -267,6 +267,48 @@ button { font-family: inherit; }
 .badge-brand { background: var(--brand-tint); color: var(--brand-dark); }
 .tag { display: inline-block; padding: 3px 9px; border-radius: 6px; background: var(--page); border: 1px solid var(--gridline); font-size: 12px; color: var(--ink-secondary); margin: 0 6px 6px 0; }
 
+/* ---------- support ticket chips: reference number + category ----------
+   Used everywhere a ticket shows up (admin dashboard/messages/thread,
+   buyer+seller thread, support history/new) so the same two pieces of
+   info are always easy to pick out at a glance, however the rest of the
+   page around them changes. .ref-badge deliberately uses ink-primary/page
+   (which flip in dark mode) rather than a fixed color, so it's always the
+   highest-contrast chip on the page in either theme. Category color is
+   keyed by the category value itself (cat-tech_support, cat-bug_report,
+   cat-feature_request, cat-other) so a template only has to interpolate
+   the category string, never look up a color. */
+.ref-badge {
+  display: inline-flex; align-items: center; font-weight: 700; font-size: 12.5px;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.01em; white-space: nowrap;
+  background: var(--ink-primary); color: var(--page); padding: 3px 10px; border-radius: 999px;
+}
+.cat-badge { display: inline-flex; align-items: center; font-weight: 600; font-size: 12px; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.cat-tech_support { background: var(--brand-tint); color: var(--brand-dark); }
+.cat-bug_report { background: var(--critical-tint); color: var(--critical-ink); }
+.cat-feature_request { background: var(--warning-tint); color: var(--warning-ink-vivid); }
+.cat-other { background: var(--serious-tint); color: var(--serious-ink); }
+
+/* ---------- category boxes (admin Support inbox) ---------- */
+.category-box {
+  border: 1px solid var(--gridline); border-radius: var(--radius-md); background: var(--surface);
+  margin-bottom: 16px; overflow: hidden;
+}
+.category-box > .category-box-head {
+  display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--surface-raised);
+  border-bottom: 1px solid var(--gridline); font-weight: 700; font-size: 13.5px;
+}
+.category-box > .category-box-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+
+/* ---------- Inbox / Sent / Deleted folder tabs ---------- */
+.folder-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--gridline); margin-bottom: 18px; }
+.folder-tabs a {
+  padding: 9px 4px; margin-right: 22px; font-size: 14px; font-weight: 600; color: var(--ink-muted);
+  border-bottom: 2px solid transparent;
+}
+.folder-tabs a.active { color: var(--brand-dark); border-color: var(--brand); }
+.folder-tabs a .count { color: var(--ink-muted); font-weight: 600; }
+.folder-tabs a.active .count { color: var(--brand-dark); }
+
 /* ---------- forms ---------- */
 label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink-primary); }
 .field { margin-bottom: 16px; }

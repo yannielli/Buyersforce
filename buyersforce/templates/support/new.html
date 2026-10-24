@@ -48,7 +48,8 @@
         </span>
         <div style="flex:1; min-width:0;">
           <strong style="font-size:13.5px;">{{ category_labels[r.category] }}</strong>
-          {% if r.reference_number %}<span class="hint" style="margin-left:4px;">#BF-{{ r.reference_number }}</span>{% endif %}
+          {% if r.reference_number %}<span class="ref-badge" style="margin-left:4px;">#BF-{{ r.reference_number }}</span>{% endif %}
+          <span class="cat-badge cat-{{ r.category }}" style="margin-left:4px;">{{ category_labels[r.category] }}</span>
           <span class="badge {{ 'badge-good' if r.status == 'resolved' else ('badge-brand' if r.status == 'in_progress' else 'badge-neutral') }}" style="margin-left:6px;">
             {{ r.status.replace('_', ' ')|capitalize }}
           </span>

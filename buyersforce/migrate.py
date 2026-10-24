@@ -92,6 +92,7 @@ def run_migrations():
             _add_support_requests_attachment_columns_2026_10_24(cur)
             _add_support_requests_other_category_2026_10_24(cur)
             _add_support_requests_reference_number_2026_10_24(cur)
+            _add_thread_reads_deleted_at_2026_10_24(cur)
     finally:
         con.close()
 
@@ -2078,6 +2079,14 @@ def _add_support_requests_reference_number_2026_10_24(cur):
         "CREATE UNIQUE INDEX IF NOT EXISTS support_requests_reference_number_idx "
         "ON support_requests (reference_number)"
     )
+
+
+def _add_thread_reads_deleted_at_2026_10_24(cur):
+    # Backs the Inbox/Sent/Deleted folders: a per-user, per-thread
+    # "I deleted this out of MY view" timestamp (the other party in the
+    # conversation keeps seeing it normally). See schema.sql's comment
+    # on this column for new installs.
+    cur.execute("ALTER TABLE thread_reads ADD COLUMN IF NOT EXISTS deleted_at TEXT")
 
 
 if __name__ == "__main__":

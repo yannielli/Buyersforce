@@ -1,7 +1,23 @@
 {% extends "base.html" %}
 {% block title %}{% if info.kind == 'vendor' %}{{ info.buyer.name }}{% elif info.kind == 'direct' %}{{ info.other_user.name }}{% elif info.kind == 'pending_email' %}{{ info.external_name or info.external_email }}{% else %}{{ thread.subject }}{% endif %}{% endblock %}
 {% block content %}
-<a href="{{ url_for('seller_messages') }}" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">← Back to messages</a>
+<div style="display:flex; gap:8px; margin-bottom:16px; align-items:center;">
+  <a href="{{ url_for('seller_messages') }}" class="btn btn-ghost btn-sm">← Back to messages</a>
+  {% if is_deleted %}
+  <form method="post" action="{{ url_for('restore_thread', thread_id=thread.id) }}" style="margin-left:auto;">
+    <input type="hidden" name="next" value="{{ request.path }}">
+    <button class="btn btn-secondary btn-sm" type="submit">Restore conversation</button>
+  </form>
+  {% else %}
+  <form method="post" action="{{ url_for('delete_thread', thread_id=thread.id) }}" style="margin-left:auto;">
+    <input type="hidden" name="next" value="{{ url_for('seller_messages') }}">
+    <button class="btn btn-ghost btn-sm" type="submit">🗑 Delete conversation</button>
+  </form>
+  {% endif %}
+</div>
+{% if is_deleted %}
+<p class="hint" style="margin-bottom:12px; max-width:760px; margin-left:auto; margin-right:auto;">This conversation is in Deleted. It'll be gone for good in 30 days unless you restore it.</p>
+{% endif %}
 <div class="card" style="max-width:760px; margin:0 auto;">
   <div class="thread-header">
     {% if info.kind == 'vendor' %}
@@ -28,8 +44,8 @@
   {% for support_request in support_requests %}
   <div class="mock-row" style="background:var(--brand-tint); border-radius:10px; padding:10px 14px; margin-bottom:10px; align-items:flex-start;">
     <span>
-      {% if support_request.reference_number %}<span class="badge badge-neutral" style="margin-right:4px;">#BF-{{ support_request.reference_number }}</span>{% endif %}
-      <span class="badge badge-brand">{{ category_labels[support_request.category] }}</span>
+      {% if support_request.reference_number %}<span class="ref-badge" style="margin-right:4px;">#BF-{{ support_request.reference_number }}</span>{% endif %}
+      <span class="cat-badge cat-{{ support_request.category }}">{{ category_labels[support_request.category] }}</span>
       <span class="badge {{ 'badge-good' if support_request.status == 'resolved' else 'badge-warning' }}" style="margin-left:4px;">{{ support_request.status.replace('_', ' ')|capitalize }}</span>
       <span class="hint" style="margin-left:8px;">Submitted {{ support_request.created_at|fmt_time }}</span>
       {% if support_request.attachment_data_url %}

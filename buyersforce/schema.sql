@@ -444,6 +444,12 @@ CREATE TABLE thread_reads (
     user_id INTEGER NOT NULL REFERENCES users(id),
     thread_id INTEGER NOT NULL REFERENCES threads(id),
     last_read_message_id INTEGER NOT NULL DEFAULT 0,
+    -- Set when THIS user deletes the thread out of their own view --
+    -- never the other party's. NULL means not deleted. A thread older
+    -- than 30 days past this timestamp is treated as permanently gone
+    -- (see the folder-filtering queries in app.py) without needing a
+    -- separate purge job -- it just stops being selected by anything.
+    deleted_at TEXT,
     PRIMARY KEY (user_id, thread_id)
 );
 
