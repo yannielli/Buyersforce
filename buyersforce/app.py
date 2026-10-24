@@ -4027,7 +4027,10 @@ def buyer_thread(thread_id):
         "es.id share_id, es.filename share_filename FROM messages m "
         "JOIN users u ON u.id = m.sender_user_id "
         "LEFT JOIN eval_project_shares es ON es.message_id = m.id "
-        "WHERE thread_id=? ORDER BY m.created_at",
+        # eval_project_shares has its own thread_id column, so once it's
+        # joined in, a bare "thread_id" is ambiguous to Postgres -- has to
+        # be qualified as m.thread_id (the messages row), not es.thread_id.
+        "WHERE m.thread_id=? ORDER BY m.created_at",
         (thread_id,),
     )
     mark_thread_read(g.user["id"], thread_id)
