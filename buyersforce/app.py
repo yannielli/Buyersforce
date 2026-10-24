@@ -1,6 +1,7 @@
 import os
 import re
 import io
+import base64
 import html
 import json
 import sqlite3
@@ -11,7 +12,8 @@ from urllib.parse import quote as urlquote
 
 import pytz
 from flask import (
-    Flask, g, render_template, request, redirect, url_for, session, flash, abort, jsonify, Response
+    Flask, g, render_template, request, redirect, url_for, session, flash, abort, jsonify, Response,
+    send_file
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -964,6 +966,41 @@ def _read_uploaded_project_artifact(file_storage):
 # screenshot, not a document, but still generous enough for a short screen
 # recording or a log file.
 MAX_SUPPORT_ATTACHMENT_BYTES = 10 * 1024 * 1024  # 10MB
+
+
+def _send_decoded_attachment(data_url, content_type, filename):
+    """Decodes a "data:<mimetype>;base64,<payload>" string back into bytes
+    and sends it as a forced download. Always routed through Flask's own
+    send_file (never a hand-built Content-Disposition header) specifically
+    because of filename encoding: an HTTP header can only hold ASCII/
+    Latin-1 text, and a hand-built f'attachment; filename="{name}"' blows
+    up with "Invalid HTTP Header" the moment the real filename has a
+    non-ASCII character in it -- which is exactly what happens with a
+    macOS screenshot, whose default name ("Screenshot 2026-10-24 at
+    1.49.35 PM.png") has a Unicode narrow no-break space baked in before
+    "PM". send_file knows how to encode a non-ASCII download_name
+    properly (RFC 6266's filename*=UTF-8''... form, with an ASCII
+    fallback) so the exact same attachment that used to 400 on click now
+    just downloads.
+
+    Returns None (the caller should flash+redirect instead) when the
+    data URL can't be decoded -- a corrupted or malformed attachment.
+    """
+    try:
+        _header, b64 = data_url.split(",", 1)
+        raw = base64.b64decode(b64)
+    except Exception:
+        return None
+    resp = send_file(
+        io.BytesIO(raw),
+        mimetype=content_type or "application/octet-stream",
+        as_attachment=True,
+        download_name=filename or "attachment",
+    )
+    # Always a forced download, never rendered inline -- an uploaded HTML
+    # or SVG file must never execute as if it were this site.
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
 
 
 def _read_uploaded_support_attachment(file_storage):
@@ -2750,20 +2787,12 @@ def support_download_attachment(request_id):
     if req["user_id"] != g.user["id"] and not g.user["is_admin"]:
         flash("You don't have access to that attachment.", "error")
         return redirect(fallback)
-    import base64
-    try:
-        header, b64 = req["attachment_data_url"].split(",", 1)
-        raw = base64.b64decode(b64)
-    except Exception:
+    resp = _send_decoded_attachment(
+        req["attachment_data_url"], req["attachment_content_type"], req["attachment_filename"]
+    )
+    if resp is None:
         flash("That attachment is corrupted and can't be opened. Ask the person who filed the ticket to re-attach it.", "error")
         return redirect(back_to)
-    resp = Response(raw, mimetype=req["attachment_content_type"] or "application/octet-stream")
-    # Always a forced download, never rendered inline -- same reasoning as
-    # buyer_project_download_artifact: an uploaded HTML/SVG file must never
-    # execute as if it were this site.
-    safe_name = (req["attachment_filename"] or "attachment").replace('"', "'")
-    resp.headers["Content-Disposition"] = f'attachment; filename="{safe_name}"'
-    resp.headers["X-Content-Type-Options"] = "nosniff"
     return resp
 
 
@@ -5737,21 +5766,9 @@ def buyer_project_download_artifact(project_id, artifact_id):
     )
     if not artifact:
         abort(404)
-    # The data URL is "data:<mimetype>;base64,<payload>" -- split off the
-    # header and decode just the payload.
-    import base64
-    try:
-        header, b64 = artifact["data_url"].split(",", 1)
-        raw = base64.b64decode(b64)
-    except Exception:
+    resp = _send_decoded_attachment(artifact["data_url"], artifact["content_type"], artifact["filename"])
+    if resp is None:
         abort(404)
-    resp = Response(raw, mimetype=artifact["content_type"] or "application/octet-stream")
-    # Always a forced download, never rendered inline -- an uploaded
-    # HTML or SVG file must never execute as if it were this site (see
-    # _read_uploaded_project_artifact's docstring).
-    safe_name = artifact["filename"].replace('"', "'")
-    resp.headers["Content-Disposition"] = f'attachment; filename="{safe_name}"'
-    resp.headers["X-Content-Type-Options"] = "nosniff"
     return resp
 
 
@@ -6028,16 +6045,9 @@ def buyer_download_share(share_id):
     if not share:
         abort(404)
     _load_thread_for_user(share["thread_id"], g.user)
-    import base64
-    try:
-        header, b64 = share["data_url"].split(",", 1)
-        raw = base64.b64decode(b64)
-    except Exception:
+    resp = _send_decoded_attachment(share["data_url"], share["content_type"], share["filename"])
+    if resp is None:
         abort(404)
-    resp = Response(raw, mimetype=share["content_type"] or "application/octet-stream")
-    safe_name = share["filename"].replace('"', "'")
-    resp.headers["Content-Disposition"] = f'attachment; filename="{safe_name}"'
-    resp.headers["X-Content-Type-Options"] = "nosniff"
     return resp
 
 
