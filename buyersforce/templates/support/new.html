@@ -8,32 +8,59 @@
     <p class="lede">Tell us what's going on — a BuyersForce admin will follow up with you right
       here, in Messages.</p>
   </div>
-  <a href="{{ url_for('support_history') }}" class="btn btn-ghost btn-sm">Your past requests</a>
 </div>
 
-<div class="card" style="max-width:640px;">
-  <form method="post" enctype="multipart/form-data">
-    <div class="field">
-      <label>What do you need help with?</label>
-      <select name="category" required>
-        <option value="" disabled selected>Choose a category</option>
-        {% for value, label in categories %}
-        <option value="{{ value }}">{{ label }}</option>
-        {% endfor %}
-      </select>
+<div class="grid grid-2" style="grid-template-columns:1.3fr 1fr; align-items:start;">
+  <div class="card">
+    <form method="post" enctype="multipart/form-data">
+      <div class="field">
+        <label>What do you need help with?</label>
+        <select name="category" required>
+          <option value="" disabled selected>Choose a category</option>
+          {% for value, label in categories %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Details</label>
+        <textarea name="notes" style="min-height:150px;"
+          placeholder="What happened, what you expected instead, and anything else that would help us look into it."
+          required></textarea>
+      </div>
+      <div class="field">
+        <label>Screenshot or file <span class="hint">(optional, up to 10MB)</span></label>
+        <input type="file" name="attachment">
+        <div class="hint" style="margin-top:4px;">Attach a screenshot if it'll help us see what you're seeing.</div>
+      </div>
+      <button class="btn btn-primary btn-block" type="submit">Send to BuyersForce support</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:15px; margin-top:0;">Your past requests</h3>
+    {% if past_requests %}
+    <div class="thread-list" style="max-height:520px; overflow-y:auto;">
+      {% for r in past_requests %}
+      <a class="thread-row" href="{{ url_for('buyer_thread' if g.user.role == 'buyer' else ('seller_thread' if g.user.role == 'seller' else 'admin_thread'), thread_id=r.thread_id) }}">
+        <span class="vendor-logo" style="background:var(--brand); width:32px;height:32px;font-size:13px;">
+          {{ '🛠' if r.category == 'tech_support' else ('🐛' if r.category == 'bug_report' else ('💡' if r.category == 'feature_request' else '❓')) }}
+        </span>
+        <div style="flex:1; min-width:0;">
+          <strong style="font-size:13.5px;">{{ category_labels[r.category] }}</strong>
+          {% if r.reference_number %}<span class="hint" style="margin-left:4px;">#BF-{{ r.reference_number }}</span>{% endif %}
+          <span class="badge {{ 'badge-good' if r.status == 'resolved' else ('badge-brand' if r.status == 'in_progress' else 'badge-neutral') }}" style="margin-left:6px;">
+            {{ r.status.replace('_', ' ')|capitalize }}
+          </span>
+          <div class="snippet">{{ r.notes }}</div>
+        </div>
+        <span class="hint" style="white-space:nowrap;">{{ r.created_at|fmt_time }}</span>
+      </a>
+      {% endfor %}
     </div>
-    <div class="field">
-      <label>Details</label>
-      <textarea name="notes" style="min-height:150px;"
-        placeholder="What happened, what you expected instead, and anything else that would help us look into it."
-        required></textarea>
-    </div>
-    <div class="field">
-      <label>Screenshot or file <span class="hint">(optional, up to 10MB)</span></label>
-      <input type="file" name="attachment">
-      <div class="hint" style="margin-top:4px;">Attach a screenshot if it'll help us see what you're seeing.</div>
-    </div>
-    <button class="btn btn-primary btn-block" type="submit">Send to BuyersForce support</button>
-  </form>
+    {% else %}
+    <div class="empty-state" style="padding:24px 12px;"><div class="icon">🛟</div>No support requests yet.</div>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

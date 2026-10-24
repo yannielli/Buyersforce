@@ -2666,7 +2666,17 @@ def support_new():
             return redirect(url_for("seller_thread", thread_id=thread["id"]))
         return redirect(url_for("admin_thread", thread_id=thread["id"]))
 
-    return render_template("support/new.html", categories=SUPPORT_CATEGORIES)
+    # Shown in the "Your past requests" pane right on this page -- newest
+    # request first (ORDER BY created_at DESC), same ordering as the full
+    # history page.
+    past_requests = dbm.query(
+        "SELECT * FROM support_requests WHERE user_id = ? ORDER BY created_at DESC",
+        (g.user["id"],),
+    )
+    return render_template(
+        "support/new.html", categories=SUPPORT_CATEGORIES,
+        past_requests=past_requests, category_labels=SUPPORT_CATEGORY_LABELS,
+    )
 
 
 @app.route("/app/support/<int:request_id>/attachment")
