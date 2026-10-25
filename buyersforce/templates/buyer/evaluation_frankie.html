@@ -14,7 +14,7 @@
 
   <div class="frankie-progress" aria-hidden="true">
     <div class="frankie-progress-track"><div class="frankie-progress-fill" id="frankie-progress-fill"></div></div>
-    <span class="hint" id="frankie-progress-label">Step 1 of 5</span>
+    <span class="hint" id="frankie-progress-label">Step 1 of 6</span>
   </div>
 
   <fieldset class="frankie-step" data-step="1">
@@ -53,10 +53,10 @@
         </div>
       </div>
       <div id="frankie-vendor-chat-messages" class="frankie-assist-messages"></div>
-      <form id="frankie-vendor-chat-form" class="frankie-assist-form">
+      <div id="frankie-vendor-chat-form" class="frankie-assist-form">
         <input id="frankie-vendor-chat-input" type="text" placeholder="e.g. endpoint security for a 200-person company" autocomplete="off" maxlength="2000">
-        <button class="btn btn-primary btn-sm" type="submit">Send</button>
-      </form>
+        <button id="frankie-vendor-chat-send-btn" class="btn btn-primary btn-sm" type="button">Send</button>
+      </div>
     </div>
 
     <p class="hint frankie-or-divider">Or search BuyersForce by name directly:</p>
@@ -120,10 +120,10 @@
         </div>
       </div>
       <div id="frankie-criteria-chat-messages" class="frankie-assist-messages"></div>
-      <form id="frankie-criteria-chat-form" class="frankie-assist-form">
+      <div id="frankie-criteria-chat-form" class="frankie-assist-form">
         <input id="frankie-criteria-chat-input" type="text" placeholder="e.g. weight more toward compliance and support" autocomplete="off" maxlength="2000">
-        <button class="btn btn-primary btn-sm" type="submit">Send</button>
-      </form>
+        <button id="frankie-criteria-chat-send-btn" class="btn btn-primary btn-sm" type="button">Send</button>
+      </div>
     </div>
   </fieldset>
 
@@ -145,12 +145,40 @@
       <label for="frankie-template-description">Description (optional)</label>
       <textarea name="template_description" id="frankie-template-description" placeholder="What is this scorecard for?">{{ template_description }}</textarea>
     </div>
+  </fieldset>
 
-    <div class="card" id="frankie-review" style="background:var(--surface-2, #f6f6f4);">
+  <fieldset class="frankie-step" data-step="6" hidden>
+    <legend>Invite teammates (optional)</legend>
+    <p class="hint" style="margin-top:0;">Give anyone else working on this evaluation access right away -- you can always add or remove people later from the project page. Leave this blank to skip it for now.</p>
+
+    <div class="form-row criteria-col-headers" style="margin-top:4px; margin-bottom:6px;">
+      <span class="hint" style="margin:0;">Email</span>
+      <span class="hint criteria-weight-header" style="margin:0;">Access</span>
+    </div>
+    <div id="teammate-rows">
+      {% for email, role in teammate_rows %}
+      <div class="form-row teammate-input-row" style="margin-bottom:8px; align-items:center;">
+        <input type="email" name="teammate_email" placeholder="teammate@company.com" value="{{ email }}">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <select name="teammate_role">
+            {% for value, label in collab_roles %}
+            <option value="{{ value }}" {{ 'selected' if value == role }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <button type="button" class="btn btn-ghost btn-sm teammate-remove-btn" title="Remove this row">&times;</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="button" id="add-teammate-btn" class="btn btn-ghost btn-sm">+ Add teammate</button>
+    <p class="hint" style="margin-top:10px;">Someone already on BuyersForce at your company gets access immediately. Anyone new gets an email invite to set up their account.</p>
+
+    <div class="card" id="frankie-review" style="background:var(--surface-2, #f6f6f4); margin-top:18px;">
       <h3 style="font-size:14px; margin-top:0;">Review</h3>
       <p class="hint" style="margin:0 0 4px;" id="frankie-review-name">Project: --</p>
       <p class="hint" style="margin:0 0 4px;" id="frankie-review-vendors">Vendors: --</p>
-      <p class="hint" style="margin:0;" id="frankie-review-criteria">Criteria: --</p>
+      <p class="hint" style="margin:0 0 4px;" id="frankie-review-criteria">Criteria: --</p>
+      <p class="hint" style="margin:0;" id="frankie-review-teammates">Teammates: --</p>
     </div>
   </fieldset>
 
@@ -316,7 +344,7 @@
   // they don't have to repeat themselves -- that's the whole point.
   // ------------------------------------------------------------------
   var vendorChatMessages = document.getElementById('frankie-vendor-chat-messages');
-  var vendorChatForm = document.getElementById('frankie-vendor-chat-form');
+  var vendorChatSendBtn = document.getElementById('frankie-vendor-chat-send-btn');
   var vendorChatInput = document.getElementById('frankie-vendor-chat-input');
   var vendorChatTranscript = [];
   var vendorChatSending = false;
@@ -432,13 +460,26 @@
     }
   }
 
-  if (vendorChatForm) {
-    vendorChatForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      var text = vendorChatInput.value.trim();
-      if (!text) { return; }
-      vendorChatInput.value = '';
-      sendVendorChat(text, { showUserBubble: true });
+  // Plain buttons/div, NOT a nested <form> -- a <form> inside the
+  // wizard's own outer <form id="frankie-form"> is invalid HTML, and
+  // browsers handle it by silently closing the OUTER form right at that
+  // point, which pulls everything after it (the rest of step 3, and
+  // all of steps 4-5 -- criteria, scale, review) out of the form
+  // entirely. That was a real bug here once (vendor checkboxes ending
+  // up outside `form`, breaking the Next-button validity check, and
+  // steps 4-5's fieldsets never showing since `form.querySelectorAll
+  // ('.frankie-step')` no longer found them) -- fixed by using a <div>
+  // + a plain button/Enter-key handler instead of a second <form>.
+  function submitVendorChatInput() {
+    var text = vendorChatInput.value.trim();
+    if (!text) { return; }
+    vendorChatInput.value = '';
+    sendVendorChat(text, { showUserBubble: true });
+  }
+  if (vendorChatSendBtn) { vendorChatSendBtn.addEventListener('click', submitVendorChatInput); }
+  if (vendorChatInput) {
+    vendorChatInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); submitVendorChatInput(); }
     });
   }
 
@@ -526,7 +567,7 @@
   // the form the way the quick button above does, since the whole point
   // here is picking and choosing as the buyer steers the conversation.
   var criteriaChatMessages = document.getElementById('frankie-criteria-chat-messages');
-  var criteriaChatForm = document.getElementById('frankie-criteria-chat-form');
+  var criteriaChatSendBtn = document.getElementById('frankie-criteria-chat-send-btn');
   var criteriaChatInput = document.getElementById('frankie-criteria-chat-input');
   var criteriaChatTranscript = [];
   var criteriaChatSending = false;
@@ -604,17 +645,78 @@
     addAssistantBubble(criteriaChatMessages, "Need a different angle than the quick suggestions above? Tell me what to focus on -- e.g. \"more about compliance\" or \"give me 3 more\" -- and I'll propose a fresh batch.");
   }
 
-  if (criteriaChatForm) {
-    criteriaChatForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      var text = criteriaChatInput.value.trim();
-      if (!text) { return; }
-      criteriaChatInput.value = '';
-      sendCriteriaChat(text, { showUserBubble: true });
+  function submitCriteriaChatInput() {
+    var text = criteriaChatInput.value.trim();
+    if (!text) { return; }
+    criteriaChatInput.value = '';
+    sendCriteriaChat(text, { showUserBubble: true });
+  }
+  if (criteriaChatSendBtn) { criteriaChatSendBtn.addEventListener('click', submitCriteriaChatInput); }
+  if (criteriaChatInput) {
+    criteriaChatInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); submitCriteriaChatInput(); }
     });
   }
 
-  // Step 5 review summary.
+  // Step 6 -- invite teammates (optional). Same add/remove-row pattern
+  // as criteria rows, except a row here can be removed outright (an
+  // empty row is simply skipped server-side, so there's no need to
+  // keep a placeholder the way criteria rows do) -- except the very
+  // last remaining row, which gets cleared instead of removed so the
+  // step is never left with zero rows to type into.
+  var teammateRows = document.getElementById('teammate-rows');
+  var addTeammateBtn = document.getElementById('add-teammate-btn');
+  var TEAMMATE_ROLE_OPTIONS = {{ collab_roles | tojson }};
+
+  function teammateRowEls() {
+    return Array.from(teammateRows.querySelectorAll('.teammate-input-row'));
+  }
+  function wireTeammateRemove(row) {
+    var btn = row.querySelector('.teammate-remove-btn');
+    if (!btn) { return; }
+    btn.addEventListener('click', function() {
+      var rows = teammateRowEls();
+      if (rows.length <= 1) {
+        row.querySelector('input[name="teammate_email"]').value = '';
+        row.querySelector('select[name="teammate_role"]').value = 'editor';
+        return;
+      }
+      row.remove();
+    });
+  }
+  teammateRowEls().forEach(wireTeammateRemove);
+
+  if (addTeammateBtn) {
+    addTeammateBtn.addEventListener('click', function() {
+      var row = document.createElement('div');
+      row.className = 'form-row teammate-input-row';
+      row.style.cssText = 'margin-bottom:8px; align-items:center;';
+      var input = document.createElement('input');
+      input.type = 'email'; input.name = 'teammate_email'; input.placeholder = 'teammate@company.com';
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex; align-items:center; gap:6px;';
+      var select = document.createElement('select');
+      select.name = 'teammate_role';
+      TEAMMATE_ROLE_OPTIONS.forEach(function(opt) {
+        var option = document.createElement('option');
+        option.value = opt[0]; option.textContent = opt[1];
+        if (opt[0] === 'editor') { option.selected = true; }
+        select.appendChild(option);
+      });
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'btn btn-ghost btn-sm teammate-remove-btn';
+      removeBtn.title = 'Remove this row';
+      removeBtn.innerHTML = '&times;';
+      wrap.appendChild(select); wrap.appendChild(removeBtn);
+      row.appendChild(input); row.appendChild(wrap);
+      teammateRows.appendChild(row);
+      wireTeammateRemove(row);
+      input.focus();
+    });
+  }
+
+  // Step 6 review summary.
   function updateReview() {
     var name = document.getElementById('frankie-name').value.trim();
     document.getElementById('frankie-review-name').textContent = 'Project: ' + (name || '--');
@@ -626,6 +728,12 @@
     if (templateNameField && !templateNameField.value.trim() && name) {
       templateNameField.value = name + ' Scorecard';
     }
+    var teammateEmails = teammateRowEls()
+      .map(function(row) { return row.querySelector('input[name="teammate_email"]').value.trim(); })
+      .filter(Boolean);
+    document.getElementById('frankie-review-teammates').textContent = teammateEmails.length
+      ? 'Teammates (' + teammateEmails.length + '): ' + teammateEmails.join(', ')
+      : 'Teammates: none -- you can invite people later from the project page.';
   }
 })();
 </script>

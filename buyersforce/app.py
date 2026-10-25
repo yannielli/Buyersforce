@@ -5689,6 +5689,13 @@ def buyer_start_project():
 # unavailable or errors.
 # ---------------------------------------------------------------------------
 
+# A sane cap on how many teammate rows buyer_frankie_create will process
+# from one submission -- same role MAX_EVAL_CRITERIA plays for criteria
+# rows. Very generous; no real buyer invites anywhere near this many
+# teammates to a single evaluation in one go.
+MAX_FRANKIE_TEAMMATES = 20
+
+
 def _frankie_form_defaults():
     return {
         "form_name": "",
@@ -5699,6 +5706,7 @@ def _frankie_form_defaults():
         "template_name": "",
         "template_description": "",
         "about": "",
+        "teammate_rows": [("", "editor")],
     }
 
 
@@ -5710,6 +5718,7 @@ def _render_frankie_wizard(**overrides):
         "buyer/evaluation_frankie.html",
         all_vendors=all_vendors,
         max_criteria=MAX_EVAL_CRITERIA, min_scale=MIN_EVAL_SCALE, max_scale=MAX_EVAL_SCALE,
+        collab_roles=EVAL_COLLAB_ROLES,
         **ctx,
     )
 
@@ -6033,6 +6042,9 @@ def buyer_frankie_create():
         scale_max = DEFAULT_EVAL_SCALE
     scale_max = max(MIN_EVAL_SCALE, min(MAX_EVAL_SCALE, scale_max))
 
+    teammate_emails = request.form.getlist("teammate_email")
+    teammate_roles = request.form.getlist("teammate_role")
+
     def _sticky_vendor_rows():
         if not vendor_ids:
             return []
@@ -6072,6 +6084,7 @@ def buyer_frankie_create():
             criterion_rows=list(zip(labels, weights)) or [("", "")],
             scale_max=scale_max, template_name=template_name,
             template_description=template_description, about=about,
+            teammate_rows=list(zip(teammate_emails, teammate_roles)) or [("", "editor")],
         )
 
     template_id = dbm.execute(
@@ -6113,6 +6126,21 @@ def buyer_frankie_create():
 
     log_activity(g.user["id"], f"built an evaluation with Frankie for {', '.join(vendor_names) or 'a vendor'}")
     flash(f'Built "{name}" with Frankie -- {len(parsed)} criteria, {len(vendor_names)} vendor{"s" if len(vendor_names) != 1 else ""}.', "success")
+
+    project_for_invites = {"id": project_id, "company": g.user["company"]}
+    seen_teammate_emails = set()
+    invited_count = 0
+    for raw_email, raw_role in list(zip(teammate_emails, teammate_roles))[:MAX_FRANKIE_TEAMMATES]:
+        candidate = (raw_email or "").strip().lower()
+        if not candidate or candidate in seen_teammate_emails:
+            continue
+        seen_teammate_emails.add(candidate)
+        ok, message = _grant_project_access(project_for_invites, candidate, raw_role, g.user)
+        flash(message, "success" if ok else "error")
+        if ok:
+            invited_count += 1
+            log_activity(g.user["id"], f"gave {candidate} access to an evaluation project")
+
     return redirect(url_for("buyer_project_detail", project_id=project_id))
 
 
@@ -7042,6 +7070,87 @@ def buyer_project_reopen(project_id):
     return redirect(url_for("buyer_project_detail", project_id=project_id))
 
 
+def _grant_project_access(project, email, role, invited_by_user):
+    """Gives one email address access to one evaluation project --
+    shared by buyer_project_invite_collaborator (the project detail
+    page's "Team access" card) and the Frankie wizard's optional
+    "Invite teammates" step, so both go through the exact same
+    branching: immediate access if the email already belongs to a
+    buyer at the same company, otherwise a fresh (or reused, if one's
+    already pending) invite email -- never two near-copies of this
+    logic that could quietly drift apart.
+
+    Returns (ok, message): message is always flash-ready text, and this
+    never raises for an already-handled validation failure (invalid
+    email, already has access, not a buyer at this company) -- a caller
+    processing several emails in a loop (the wizard) can just collect
+    each result and keep going instead of aborting on the first
+    problem. `project` only needs to supply "id" and "company"."""
+    email = (email or "").strip().lower()
+    role = role if role in EVAL_COLLAB_ROLE_LABELS else "editor"
+    if not email or "@" not in email:
+        return False, "Enter a valid email address."
+    if email == invited_by_user["email"].strip().lower():
+        return False, "You already have full access to your own evaluation."
+    if dbm.query(
+        "SELECT 1 FROM eval_project_collaborators WHERE project_id=? AND email=?",
+        (project["id"], email), one=True,
+    ):
+        return False, f"{email} already has access to this evaluation."
+
+    existing_user = dbm.query("SELECT * FROM users WHERE email=?", (email,), one=True)
+    if existing_user:
+        # Already has a BuyersForce account -- scoped to buyers at the SAME
+        # company, same population that could already see every project
+        # before this table existed (see migrate.py's backfill). Access
+        # starts immediately, no invite/password flow needed.
+        if existing_user["role"] != "buyer" or existing_user["company"] != project["company"]:
+            return False, f"{email} isn't a buyer at your company."
+        dbm.execute(
+            "INSERT INTO eval_project_collaborators "
+            "(project_id, user_id, email, role, invited_by, accepted_at) "
+            "VALUES (?, ?, ?, ?, ?, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+            (project["id"], existing_user["id"], email, role, invited_by_user["id"]),
+        )
+        return True, f"{existing_user['name']} now has {role} access to this evaluation."
+
+    # Brand-new teammate with no BuyersForce account yet -- reuse a still-
+    # pending invite for this email if one's already outstanding (e.g.
+    # they were just added to a second project before accepting the
+    # first) rather than deleting and recreating it: that invite's id
+    # may already be referenced by another pending collaborator row via
+    # invite_id, and deleting it out from under that row would trip the
+    # foreign key. Otherwise this is the same token/accept-password flow
+    # as admin_invite -- user_id stays NULL here until accept_invite
+    # backfills it.
+    pending_invite = dbm.query(
+        "SELECT * FROM invites WHERE email=? AND used_at IS NULL", (email,), one=True,
+    )
+    if pending_invite:
+        invite_id, token = pending_invite["id"], pending_invite["token"]
+    else:
+        invite_id, token = _create_invite(email, "buyer", project["company"], "", invited_by_user["id"])
+    dbm.execute(
+        "INSERT INTO eval_project_collaborators "
+        "(project_id, user_id, email, role, invited_by, invite_id) "
+        "VALUES (?, NULL, ?, ?, ?, ?)",
+        (project["id"], email, role, invited_by_user["id"], invite_id),
+    )
+    emailer.send_email(
+        email,
+        subject=f"{invited_by_user['name']} gave you access to an evaluation on BuyersForce",
+        text=(
+            f"Hi,\n\n{invited_by_user['name']} added you as a{'n' if role == 'editor' else ''} {role} "
+            f"on an evaluation at {project['company']} on BuyersForce.\n\n"
+            f"Set your password here to get started: "
+            f"{url_for('accept_invite', token=token, _external=True)}\n\n"
+            f"This link expires in 7 days."
+        ),
+        reply_to=invited_by_user["email"],
+    )
+    return True, f"Invited {email} as a{'n' if role == 'editor' else ''} {role}."
+
+
 @app.route("/app/buyer/evaluations/project/<int:project_id>/collaborators/invite", methods=("POST",))
 @role_required("buyer")
 def buyer_project_invite_collaborator(project_id):
@@ -7056,74 +7165,10 @@ def buyer_project_invite_collaborator(project_id):
 
     email = request.form.get("email", "").strip().lower()
     role = request.form.get("role", "editor")
-    if role not in EVAL_COLLAB_ROLE_LABELS:
-        role = "editor"
-    if not email or "@" not in email:
-        flash("Enter a valid email address.", "error")
-        return redirect(url_for("buyer_project_detail", project_id=project_id))
-    if email == g.user["email"].strip().lower():
-        flash("You already have full access to your own evaluation.", "error")
-        return redirect(url_for("buyer_project_detail", project_id=project_id))
-    if dbm.query(
-        "SELECT 1 FROM eval_project_collaborators WHERE project_id=? AND email=?",
-        (project_id, email), one=True,
-    ):
-        flash(f"{email} already has access to this evaluation.", "error")
-        return redirect(url_for("buyer_project_detail", project_id=project_id))
-
-    existing_user = dbm.query("SELECT * FROM users WHERE email=?", (email,), one=True)
-    if existing_user:
-        # Already has a BuyersForce account -- scoped to buyers at the SAME
-        # company, same population that could already see every project
-        # before this table existed (see migrate.py's backfill). Access
-        # starts immediately, no invite/password flow needed.
-        if existing_user["role"] != "buyer" or existing_user["company"] != project["company"]:
-            flash(f"{email} isn't a buyer at your company.", "error")
-            return redirect(url_for("buyer_project_detail", project_id=project_id))
-        dbm.execute(
-            "INSERT INTO eval_project_collaborators "
-            "(project_id, user_id, email, role, invited_by, accepted_at) "
-            "VALUES (?, ?, ?, ?, ?, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
-            (project_id, existing_user["id"], email, role, g.user["id"]),
-        )
-        flash(f"{existing_user['name']} now has {role} access to this evaluation.", "success")
-    else:
-        # Brand-new teammate with no BuyersForce account yet -- reuse a
-        # still-pending invite for this email if one's already outstanding
-        # (e.g. they were just added to a second project before accepting
-        # the first) rather than deleting and recreating it: that invite's
-        # id may already be referenced by another pending collaborator row
-        # via invite_id, and deleting it out from under that row would trip
-        # the foreign key. Otherwise this is the same token/accept-password
-        # flow as admin_invite -- user_id stays NULL here until
-        # accept_invite backfills it.
-        pending_invite = dbm.query(
-            "SELECT * FROM invites WHERE email=? AND used_at IS NULL", (email,), one=True,
-        )
-        if pending_invite:
-            invite_id, token = pending_invite["id"], pending_invite["token"]
-        else:
-            invite_id, token = _create_invite(email, "buyer", project["company"], "", g.user["id"])
-        dbm.execute(
-            "INSERT INTO eval_project_collaborators "
-            "(project_id, user_id, email, role, invited_by, invite_id) "
-            "VALUES (?, NULL, ?, ?, ?, ?)",
-            (project_id, email, role, g.user["id"], invite_id),
-        )
-        emailer.send_email(
-            email,
-            subject=f"{g.user['name']} gave you access to an evaluation on BuyersForce",
-            text=(
-                f"Hi,\n\n{g.user['name']} added you as a{'n' if role == 'editor' else ''} {role} "
-                f"on an evaluation at {project['company']} on BuyersForce.\n\n"
-                f"Set your password here to get started: "
-                f"{url_for('accept_invite', token=token, _external=True)}\n\n"
-                f"This link expires in 7 days."
-            ),
-            reply_to=g.user["email"],
-        )
-        flash(f"Invited {email} as a{'n' if role == 'editor' else ''} {role}.", "success")
-    log_activity(g.user["id"], f"gave {email} access to an evaluation project")
+    ok, message = _grant_project_access(project, email, role, g.user)
+    flash(message, "success" if ok else "error")
+    if ok:
+        log_activity(g.user["id"], f"gave {email} access to an evaluation project")
     return redirect(url_for("buyer_project_detail", project_id=project_id))
 
 
