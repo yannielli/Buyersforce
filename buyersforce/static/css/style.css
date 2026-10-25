@@ -180,6 +180,16 @@ button { font-family: inherit; }
 .btn-primary:hover { background: var(--brand-dark); }
 .btn-secondary { background: var(--surface-raised); color: var(--ink-primary); border-color: var(--border-strong); }
 .btn-secondary:hover { border-color: var(--brand); color: var(--brand-dark); }
+/* Same teal gradient pill as the "Ask Frankie" launcher on Discover
+   (.ai-launcher-btn below) so every Frankie entry point reads as one
+   consistent, branded call to action -- currently just the Evaluate
+   page's "Build with Frankie" button. */
+.btn-frankie {
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  color: #fff; border-color: transparent;
+  box-shadow: 0 6px 18px rgba(13,95,92,0.28);
+}
+.btn-frankie:hover { color: #fff; transform: translateY(-1px); box-shadow: 0 10px 24px rgba(13,95,92,0.36); }
 .btn-ghost { background: transparent; color: var(--ink-secondary); }
 .btn-ghost:hover { background: var(--page); color: var(--ink-primary); }
 .btn-danger { background: var(--critical-tint); color: var(--critical); }
@@ -884,7 +894,13 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
    "Thinking..." bubble shared by Discover's Frankie and the Build-with-
    Frankie wizard's vendor/criteria chats (see addTypingBubble() in
    discover.html / evaluation_frankie.html), and the wizard's one-shot
-   "Ask Frankie for ideas" status line while its request is in flight. */
+   "Ask Frankie for ideas" status line while its request is in flight.
+   !important on the color/background pieces: .thinking-shimmer is a
+   single-class utility, but the typing bubble also matches
+   ".ai-msg-assistant .ai-msg-bubble" above (two classes, higher
+   specificity), whose own "background:" shorthand and "color:" would
+   otherwise silently win and erase the gradient -- without this the
+   class was being applied but doing nothing visible. */
 @keyframes thinking-shimmer-sweep {
   0% { background-position: 160% 0; }
   100% { background-position: -60% 0; }
@@ -894,14 +910,18 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
   background-image: linear-gradient(90deg,
     var(--ink-muted) 0%, var(--ink-muted) 35%,
     var(--brand) 50%,
-    var(--ink-muted) 65%, var(--ink-muted) 100%);
-  background-size: 220% 100%;
+    var(--ink-muted) 65%, var(--ink-muted) 100%) !important;
+  background-size: 220% 100% !important;
   background-position: 160% 0;
-  -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-background-clip: text !important; background-clip: text !important; color: transparent !important;
   animation: thinking-shimmer-sweep 1.5s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .thinking-shimmer { animation: none; background-image: none; -webkit-background-clip: initial; background-clip: initial; color: var(--ink-muted); }
+  .thinking-shimmer {
+    animation: none;
+    background-image: none !important;
+    -webkit-background-clip: initial !important; background-clip: initial !important; color: var(--ink-muted) !important;
+  }
 }
 
 .ai-found-header {
