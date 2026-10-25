@@ -328,7 +328,7 @@
     var row = document.createElement('div');
     row.className = 'ai-msg ai-msg-assistant ai-msg-typing';
     var bubble = document.createElement('div');
-    bubble.className = 'ai-msg-bubble';
+    bubble.className = 'ai-msg-bubble thinking-shimmer';
     bubble.textContent = 'Thinking…';
     row.appendChild(bubble);
     container.appendChild(row);
@@ -536,6 +536,7 @@
     suggestBtn.addEventListener('click', function() {
       suggestBtn.disabled = true;
       suggestStatus.textContent = 'Thinking…';
+      suggestStatus.classList.add('thinking-shimmer');
       var fd = new FormData();
       fd.append('project_name', document.getElementById('frankie-name').value.trim());
       fd.append('about', document.getElementById('frankie-about').value.trim());
@@ -546,6 +547,7 @@
         .then(function(resp) { return resp.json(); })
         .then(function(data) {
           suggestBtn.disabled = false;
+          suggestStatus.classList.remove('thinking-shimmer');
           if (!data || data.error || !data.criteria || !data.criteria.length) {
             suggestStatus.textContent = data && data.error === 'no_api_key'
               ? "Frankie's AI suggestions aren't set up on this account -- add your own criteria above."
@@ -557,6 +559,7 @@
         })
         .catch(function() {
           suggestBtn.disabled = false;
+          suggestStatus.classList.remove('thinking-shimmer');
           suggestStatus.textContent = "Couldn't reach Frankie right now -- add your own criteria above.";
         });
     });

@@ -878,7 +878,31 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .ai-msg-system .ai-msg-bubble {
   background: var(--warning-tint); border: 1px solid var(--warning-border); color: var(--warning-ink-strong);
 }
-.ai-msg-typing .ai-msg-bubble { color: var(--ink-muted); font-style: italic; }
+/* "Thinking..." indicator -- a brand-colored highlight sweeps through
+   the muted text so a waiting reply reads as active rather than
+   stalled. Applied via JS (the .thinking-shimmer class) to: the chat
+   "Thinking..." bubble shared by Discover's Frankie and the Build-with-
+   Frankie wizard's vendor/criteria chats (see addTypingBubble() in
+   discover.html / evaluation_frankie.html), and the wizard's one-shot
+   "Ask Frankie for ideas" status line while its request is in flight. */
+@keyframes thinking-shimmer-sweep {
+  0% { background-position: 160% 0; }
+  100% { background-position: -60% 0; }
+}
+.thinking-shimmer {
+  font-style: italic;
+  background-image: linear-gradient(90deg,
+    var(--ink-muted) 0%, var(--ink-muted) 35%,
+    var(--brand) 50%,
+    var(--ink-muted) 65%, var(--ink-muted) 100%);
+  background-size: 220% 100%;
+  background-position: 160% 0;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: thinking-shimmer-sweep 1.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .thinking-shimmer { animation: none; background-image: none; -webkit-background-clip: initial; background-clip: initial; color: var(--ink-muted); }
+}
 
 .ai-found-header {
   align-self: flex-start; font-size: 12px; font-weight: 700; color: var(--ink-secondary);
