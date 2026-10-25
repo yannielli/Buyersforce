@@ -888,40 +888,53 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .ai-msg-system .ai-msg-bubble {
   background: var(--warning-tint); border: 1px solid var(--warning-border); color: var(--warning-ink-strong);
 }
-/* "Thinking..." indicator -- a brand-colored highlight sweeps through
-   the muted text so a waiting reply reads as active rather than
-   stalled. Applied via JS (the .thinking-shimmer class) to: the chat
-   "Thinking..." bubble shared by Discover's Frankie and the Build-with-
-   Frankie wizard's vendor/criteria chats (see addTypingBubble() in
-   discover.html / evaluation_frankie.html), and the wizard's one-shot
-   "Ask Frankie for ideas" status line while its request is in flight.
-   !important on the color/background pieces: .thinking-shimmer is a
-   single-class utility, but the typing bubble also matches
-   ".ai-msg-assistant .ai-msg-bubble" above (two classes, higher
-   specificity), whose own "background:" shorthand and "color:" would
-   otherwise silently win and erase the gradient -- without this the
-   class was being applied but doing nothing visible. */
+/* "Thinking..." indicator -- a solid, bold teal pill badge (same
+   brand color as the Ask Frankie / Build with Frankie buttons) with a
+   bright highlight streak sweeping across it on a loop, so a waiting
+   reply reads as unmistakably active rather than stalled. Applied via
+   JS (the .thinking-shimmer class) to: the chat "Thinking..." bubble
+   shared by Discover's Frankie and the Build-with-Frankie wizard's
+   vendor/criteria chats (see addTypingBubble() in discover.html /
+   evaluation_frankie.html), and the wizard's one-shot "Ask Frankie
+   for ideas" status line while its request is in flight.
+
+   A solid background + an animated highlight streak on top (rather
+   than animating the text color itself) was chosen specifically
+   because it stays visible regardless of what rules the surrounding
+   context defines -- an earlier version tried a subtle gradient-on-
+   text-via-background-clip effect and lost a CSS specificity fight
+   with ".ai-msg-assistant .ai-msg-bubble" below, rendering as plain
+   static text. Every property that context could otherwise win is
+   set here with !important so the pill always shows, in any context
+   this class is dropped into. */
 @keyframes thinking-shimmer-sweep {
-  0% { background-position: 160% 0; }
-  100% { background-position: -60% 0; }
+  0% { background-position: -60% 0; }
+  100% { background-position: 160% 0; }
 }
 .thinking-shimmer {
-  font-style: italic;
-  background-image: linear-gradient(90deg,
-    var(--ink-muted) 0%, var(--ink-muted) 35%,
-    var(--brand) 50%,
-    var(--ink-muted) 65%, var(--ink-muted) 100%) !important;
-  background-size: 220% 100% !important;
-  background-position: 160% 0;
-  -webkit-background-clip: text !important; background-clip: text !important; color: transparent !important;
-  animation: thinking-shimmer-sweep 1.5s ease-in-out infinite;
+  display: inline-flex !important;
+  align-items: center;
+  padding: 7px 16px !important;
+  border-radius: 999px !important;
+  border: none !important;
+  font-style: normal !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em;
+  color: #fff !important;
+  background-color: var(--brand) !important;
+  background-image: linear-gradient(100deg,
+    transparent 0%,
+    rgba(255,255,255,0) 32%,
+    rgba(255,255,255,0.85) 50%,
+    rgba(255,255,255,0) 68%,
+    transparent 100%) !important;
+  background-repeat: no-repeat !important;
+  background-size: 65% 100% !important;
+  box-shadow: 0 2px 10px rgba(13,95,92,0.35);
+  animation: thinking-shimmer-sweep 1.3s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .thinking-shimmer {
-    animation: none;
-    background-image: none !important;
-    -webkit-background-clip: initial !important; background-clip: initial !important; color: var(--ink-muted) !important;
-  }
+  .thinking-shimmer { animation: none; background-image: none !important; }
 }
 
 .ai-found-header {
