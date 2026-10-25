@@ -46,3 +46,66 @@
   </div>
 </div>
 {% endmacro %}
+
+{#
+  A collapsed "Saved" sub-bucket for the bottom of ONE section (Direct
+  messages, Team threads, Vendor/Buyer conversations, Support tickets,
+  etc.) -- every section gets its own, rather than one combined Saved
+  bucket for the whole page, so saved items stay next to the kind of
+  conversation they came from.
+
+  items: that section's already-split saved rows (see split_saved).
+  render_body: the section's own body macro (e.g. direct_body) --
+    passed in as a value so this one macro works for every section's
+    row shape without needing to know it itself.
+  thread_route / next_url: same as thread_row above.
+#}
+{% macro saved_subsection(items, render_body, thread_route, next_url) %}
+<details class="category-box" style="margin-top:8px;">
+  <summary class="category-box-head" style="cursor:pointer;">
+    <span class="badge badge-progress">🔖 Saved</span>
+    <span class="hint">{{ items|length }} saved{{ ' message' if items|length == 1 else ' messages' }} -- click to show/hide</span>
+  </summary>
+  <div class="category-box-body">
+    {% for t in items %}
+    {% call thread_row(t, thread_route, next_url, align_top=true) %}{{ render_body(t) }}{% endcall %}
+    {% else %}
+    <p class="hint" style="margin:4px 0;">Nothing saved here yet -- use the 🔖 button to keep one.</p>
+    {% endfor %}
+  </div>
+</details>
+{% endmacro %}
+
+{#
+  A small Delete button appended to a Resolved-bucket row via
+  thread_row's extra_action_html -- reuses the existing delete_thread
+  (archive) route/semantics, same as admin's original Resolved bucket.
+#}
+{% macro delete_button(t, next_url) %}
+<form method="post" action="{{ url_for('delete_thread', thread_id=t.id) }}">
+  <input type="hidden" name="next" value="{{ next_url }}">
+  <button class="btn btn-danger btn-sm" type="submit">🗑 Delete</button>
+</form>
+{% endmacro %}
+
+{#
+  A collapsed "Resolved" sub-bucket for the bottom of a Support
+  tickets section -- items is that section's already-split resolved
+  rows (see split_resolved). Each row gets a Delete button (reusing
+  delete_thread / archive) alongside the 3 standard toggles.
+#}
+{% macro resolved_subsection(items, render_body, thread_route, next_url) %}
+<details class="category-box" style="margin-top:4px;">
+  <summary class="category-box-head" style="cursor:pointer;">
+    <span class="badge badge-good">Resolved</span>
+    <span class="hint">{{ items|length }} ticket{{ 's' if items|length != 1 }} -- click to show/hide</span>
+  </summary>
+  <div class="category-box-body">
+    {% for t in items %}
+    {% call thread_row(t, thread_route, next_url, align_top=true, extra_action_html=delete_button(t, next_url)) %}{{ render_body(t) }}{% endcall %}
+    {% else %}
+    <p class="hint" style="margin:4px 0;">No resolved tickets.</p>
+    {% endfor %}
+  </div>
+</details>
+{% endmacro %}

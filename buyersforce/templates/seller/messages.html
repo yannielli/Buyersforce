@@ -73,24 +73,26 @@
 {% include "_archive_toggle.html" %}
 
 <div class="section-title"><h2>Direct messages</h2></div>
-<div class="thread-list" style="margin-bottom:28px;">
+<div class="thread-list" style="margin-bottom:8px;">
   {% for t in direct_threads %}
   {% call tr.thread_row(t, 'seller_thread', request.full_path) %}{{ direct_body(t) }}{% endcall %}
   {% else %}
   <div class="card empty-state"><div class="icon">💬</div>{% if view == 'active' %}No direct messages yet — click Create message above.{% else %}Nothing archived.{% endif %}</div>
   {% endfor %}
 </div>
+{% if view != 'archived' %}{{ tr.saved_subsection(saved_direct, direct_body, 'seller_thread', request.full_path) }}{% endif %}
 
-<div class="grid grid-2" style="align-items:start;">
+<div class="grid grid-2" style="align-items:start; margin-top:28px;">
   <div>
     <div class="section-title"><h2>Buyer conversations</h2></div>
-    <div class="thread-list">
+    <div class="thread-list" style="margin-bottom:8px;">
       {% for t in threads %}
       {% call tr.thread_row(t, 'seller_thread', request.full_path) %}{{ buyer_body(t) }}{% endcall %}
       {% else %}
       <div class="card empty-state"><div class="icon">✉️</div>{% if view == 'active' %}No buyer conversations yet — click Create message to reach out first.{% else %}Nothing archived.{% endif %}</div>
       {% endfor %}
     </div>
+    {% if view != 'archived' %}{{ tr.saved_subsection(saved_buyer, buyer_body, 'seller_thread', request.full_path) }}{% endif %}
   </div>
 
   <div>
@@ -103,18 +105,19 @@
         <button class="btn btn-primary" type="submit">Post</button>
       </form>
     </details>
-    <div class="thread-list">
+    <div class="thread-list" style="margin-bottom:8px;">
       {% for t in team_threads %}
       {% call tr.thread_row(t, 'seller_thread', request.full_path) %}{{ team_body(t) }}{% endcall %}
       {% else %}
       <div class="card empty-state"><div class="icon">👥</div>{% if view == 'active' %}No team threads yet.{% else %}Nothing archived.{% endif %}</div>
       {% endfor %}
     </div>
+    {% if view != 'archived' %}{{ tr.saved_subsection(saved_team, team_body, 'seller_thread', request.full_path) }}{% endif %}
   </div>
 </div>
 
 <div class="section-title" style="margin-top:28px;"><h2>Support &amp; BuyersForce</h2></div>
-<p class="hint" style="margin-top:-6px; margin-bottom:12px;">Support tickets, vendor suggestions, and anything else you've sent to the BuyersForce team -- kept separate from messages with other users. Open requests first, then in progress, then resolved.</p>
+<p class="hint" style="margin-top:-6px; margin-bottom:12px;">Support tickets, vendor suggestions, and anything else you've sent to the BuyersForce team -- kept separate from messages with other users. Open requests first, then in progress. Resolved tickets move to the Resolved bucket below.</p>
 <div class="thread-list">
   {% for t in support_threads %}
   {% call tr.thread_row(t, 'seller_thread', request.full_path) %}{{ support_body(t) }}{% endcall %}
@@ -124,23 +127,7 @@
 </div>
 
 {% if view != 'archived' %}
-<details class="category-box" style="margin-top:20px;">
-  <summary class="category-box-head" style="cursor:pointer;">
-    <span class="badge badge-progress">🔖 Saved</span>
-    <span class="hint">{{ saved_threads|length }} saved{{ ' message' if saved_threads|length == 1 else ' messages' }} -- click to show/hide</span>
-  </summary>
-  <div class="category-box-body">
-    {% for t in saved_threads %}
-    {% call tr.thread_row(t, 'seller_thread', request.full_path, align_top=true) %}
-      {% if t._section == 'buyer' %}{{ buyer_body(t) }}
-      {% elif t._section == 'team' %}{{ team_body(t) }}
-      {% elif t._section == 'support' %}{{ support_body(t) }}
-      {% else %}{{ direct_body(t) }}{% endif %}
-    {% endcall %}
-    {% else %}
-    <p class="hint" style="margin:4px 0;">Nothing saved yet -- use the 🔖 button on any message to keep it here.</p>
-    {% endfor %}
-  </div>
-</details>
+{{ tr.resolved_subsection(resolved_threads, support_body, 'seller_thread', request.full_path) }}
+{{ tr.saved_subsection(saved_support, support_body, 'seller_thread', request.full_path) }}
 {% endif %}
 {% endblock %}

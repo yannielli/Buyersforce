@@ -2711,24 +2711,19 @@ def split_saved(rows):
     return rest, saved
 
 
-def _pull_saved_threads(sections):
-    """sections: {name: rows} for every section on one Messages page
-    (e.g. "direct", "team", "support", plus a page-specific one like
-    "vendor"). Pulls each section's saved rows out (split_saved) and
-    combines them into one Saved bucket, newest-first regardless of
-    which section they came from -- each row is tagged "_section" so
-    the Saved bucket template knows which per-section body markup to
-    reuse for it. Returns (filtered_sections, saved_threads)."""
-    filtered = {}
-    saved_all = []
-    for name, rows in sections.items():
-        rest, saved = split_saved(rows)
-        filtered[name] = rest
-        for row in saved:
-            row["_section"] = name
-        saved_all.extend(saved)
-    saved_all.sort(key=lambda r: r.get("last_at") or "", reverse=True)
-    return filtered, saved_all
+def split_resolved(rows):
+    """Pulls resolved support-ticket rows (latest_ticket.status ==
+    'resolved') out of a list of support-thread rows -- (rest,
+    resolved), each still in the caller's original order -- so a
+    Messages page can show Resolved as its own collapsed bucket
+    instead of mixed in with tickets that still need attention. A row
+    with no ticket at all (a vendor suggestion) never counts as
+    resolved."""
+    rest, resolved = [], []
+    for row in rows:
+        is_resolved = row.get("latest_ticket") and row["latest_ticket"]["status"] == "resolved"
+        (resolved if is_resolved else rest).append(row)
+    return rest, resolved
 
 
 SUPPORT_STATUS_ORDER = {"open": 0, "in_progress": 1, "resolved": 2}
@@ -3346,20 +3341,17 @@ def admin_messages():
     direct_threads = direct_archived if view == "archived" else direct_active
 
     support_shown = sort_support_rows(support_archived if view == "archived" else support_active)
-    # Saved items are pulled out ahead of everything else below (resolved
-    # split, category boxing) -- a saved thread shows ONLY in the Saved
-    # bucket, regardless of its status or section, so it's one place to
-    # find anything flagged for later. Archived view is untouched, same
-    # as the Resolved split just below.
+    # Saved is its own bucket PER section (direct / team / support), not
+    # one combined bucket for the whole page, so it stays next to the
+    # kind of conversation it came from. It's pulled out ahead of the
+    # Resolved split just below -- a saved+resolved ticket shows only in
+    # Saved. Archived view is untouched, same as Resolved.
     if view == "archived":
-        saved_threads = []
+        saved_direct = saved_team = saved_support = resolved_threads = []
     else:
-        sections, saved_threads = _pull_saved_threads({
-            "direct": direct_threads, "team": team_threads, "support": support_shown,
-        })
-        direct_threads, team_threads, support_shown = (
-            sections["direct"], sections["team"], sections["support"]
-        )
+        direct_threads, saved_direct = split_saved(direct_threads)
+        team_threads, saved_team = split_saved(team_threads)
+        support_shown, saved_support = split_saved(support_shown)
 
     category_label = dict(SUPPORT_CATEGORY_LABELS, _vendor_suggestion="Vendor suggestions")
     # Resolved tickets move out of the category boxes into their own
@@ -3372,12 +3364,9 @@ def admin_messages():
     # The Archived tab itself is untouched by this split: a resolved
     # ticket that's already archived still shows boxed by category there.
     if view == "archived":
-        resolved_threads, boxed_threads = [], support_shown
+        boxed_threads = support_shown
     else:
-        resolved_threads, boxed_threads = [], []
-        for row in support_shown:
-            is_resolved = row["latest_ticket"] and row["latest_ticket"]["status"] == "resolved"
-            (resolved_threads if is_resolved else boxed_threads).append(row)
+        boxed_threads, resolved_threads = split_resolved(support_shown)
     by_category = {}
     for row in boxed_threads:
         key = row["latest_ticket"]["category"] if row["latest_ticket"] else "_vendor_suggestion"
@@ -3400,7 +3389,8 @@ def admin_messages():
         "admin/messages.html",
         direct_threads=direct_threads,
         team_threads=team_threads, support_boxes=support_boxes,
-        resolved_threads=resolved_threads, saved_threads=saved_threads,
+        resolved_threads=resolved_threads, saved_direct=saved_direct,
+        saved_team=saved_team, saved_support=saved_support,
         category_labels=SUPPORT_CATEGORY_LABELS, view=view,
     )
 
@@ -4581,21 +4571,26 @@ def buyer_messages():
     if view == "archived":
         vendor_threads, team_threads = vendor_archived, team_archived
         direct_threads, support_threads = direct_archived, support_archived
-        saved_threads = []
+        saved_vendor = saved_team = saved_direct = saved_support = resolved_threads = []
     else:
         vendor_threads, team_threads = vendor_active, team_active
         direct_threads, support_threads = direct_active, support_active
-        sections, saved_threads = _pull_saved_threads({
-            "vendor": vendor_threads, "team": team_threads,
-            "direct": direct_threads, "support": support_threads,
-        })
-        vendor_threads, team_threads = sections["vendor"], sections["team"]
-        direct_threads, support_threads = sections["direct"], sections["support"]
+        # Saved is its own bucket PER section (not one combined bucket for
+        # the whole page), so it stays next to the kind of conversation it
+        # came from. It also takes priority over the Resolved split just
+        # below -- a saved+resolved ticket shows only in Saved.
+        vendor_threads, saved_vendor = split_saved(vendor_threads)
+        team_threads, saved_team = split_saved(team_threads)
+        direct_threads, saved_direct = split_saved(direct_threads)
+        support_threads, saved_support = split_saved(support_threads)
+        support_threads, resolved_threads = split_resolved(support_threads)
     support_threads = sort_support_rows(support_threads)
     return render_template(
         "buyer/messages.html", vendor_threads=vendor_threads, team_threads=team_threads,
         direct_threads=direct_threads, support_threads=support_threads,
-        saved_threads=saved_threads, view=view, category_labels=SUPPORT_CATEGORY_LABELS,
+        resolved_threads=resolved_threads, saved_vendor=saved_vendor, saved_team=saved_team,
+        saved_direct=saved_direct, saved_support=saved_support,
+        view=view, category_labels=SUPPORT_CATEGORY_LABELS,
     )
 
 
@@ -7497,21 +7492,26 @@ def seller_messages():
     if view == "archived":
         threads, team_threads = vendor_archived, team_archived
         direct_threads, support_threads = direct_archived, support_archived
-        saved_threads = []
+        saved_buyer = saved_team = saved_direct = saved_support = resolved_threads = []
     else:
         threads, team_threads = vendor_active, team_active
         direct_threads, support_threads = direct_active, support_active
-        sections, saved_threads = _pull_saved_threads({
-            "buyer": threads, "team": team_threads,
-            "direct": direct_threads, "support": support_threads,
-        })
-        threads, team_threads = sections["buyer"], sections["team"]
-        direct_threads, support_threads = sections["direct"], sections["support"]
+        # Saved is its own bucket PER section (not one combined bucket for
+        # the whole page), so it stays next to the kind of conversation it
+        # came from. It also takes priority over the Resolved split just
+        # below -- a saved+resolved ticket shows only in Saved.
+        threads, saved_buyer = split_saved(threads)
+        team_threads, saved_team = split_saved(team_threads)
+        direct_threads, saved_direct = split_saved(direct_threads)
+        support_threads, saved_support = split_saved(support_threads)
+        support_threads, resolved_threads = split_resolved(support_threads)
     support_threads = sort_support_rows(support_threads)
     return render_template(
         "seller/messages.html", threads=threads, vendor=vendor, direct_threads=direct_threads,
         team_threads=team_threads, support_threads=support_threads,
-        saved_threads=saved_threads, view=view, category_labels=SUPPORT_CATEGORY_LABELS,
+        resolved_threads=resolved_threads, saved_buyer=saved_buyer, saved_team=saved_team,
+        saved_direct=saved_direct, saved_support=saved_support,
+        view=view, category_labels=SUPPORT_CATEGORY_LABELS,
     )
 
 

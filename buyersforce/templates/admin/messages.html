@@ -51,12 +51,7 @@
   <span class="hint" style="white-space:nowrap;">{{ t.last_at|fmt_time if t.last_at }}</span>
 {% endmacro %}
 
-{% macro delete_button(t) %}
-<form method="post" action="{{ url_for('delete_thread', thread_id=t.id) }}">
-  <input type="hidden" name="next" value="{{ request.full_path }}">
-  <button class="btn btn-danger btn-sm" type="submit">🗑 Delete</button>
-</form>
-{% endmacro %}
+{% macro support_body_flat(t) %}{{ support_body(t, show_category=true) }}{% endmacro %}
 
 {% block content %}
 <div class="page-header">
@@ -72,7 +67,7 @@
 {% include "_archive_toggle.html" %}
 
 <div class="section-title"><h2>Direct messages</h2></div>
-<div class="thread-list" style="margin-bottom:28px;">
+<div class="thread-list" style="margin-bottom:8px;">
   {% for t in direct_threads %}
   {% call tr.thread_row(t, 'admin_thread', request.full_path) %}{{ direct_body(t) }}{% endcall %}
   {% else %}
@@ -81,9 +76,10 @@
   </div>
   {% endfor %}
 </div>
+{% if view != 'archived' %}{{ tr.saved_subsection(saved_direct, direct_body, 'admin_thread', request.full_path) }}{% endif %}
 
-<div class="section-title"><h2>Team</h2></div>
-<div class="thread-list" style="margin-bottom:28px;">
+<div class="section-title" style="margin-top:28px;"><h2>Team</h2></div>
+<div class="thread-list" style="margin-bottom:8px;">
   {% for t in team_threads %}
   {% call tr.thread_row(t, 'admin_thread', request.full_path) %}{{ team_body(t) }}{% endcall %}
   {% else %}
@@ -92,6 +88,7 @@
   </div>
   {% endfor %}
 </div>
+{% if view != 'archived' %}{{ tr.saved_subsection(saved_team, team_body, 'admin_thread', request.full_path) }}{% endif %}
 
 <div class="section-title" style="margin-top:28px;"><h2>Support tickets</h2></div>
 <p class="hint" style="margin-top:-6px; margin-bottom:14px;">Boxed by category, most recent activity first -- within each box, open requests first, then in progress. Resolved tickets move to the Resolved bucket below.</p>
@@ -116,36 +113,7 @@
 {% endif %}
 
 {% if view != 'archived' %}
-<details class="category-box" style="margin-top:4px;">
-  <summary class="category-box-head" style="cursor:pointer;">
-    <span class="badge badge-good">Resolved</span>
-    <span class="hint">{{ resolved_threads|length }} ticket{{ 's' if resolved_threads|length != 1 }} -- click to show/hide</span>
-  </summary>
-  <div class="category-box-body">
-    {% for t in resolved_threads %}
-    {% call tr.thread_row(t, 'admin_thread', request.full_path, align_top=true, extra_action_html=delete_button(t)) %}{{ support_body(t, show_category=true) }}{% endcall %}
-    {% else %}
-    <p class="hint" style="margin:4px 0;">No resolved tickets.</p>
-    {% endfor %}
-  </div>
-</details>
-
-<details class="category-box" style="margin-top:12px;">
-  <summary class="category-box-head" style="cursor:pointer;">
-    <span class="badge badge-progress">🔖 Saved</span>
-    <span class="hint">{{ saved_threads|length }} saved{{ ' message' if saved_threads|length == 1 else ' messages' }} -- click to show/hide</span>
-  </summary>
-  <div class="category-box-body">
-    {% for t in saved_threads %}
-    {% call tr.thread_row(t, 'admin_thread', request.full_path, align_top=true) %}
-      {% if t._section == 'team' %}{{ team_body(t) }}
-      {% elif t._section == 'support' %}{{ support_body(t, show_category=true) }}
-      {% else %}{{ direct_body(t) }}{% endif %}
-    {% endcall %}
-    {% else %}
-    <p class="hint" style="margin:4px 0;">Nothing saved yet -- use the 🔖 button on any message to keep it here.</p>
-    {% endfor %}
-  </div>
-</details>
+{{ tr.resolved_subsection(resolved_threads, support_body_flat, 'admin_thread', request.full_path) }}
+{{ tr.saved_subsection(saved_support, support_body_flat, 'admin_thread', request.full_path) }}
 {% endif %}
 {% endblock %}
