@@ -3214,15 +3214,23 @@ def admin_messages():
     team_threads = team_archived if view == "archived" else team_active
 
     support_shown = sort_support_rows(support_archived if view == "archived" else support_active)
-    category_order = [key for key, _label in SUPPORT_CATEGORIES] + ["_vendor_suggestion"]
     category_label = dict(SUPPORT_CATEGORY_LABELS, _vendor_suggestion="Vendor suggestions")
-    by_category = {key: [] for key in category_order}
+    by_category = {}
     for row in support_shown:
         key = row["latest_ticket"]["category"] if row["latest_ticket"] else "_vendor_suggestion"
         by_category.setdefault(key, []).append(row)
+    # The boxes themselves are ordered by whichever category has the most
+    # recent activity, latest first -- a fixed category order would bury
+    # a brand-new ticket under older ones just because its category
+    # happens to sort later in the list. Each box's own threads are
+    # already newest-first-within-status (sort_support_rows above).
     support_boxes = [
-        {"key": key, "label": category_label[key], "threads": by_category[key]}
-        for key in category_order if by_category[key]
+        {"key": key, "label": category_label.get(key, key), "threads": threads}
+        for key, threads in sorted(
+            by_category.items(),
+            key=lambda kv: max((t.get("last_at") or "" for t in kv[1]), default=""),
+            reverse=True,
+        )
     ]
 
     return render_template(
