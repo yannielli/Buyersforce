@@ -3,17 +3,23 @@
 {% block content %}
 <div style="display:flex; gap:8px; margin-bottom:16px; align-items:center;">
   <a href="{{ url_for('seller_messages') }}" class="btn btn-ghost btn-sm">← Back to messages</a>
-  {% if is_deleted %}
-  <form method="post" action="{{ url_for('restore_thread', thread_id=thread.id) }}" style="margin-left:auto;">
-    <input type="hidden" name="next" value="{{ request.path }}">
-    <button class="btn btn-secondary btn-sm" type="submit">Restore conversation</button>
-  </form>
-  {% else %}
-  <form method="post" action="{{ url_for('delete_thread', thread_id=thread.id) }}" style="margin-left:auto;">
-    <input type="hidden" name="next" value="{{ url_for('seller_messages') }}">
-    <button class="btn btn-ghost btn-sm" type="submit">🗑 Archive conversation</button>
-  </form>
-  {% endif %}
+  <div style="display:flex; gap:8px; margin-left:auto;">
+    <form method="post" action="{{ url_for('toggle_thread_save', thread_id=thread.id) }}">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <button class="btn btn-ghost btn-sm" type="submit">{{ '🔖 Remove from Saved' if is_saved else '🔖 Save conversation' }}</button>
+    </form>
+    {% if is_deleted %}
+    <form method="post" action="{{ url_for('restore_thread', thread_id=thread.id) }}">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <button class="btn btn-secondary btn-sm" type="submit">Restore conversation</button>
+    </form>
+    {% else %}
+    <form method="post" action="{{ url_for('delete_thread', thread_id=thread.id) }}">
+      <input type="hidden" name="next" value="{{ url_for('seller_messages') }}">
+      <button class="btn btn-ghost btn-sm" type="submit">🗑 Archive conversation</button>
+    </form>
+    {% endif %}
+  </div>
 </div>
 {% if is_deleted %}
 <p class="hint" style="margin-bottom:12px; max-width:760px; margin-left:auto; margin-right:auto;">This conversation is archived. It'll be gone for good in 30 days unless you restore it.</p>

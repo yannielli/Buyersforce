@@ -1,10 +1,11 @@
 {#
   Shared row wrapper for every thread-listing row across buyer, seller,
-  and admin Messages pages. Handles the three per-viewer toggles (mark
-  unread, flag important, save) plus the unread/flagged row styling --
-  callers only supply the row's own content (avatar, name, badges,
-  snippet, timestamp), exactly as before this existed, wrapped in a
-  {% call %} block instead of a bare <a class="thread-row">.
+  and admin Messages pages. Handles the four per-viewer toggles (mark
+  unread, flag important, save, archive/restore) plus the
+  unread/flagged row styling -- callers only supply the row's own
+  content (avatar, name, badges, snippet, timestamp), exactly as
+  before this existed, wrapped in a {% call %} block instead of a
+  bare <a class="thread-row">.
 
   Usage:
     {% call tr.thread_row(t, 'buyer_thread', request.full_path) %}
@@ -41,6 +42,10 @@
     <form method="post" action="{{ url_for('toggle_thread_save', thread_id=t.id) }}">
       <input type="hidden" name="next" value="{{ next_url }}">
       <button type="submit" class="icon-btn{{ ' save-active' if t.is_saved }}" title="{{ 'Remove from Saved' if t.is_saved else 'Save' }}">🔖</button>
+    </form>
+    <form method="post" action="{{ url_for('restore_thread' if t.is_archived else 'delete_thread', thread_id=t.id) }}">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <button type="submit" class="icon-btn" title="{{ 'Restore from Archive' if t.is_archived else 'Archive conversation' }}">{{ '↩️' if t.is_archived else '🗄️' }}</button>
     </form>
     {% if extra_action_html %}{{ extra_action_html }}{% endif %}
   </div>

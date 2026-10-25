@@ -3424,6 +3424,7 @@ def admin_thread(thread_id):
         "admin/thread.html", thread=thread, messages=messages, info=info,
         support_requests=support_requests, category_labels=SUPPORT_CATEGORY_LABELS,
         is_deleted=thread_is_deleted(g.user["id"], thread_id),
+        is_saved=thread_flag_value(g.user["id"], thread_id, "is_saved"),
     )
 
 
@@ -4717,6 +4718,7 @@ def buyer_thread(thread_id):
         "buyer/thread.html", thread=thread, messages=messages, info=info,
         support_requests=support_requests, category_labels=SUPPORT_CATEGORY_LABELS,
         is_deleted=thread_is_deleted(g.user["id"], thread_id),
+        is_saved=thread_flag_value(g.user["id"], thread_id, "is_saved"),
     )
 
 
@@ -7565,6 +7567,7 @@ def seller_thread(thread_id):
         "seller/thread.html", thread=thread, messages=messages, info=info,
         support_requests=support_requests, category_labels=SUPPORT_CATEGORY_LABELS,
         is_deleted=thread_is_deleted(g.user["id"], thread_id),
+        is_saved=thread_flag_value(g.user["id"], thread_id, "is_saved"),
     )
 
 
