@@ -1,15 +1,25 @@
 """Frankie, BuyersForce's AI assistant -- plumbing for every Claude call
 the app makes on a buyer's behalf. Two call shapes live here:
 
-  - A conversational, tool-using loop (run_chat_turn) embedded on the
-    buyer Discover page (see buyer_discover_chat in app.py) -- Frankie
-    can search BuyersForce's own directory and, once the buyer asks,
-    the open web too.
+  - A conversational, tool-using loop (run_chat_turn) -- embedded on the
+    buyer Discover page (see buyer_discover_chat in app.py), where
+    Frankie can search BuyersForce's own directory and, once the buyer
+    asks, the open web too; and reused by the Evaluate page's "Build
+    with Frankie" wizard for its own two embedded assistants (see
+    buyer_frankie_vendor_chat / buyer_frankie_criteria_chat in app.py),
+    scoped to directory-only vendor search and criteria proposals
+    respectively via their own tool schemas (build_directory_tools /
+    build_criteria_tools) and system prompts. run_chat_turn itself knows
+    nothing BuyersForce-specific about any of these -- a generic
+    `tool_side_channels` dict in its result carries back whatever a
+    caller's own tool handlers returned, keyed by tool name.
   - One-shot, tool-free (or single-server-tool) structured lookups that
     resolve in a single messages.create() call: run_vendor_lookup (the
     "Suggest a vendor" form's autofill) and run_suggest_criteria (the
-    Evaluate page's "Build with Frankie" guided-checklist wizard's
-    optional "suggest criteria" step).
+    guided wizard's quick, single-click "suggest criteria" button --
+    separate from its conversational criteria-chat assistant above,
+    kept around as a faster one-click path for a buyer who just wants a
+    quick starting list without chatting).
 
 This module owns the Anthropic API plumbing only: building the tool
 schemas, running the tool-use loop, and handing back a plain-dict result
@@ -190,6 +200,53 @@ def build_web_tools():
             "max_uses": 3,
         },
         _SUGGEST_VENDOR_TOOL,
+    ]
+
+
+def build_criteria_tools():
+    """Tool schema for the "Build with Frankie" wizard's conversational
+    criteria assistant (see buyer_frankie_criteria_chat in app.py) --
+    Frankie proposes success criteria by calling propose_criteria rather
+    than replying in free text, so the frontend can render each one as
+    its own one-click "+ Add" chip instead of asking the buyer to
+    copy/paste anything out of a chat bubble. No web_search here -- this
+    is drawing on Claude's own knowledge of how B2B purchases get
+    evaluated, same as the one-shot run_suggest_criteria below, just
+    conversational so a buyer can ask for more, fewer, or a different
+    emphasis without starting over."""
+    return [
+        {
+            "name": "propose_criteria",
+            "description": (
+                "Propose success criteria for the buyer's evaluation scorecard -- "
+                "call this whenever you have one or more concrete criteria to "
+                "suggest, including proactively on your very first reply once you "
+                "have enough context (the project name, the vendors being "
+                "compared, or the buyer's own description of what they're "
+                "buying) -- don't make the buyer ask first. Propose a focused "
+                "batch (typically 3-6) rather than one at a time. The app shows "
+                "each suggestion as its own chip with a one-click Add button, so "
+                "you never need to ask the buyer to copy/paste anything -- just "
+                "a short sentence or two of your own reply alongside them."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "criteria": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "Short success-criteria labels, 2-6 words each, title "
+                            "case, concrete and specific to what's being "
+                            "evaluated (e.g. \"Ease of integration\", \"Total cost "
+                            "of ownership\", \"SOC 2 compliance\") -- never generic "
+                            "filler like \"Quality\" or \"Good value\"."
+                        ),
+                    },
+                },
+                "required": ["criteria"],
+            },
+        },
     ]
 
 
@@ -400,14 +457,22 @@ def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
             "web_sources": [{"title", "url"}, ...],  # pages cited via web_search, if any
             "suggestion": {...} or None,   # set when suggest_vendor was called this turn
             "searched": bool,              # True iff search_vendors was actually invoked this turn
+            "tool_side_channels": {...},   # every tool's side_channel this turn, keyed by tool name
             "error": str or None,
         }
 
-    `tool_handlers` maps a client-tool name ("search_vendors",
-    "suggest_vendor") to a callable(input_dict) -> (result_text, side_channel).
-    `result_text` is what Claude sees as the tool_result; `side_channel` is
-    whatever app.py wants surfaced to the frontend for that tool (the raw
-    vendor rows, the submitted suggestion, etc.) -- or None.
+    `tool_handlers` maps a client-tool name (e.g. "search_vendors",
+    "suggest_vendor", "propose_criteria") to a
+    callable(input_dict) -> (result_text, side_channel). `result_text` is
+    what Claude sees as the tool_result; `side_channel` is whatever the
+    caller wants surfaced to the frontend for that tool (the raw vendor
+    rows, the submitted suggestion, the cleaned criteria list, etc.) --
+    or None. "search_vendors"/"suggest_vendor" side channels land in the
+    named `vendor_results`/`suggestion` fields below for backward
+    compatibility with the Discover chat; every tool's side channel,
+    those two included, also lands in the generic `tool_side_channels`
+    dict keyed by tool name, which is how a caller using a different
+    tool (like "propose_criteria") gets its data back out.
 
     The web_search tool is a server tool: Anthropic executes it and
     returns results inline in the same response, so there's nothing for
@@ -423,6 +488,7 @@ def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
             "web_sources": [],
             "suggestion": None,
             "searched": False,
+            "tool_side_channels": {},
             "error": "no_api_key",
         }
 
@@ -431,6 +497,13 @@ def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
     web_sources = []
     suggestion = None
     searched = False
+    # Generic side-channel bucket for any client tool beyond the two
+    # named above (search_vendors/suggest_vendor) -- e.g. propose_criteria
+    # for the criteria-chat assistant. Keyed by tool name; every return
+    # point below carries this forward so a caller can pull out whatever
+    # tool(s) it cares about without run_chat_turn needing to know about
+    # them by name.
+    tool_side_channels = {}
 
     for _ in range(MAX_TOOL_ITERATIONS):
         try:
@@ -455,6 +528,7 @@ def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
                 "web_sources": [],
                 "suggestion": None,
                 "searched": searched,
+                "tool_side_channels": {},
                 "error": str(exc),
             }
 
@@ -477,6 +551,7 @@ def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
                 "web_sources": web_sources,
                 "suggestion": suggestion,
                 "searched": searched,
+                "tool_side_channels": tool_side_channels,
                 "error": None,
             }
 
@@ -521,6 +596,12 @@ def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
                 vendor_results = side_channel
             elif block.name == "suggest_vendor" and side_channel is not None:
                 suggestion = side_channel
+            # Every tool's side_channel (search_vendors/suggest_vendor
+            # included, not just a third tool) also lands here, keyed by
+            # name -- callers using a tool run_chat_turn doesn't know by
+            # name (e.g. "propose_criteria") read it from here instead.
+            if side_channel is not None:
+                tool_side_channels[block.name] = side_channel
 
         messages.append({"role": "user", "content": tool_results})
 
@@ -531,5 +612,6 @@ def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
         "web_sources": web_sources,
         "suggestion": suggestion,
         "searched": searched,
+        "tool_side_channels": tool_side_channels,
         "error": "max_iterations",
     }

@@ -24,6 +24,11 @@
       <label for="frankie-name">Project name</label>
       <input type="text" name="name" id="frankie-name" placeholder="e.g. CrowdStrike vs. SentinelOne" autocomplete="off" value="{{ form_name }}" required>
     </div>
+    <div class="field">
+      <label for="frankie-about">What are you evaluating? (optional)</label>
+      <textarea id="frankie-about" name="about" rows="2" placeholder="e.g. An endpoint security tool for a 200-person engineering org">{{ about }}</textarea>
+      <p class="hint" style="margin-top:4px;">A sentence or two is plenty -- Frankie uses this later in the wizard to search for matching vendors and suggest scoring criteria, so you won't have to repeat yourself.</p>
+    </div>
   </fieldset>
 
   <fieldset class="frankie-step" data-step="2" hidden>
@@ -38,6 +43,23 @@
   <fieldset class="frankie-step" data-step="3" hidden>
     <legend>Name your vendors</legend>
     <p class="hint" id="frankie-vendor-hint" style="margin-top:0;">Add the vendors you're comparing -- these become the columns on your scorecard.</p>
+
+    <div class="frankie-assist-panel" id="frankie-vendor-assist">
+      <div class="frankie-assist-header">
+        <span class="frankie-assist-icon">✨</span>
+        <div>
+          <strong>Ask Frankie</strong>
+          <span class="hint">Describe what you need and Frankie will search BuyersForce's directory for matching vendors -- add any of its picks with one click.</span>
+        </div>
+      </div>
+      <div id="frankie-vendor-chat-messages" class="frankie-assist-messages"></div>
+      <form id="frankie-vendor-chat-form" class="frankie-assist-form">
+        <input id="frankie-vendor-chat-input" type="text" placeholder="e.g. endpoint security for a 200-person company" autocomplete="off" maxlength="2000">
+        <button class="btn btn-primary btn-sm" type="submit">Send</button>
+      </form>
+    </div>
+
+    <p class="hint frankie-or-divider">Or search BuyersForce by name directly:</p>
     <div class="field">
       <label for="frankie-vendor-search">Search for a vendor</label>
       <input type="text" id="frankie-vendor-search" list="frankie-all-vendors" placeholder="Start typing a company name…" autocomplete="off">
@@ -58,17 +80,13 @@
       </div>
       {% endfor %}
     </div>
-    <p class="hint" id="frankie-no-vendors-hint" style="margin-top:8px;" {{ 'hidden' if vendor_rows }}>Nothing added yet -- search above to add your first vendor.</p>
+    <p class="hint" id="frankie-no-vendors-hint" style="margin-top:8px;" {{ 'hidden' if vendor_rows }}>Nothing added yet -- ask Frankie above, or search by name, to add your first vendor.</p>
   </fieldset>
 
   <fieldset class="frankie-step" data-step="4" hidden>
     <legend>What will you score them on?</legend>
     <p class="hint" style="margin-top:0;">These are your success criteria -- add your own, or let Frankie suggest some to start from.</p>
 
-    <div class="field">
-      <label for="frankie-about">What are you buying? (optional, helps Frankie's suggestions)</label>
-      <textarea id="frankie-about" name="about" rows="2" placeholder="e.g. An endpoint security tool for a 200-person engineering org"></textarea>
-    </div>
     <button type="button" id="frankie-suggest-btn" class="btn btn-secondary btn-sm">✨ Ask Frankie for ideas</button>
     <span class="hint" id="frankie-suggest-status" style="margin-left:8px;"></span>
 
@@ -92,6 +110,21 @@
       <span class="hint" id="criteria-total-hint" style="margin:0;">Total weight: <strong id="criteria-total-value">0</strong>%</span>
     </div>
     <p class="hint">Leave a row blank to skip it. Weight is the percent of the overall score each criterion carries -- <strong>all weights must add up to 100%.</strong></p>
+
+    <div class="frankie-assist-panel" id="frankie-criteria-assist" style="margin-top:16px;">
+      <div class="frankie-assist-header">
+        <span class="frankie-assist-icon">✨</span>
+        <div>
+          <strong>Refine with Frankie</strong>
+          <span class="hint">Ask for more, fewer, or a different focus -- Frankie proposes criteria you can add with one click.</span>
+        </div>
+      </div>
+      <div id="frankie-criteria-chat-messages" class="frankie-assist-messages"></div>
+      <form id="frankie-criteria-chat-form" class="frankie-assist-form">
+        <input id="frankie-criteria-chat-input" type="text" placeholder="e.g. weight more toward compliance and support" autocomplete="off" maxlength="2000">
+        <button class="btn btn-primary btn-sm" type="submit">Send</button>
+      </form>
+    </div>
   </fieldset>
 
   <fieldset class="frankie-step" data-step="5" hidden>
@@ -148,6 +181,8 @@
     progressFill.style.width = Math.round(((i + 1) / steps.length) * 100) + '%';
     progressLabel.textContent = 'Step ' + (i + 1) + ' of ' + steps.length;
     if (i === steps.length - 1) { updateReview(); }
+    if (i === 2) { maybeGreetVendorChat(); }
+    if (i === 3) { maybeGreetCriteriaChat(); }
     current = i;
   }
 
@@ -176,7 +211,8 @@
 
   // Step 3 -- vendor search/add, same pattern as the plain "New
   // Evaluation" form on evaluations.html, but writing into
-  // #frankie-vendor-list instead.
+  // #frankie-vendor-list instead. Shared by both the manual search box
+  // and Frankie's own "+ Add" buttons below.
   var vendorMap = {};
   ({{ all_vendors | tojson }}).forEach(function(v) { vendorMap[v.company_name] = v.id; });
   var vendorInput = document.getElementById('frankie-vendor-search');
@@ -193,8 +229,12 @@
     btn.addEventListener('click', function() { removeVendorRow(btn.closest('.ready-vendor-row')); });
   });
 
+  function isVendorAdded(id) {
+    return !!vendorList.querySelector('.ready-vendor-checkbox[value="' + id + '"]');
+  }
+
   function addVendorRow(id, name) {
-    if (vendorList.querySelector('.ready-vendor-checkbox[value="' + id + '"]')) { return; }
+    if (isVendorAdded(id)) { return; }
     var row = document.createElement('div');
     row.className = 'ready-vendor-row';
     var label = document.createElement('label');
@@ -229,19 +269,193 @@
     });
   }
 
-  // Step 4 -- "Ask Frankie for ideas": sends the project name, picked
-  // vendors, and the optional "about" note to the suggest-criteria
-  // endpoint, then drops the results into empty/new criterion rows and
-  // re-splits weights evenly across everything filled in so the total
-  // still reads 100%. Entirely optional -- a failure here just shows a
-  // small inline note and leaves the form exactly as it was.
-  var suggestBtn = document.getElementById('frankie-suggest-btn');
-  var suggestStatus = document.getElementById('frankie-suggest-status');
+  // ------------------------------------------------------------------
+  // Shared little chat-bubble helpers -- used by both Frankie assist
+  // panels below (vendor step + criteria step). Kept generic (take the
+  // messages container as an argument) rather than duplicated per panel.
+  // ------------------------------------------------------------------
+  function addUserBubble(container, text) {
+    var row = document.createElement('div');
+    row.className = 'ai-msg ai-msg-user';
+    var bubble = document.createElement('div');
+    bubble.className = 'ai-msg-bubble';
+    bubble.textContent = text;
+    row.appendChild(bubble);
+    container.appendChild(row);
+    container.scrollTop = container.scrollHeight;
+  }
+  function addAssistantBubble(container, text, opts) {
+    opts = opts || {};
+    var row = document.createElement('div');
+    row.className = 'ai-msg ai-msg-assistant' + (opts.system ? ' ai-msg-system' : '');
+    var bubble = document.createElement('div');
+    bubble.className = 'ai-msg-bubble';
+    bubble.textContent = text;
+    row.appendChild(bubble);
+    container.appendChild(row);
+    container.scrollTop = container.scrollHeight;
+    return row;
+  }
+  function addTypingBubble(container) {
+    var row = document.createElement('div');
+    row.className = 'ai-msg ai-msg-assistant ai-msg-typing';
+    var bubble = document.createElement('div');
+    bubble.className = 'ai-msg-bubble';
+    bubble.textContent = 'Thinking…';
+    row.appendChild(bubble);
+    container.appendChild(row);
+    container.scrollTop = container.scrollHeight;
+    return row;
+  }
+
+  // ------------------------------------------------------------------
+  // Vendor step -- "Ask Frankie" chat. Directory-only search, same
+  // underlying tool as Discover's Frankie, scoped to this one
+  // scorecard. Auto-seeds its first search from whatever the buyer
+  // already typed into step 1's "What are you evaluating?" field, so
+  // they don't have to repeat themselves -- that's the whole point.
+  // ------------------------------------------------------------------
+  var vendorChatMessages = document.getElementById('frankie-vendor-chat-messages');
+  var vendorChatForm = document.getElementById('frankie-vendor-chat-form');
+  var vendorChatInput = document.getElementById('frankie-vendor-chat-input');
+  var vendorChatTranscript = [];
+  var vendorChatSending = false;
+  var vendorChatGreeted = false;
+  var VENDOR_CHAT_URL = {{ url_for('buyer_frankie_vendor_chat') | tojson }};
+
+  function addVendorResultCards(vendors) {
+    if (!vendors || !vendors.length) { return; }
+    var wrap = document.createElement('div');
+    wrap.className = 'ai-vendor-results';
+    vendors.forEach(function(v) {
+      var card = document.createElement('div');
+      card.className = 'ai-vendor-mini-card';
+
+      var link = document.createElement('a');
+      link.className = 'ai-vendor-mini-link';
+      link.href = '/app/buyer/vendor/' + v.id;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      var logo = document.createElement('span');
+      logo.className = 'ai-vendor-mini-logo';
+      logo.style.background = v.accent || '#17948f';
+      if (v.logo_url) {
+        var img = document.createElement('img');
+        img.src = v.logo_url; img.alt = '';
+        img.onerror = function() { img.remove(); logo.textContent = v.initials || ''; };
+        logo.appendChild(img);
+      } else {
+        logo.textContent = v.initials || '';
+      }
+      var body = document.createElement('span');
+      body.className = 'ai-vendor-mini-body';
+      var name = document.createElement('span');
+      name.className = 'ai-vendor-mini-name';
+      name.textContent = v.company_name;
+      var meta = document.createElement('span');
+      meta.className = 'ai-vendor-mini-meta';
+      meta.textContent = [v.category, v.tagline].filter(Boolean).join(' · ');
+      body.appendChild(name);
+      body.appendChild(document.createElement('br'));
+      body.appendChild(meta);
+      link.appendChild(logo);
+      link.appendChild(body);
+
+      var addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'frankie-vendor-add-btn btn btn-ghost btn-sm';
+      var already = isVendorAdded(v.id);
+      addBtn.classList.toggle('is-added', already);
+      addBtn.textContent = already ? '✓ Added' : '+ Add';
+      addBtn.disabled = already;
+      addBtn.addEventListener('click', function() {
+        addVendorRow(v.id, v.company_name);
+        addBtn.textContent = '✓ Added';
+        addBtn.classList.add('is-added');
+        addBtn.disabled = true;
+        if (noVendorsHint) { document.getElementById('frankie-no-vendors-hint').hidden = true; }
+      });
+
+      card.appendChild(link);
+      card.appendChild(addBtn);
+      wrap.appendChild(card);
+    });
+    vendorChatMessages.appendChild(wrap);
+    vendorChatMessages.scrollTop = vendorChatMessages.scrollHeight;
+  }
+
+  function sendVendorChat(message, opts) {
+    opts = opts || {};
+    if (vendorChatSending || !message) { return; }
+    vendorChatSending = true;
+    vendorChatInput.disabled = true;
+    if (opts.showUserBubble !== false) { addUserBubble(vendorChatMessages, message); }
+    var typingRow = addTypingBubble(vendorChatMessages);
+
+    fetch(VENDOR_CHAT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: vendorChatTranscript,
+        message: message,
+        project_name: document.getElementById('frankie-name').value.trim(),
+        about: document.getElementById('frankie-about').value.trim(),
+      }),
+    })
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        typingRow.remove();
+        if (data.error === 'empty_message') { return; }
+        vendorChatTranscript = data.messages || vendorChatTranscript;
+        addAssistantBubble(vendorChatMessages, data.reply || "Sorry, I didn't get a response -- could you try again?", { system: !!data.error });
+        if (data.searched) { addVendorResultCards(data.vendor_results); }
+      })
+      .catch(function() {
+        typingRow.remove();
+        addAssistantBubble(vendorChatMessages, "Sorry, something went wrong reaching Frankie. Please try again.", { system: true });
+      })
+      .finally(function() {
+        vendorChatSending = false;
+        vendorChatInput.disabled = false;
+      });
+  }
+
+  function maybeGreetVendorChat() {
+    if (vendorChatGreeted) { return; }
+    vendorChatGreeted = true;
+    var about = document.getElementById('frankie-about').value.trim();
+    if (about) {
+      addAssistantBubble(vendorChatMessages, "Hi, I'm Frankie! Searching BuyersForce based on what you told me in step 1...");
+      sendVendorChat(about, { showUserBubble: false });
+    } else {
+      addAssistantBubble(vendorChatMessages, "Hi, I'm Frankie! Tell me what you're looking for -- the kind of tool, roughly how big your team is, anything that's a must-have -- and I'll search BuyersForce for a fit.");
+    }
+  }
+
+  if (vendorChatForm) {
+    vendorChatForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var text = vendorChatInput.value.trim();
+      if (!text) { return; }
+      vendorChatInput.value = '';
+      sendVendorChat(text, { showUserBubble: true });
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // Criteria step -- "Ask Frankie for ideas" (quick, one-shot) button,
+  // and "Refine with Frankie" (conversational) chat below it. Both feed
+  // the same criterion-label-input rows and the same rebalanceWeights()
+  // so the form stays consistent no matter which path a buyer uses.
+  // ------------------------------------------------------------------
   var criteriaRows = document.getElementById('criteria-rows');
-  var SUGGEST_URL = {{ url_for('buyer_frankie_suggest_criteria') | tojson }};
+  var addCriterionBtn = document.getElementById('add-criterion-btn');
 
   function criterionLabelInputs() {
     return Array.from(criteriaRows.querySelectorAll('input[name="criterion_label"]'));
+  }
+  function currentCriterionLabels() {
+    return criterionLabelInputs().map(function(l) { return l.value.trim(); }).filter(Boolean);
   }
 
   function rebalanceWeights() {
@@ -259,6 +473,24 @@
     criteriaRows.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
+  function addCriterionLabel(label) {
+    var emptyInput = criterionLabelInputs().filter(function(l) { return !l.value.trim(); })[0];
+    if (!emptyInput && addCriterionBtn && !addCriterionBtn.disabled) {
+      addCriterionBtn.click();
+      var rows = criterionLabelInputs();
+      emptyInput = rows[rows.length - 1];
+    }
+    if (emptyInput) { emptyInput.value = label; }
+    rebalanceWeights();
+  }
+
+  // Quick one-shot button -- sends project name/vendors/about/existing
+  // labels once, fills every empty row from the results, and
+  // re-balances weights across everything filled in.
+  var suggestBtn = document.getElementById('frankie-suggest-btn');
+  var suggestStatus = document.getElementById('frankie-suggest-status');
+  var SUGGEST_URL = {{ url_for('buyer_frankie_suggest_criteria') | tojson }};
+
   if (suggestBtn) {
     suggestBtn.addEventListener('click', function() {
       suggestBtn.disabled = true;
@@ -267,7 +499,7 @@
       fd.append('project_name', document.getElementById('frankie-name').value.trim());
       fd.append('about', document.getElementById('frankie-about').value.trim());
       vendorList.querySelectorAll('.ready-vendor-checkbox').forEach(function(cb) { fd.append('vendor_ids', cb.value); });
-      criterionLabelInputs().forEach(function(l) { if (l.value.trim()) { fd.append('existing_labels', l.value.trim()); } });
+      currentCriterionLabels().forEach(function(l) { fd.append('existing_labels', l); });
 
       fetch(SUGGEST_URL, { method: 'POST', body: fd })
         .then(function(resp) { return resp.json(); })
@@ -279,17 +511,7 @@
               : "Couldn't get suggestions right now -- add your own above.";
             return;
           }
-          var emptyInputs = criterionLabelInputs().filter(function(l) { return !l.value.trim(); });
-          data.criteria.forEach(function(label) {
-            var target = emptyInputs.shift();
-            if (!target && addCriterionBtn && !addCriterionBtn.disabled) {
-              addCriterionBtn.click();
-              var rows = criterionLabelInputs();
-              target = rows[rows.length - 1];
-            }
-            if (target) { target.value = label; }
-          });
-          rebalanceWeights();
+          data.criteria.forEach(function(label) { addCriterionLabel(label); });
           suggestStatus.textContent = 'Added ' + data.criteria.length + ' suggestion' + (data.criteria.length !== 1 ? 's' : '') + ' -- feel free to edit or remove any of them.';
         })
         .catch(function() {
@@ -298,7 +520,99 @@
         });
     });
   }
-  var addCriterionBtn = document.getElementById('add-criterion-btn');
+
+  // Conversational "Refine with Frankie" chat -- each suggestion comes
+  // back as its own chip with a one-click Add, rather than auto-filling
+  // the form the way the quick button above does, since the whole point
+  // here is picking and choosing as the buyer steers the conversation.
+  var criteriaChatMessages = document.getElementById('frankie-criteria-chat-messages');
+  var criteriaChatForm = document.getElementById('frankie-criteria-chat-form');
+  var criteriaChatInput = document.getElementById('frankie-criteria-chat-input');
+  var criteriaChatTranscript = [];
+  var criteriaChatSending = false;
+  var criteriaChatGreeted = false;
+  var CRITERIA_CHAT_URL = {{ url_for('buyer_frankie_criteria_chat') | tojson }};
+
+  function addCriteriaChips(labels) {
+    if (!labels || !labels.length) { return; }
+    var wrap = document.createElement('div');
+    wrap.className = 'frankie-criteria-chips-wrap';
+    labels.forEach(function(label) {
+      var chip = document.createElement('span');
+      chip.className = 'frankie-criteria-chip';
+      var span = document.createElement('span');
+      span.textContent = label;
+      var addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'frankie-criteria-chip-add btn btn-ghost btn-sm';
+      addBtn.textContent = '+ Add';
+      addBtn.addEventListener('click', function() {
+        addCriterionLabel(label);
+        addBtn.textContent = '✓ Added';
+        addBtn.disabled = true;
+        chip.classList.add('is-added');
+      });
+      chip.appendChild(span);
+      chip.appendChild(addBtn);
+      wrap.appendChild(chip);
+    });
+    criteriaChatMessages.appendChild(wrap);
+    criteriaChatMessages.scrollTop = criteriaChatMessages.scrollHeight;
+  }
+
+  function sendCriteriaChat(message, opts) {
+    opts = opts || {};
+    if (criteriaChatSending || !message) { return; }
+    criteriaChatSending = true;
+    criteriaChatInput.disabled = true;
+    if (opts.showUserBubble !== false) { addUserBubble(criteriaChatMessages, message); }
+    var typingRow = addTypingBubble(criteriaChatMessages);
+
+    fetch(CRITERIA_CHAT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: criteriaChatTranscript,
+        message: message,
+        project_name: document.getElementById('frankie-name').value.trim(),
+        about: document.getElementById('frankie-about').value.trim(),
+        vendor_ids: Array.from(vendorList.querySelectorAll('.ready-vendor-checkbox')).map(function(cb) { return cb.value; }),
+        existing_labels: currentCriterionLabels(),
+      }),
+    })
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        typingRow.remove();
+        if (data.error === 'empty_message') { return; }
+        criteriaChatTranscript = data.messages || criteriaChatTranscript;
+        addAssistantBubble(criteriaChatMessages, data.reply || "Sorry, I didn't get a response -- could you try again?", { system: !!data.error });
+        addCriteriaChips(data.criteria_suggestions);
+      })
+      .catch(function() {
+        typingRow.remove();
+        addAssistantBubble(criteriaChatMessages, "Sorry, something went wrong reaching Frankie. Please try again.", { system: true });
+      })
+      .finally(function() {
+        criteriaChatSending = false;
+        criteriaChatInput.disabled = false;
+      });
+  }
+
+  function maybeGreetCriteriaChat() {
+    if (criteriaChatGreeted) { return; }
+    criteriaChatGreeted = true;
+    addAssistantBubble(criteriaChatMessages, "Need a different angle than the quick suggestions above? Tell me what to focus on -- e.g. \"more about compliance\" or \"give me 3 more\" -- and I'll propose a fresh batch.");
+  }
+
+  if (criteriaChatForm) {
+    criteriaChatForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var text = criteriaChatInput.value.trim();
+      if (!text) { return; }
+      criteriaChatInput.value = '';
+      sendCriteriaChat(text, { showUserBubble: true });
+    });
+  }
 
   // Step 5 review summary.
   function updateReview() {
@@ -306,7 +620,7 @@
     document.getElementById('frankie-review-name').textContent = 'Project: ' + (name || '--');
     var vendorNames = Array.from(vendorList.querySelectorAll('.ready-vendor-row strong')).map(function(s) { return s.textContent; });
     document.getElementById('frankie-review-vendors').textContent = 'Vendors (' + vendorNames.length + '): ' + (vendorNames.join(', ') || '--');
-    var criteriaLabels = criterionLabelInputs().map(function(l) { return l.value.trim(); }).filter(Boolean);
+    var criteriaLabels = currentCriterionLabels();
     document.getElementById('frankie-review-criteria').textContent = 'Criteria (' + criteriaLabels.length + '): ' + (criteriaLabels.join(', ') || '--');
     var templateNameField = document.getElementById('frankie-template-name');
     if (templateNameField && !templateNameField.value.trim() && name) {

@@ -5664,13 +5664,29 @@ def buyer_start_project():
 # fill in across two separate forms (New Evaluation's vendor picker +
 # scorecard-template fields, and "+ New Scorecard"'s criteria/weights/
 # scale) -- vendor count, the vendors themselves (the scorecard's column
-# headers), success criteria (optionally AI-suggested), and a rating
-# scale -- then creates the template and starts the project in one step,
-# via the exact same INSERTs buyer_evaluation_new/buyer_start_project use.
-# Deliberately NOT a conversational chat like Discover's Frankie (see
-# buyer_discover_chat) -- the roadmap calls for "a guided wizard,
-# optionally AI-assisted", so this is a structured form with one
-# AI-assisted step, not a freeform back-and-forth.
+# headers), success criteria, and a rating scale -- then creates the
+# template and starts the project in one step, via the exact same
+# INSERTs buyer_evaluation_new/buyer_start_project use.
+#
+# The wizard's own shell (steps, nav, validation, the create route below)
+# stays a structured form -- that part of the original design holds. But
+# Kevin's follow-up: picking vendors by typing an exact name into a
+# datalist didn't feel like "embedded AI" at all, so the vendor step (3)
+# and criteria step (4) each now also get their own small, conversational
+# Frankie, reusing the exact same run_chat_turn loop as Discover's chat
+# (buyer_discover_chat) just scoped down to one tool apiece:
+#   - buyer_frankie_vendor_chat -- directory-only vendor search (same
+#     _ai_search_vendors helper Discover uses), surfaced as mini vendor
+#     cards with a one-click "+ Add" straight into the wizard's own list.
+#   - buyer_frankie_criteria_chat -- a conversational counterpart to the
+#     quick one-click run_suggest_criteria button already below, via its
+#     own propose_criteria tool, for a buyer who wants to steer the
+#     suggestions ("more about compliance", "3 more") rather than take
+#     one batch and hand-edit it.
+# Both are additive, optional assists on top of the fully-manual path
+# (typing a vendor name, typing your own criteria) that still works
+# exactly as before -- neither can block the wizard if Frankie's AI is
+# unavailable or errors.
 # ---------------------------------------------------------------------------
 
 def _frankie_form_defaults():
@@ -5741,6 +5757,245 @@ def buyer_frankie_suggest_criteria():
     context = " ".join(context_parts)
 
     result = ai_assistant.run_suggest_criteria(context, existing_labels)
+    return jsonify(result)
+
+
+def _ai_frankie_vendor_system_prompt(user, context):
+    """System prompt for the wizard vendor step's embedded "Ask Frankie"
+    chat (buyer_frankie_vendor_chat) -- same directory-only tool scope
+    and "BuyersForce first" philosophy as Discover's Frankie in
+    'directory' mode (_ai_discover_system_prompt), just framed around
+    building this one scorecard instead of open-ended browsing, and
+    proactive: Frankie should search as soon as there's enough to go
+    on -- including on its very first reply, using whatever the buyer
+    already typed into step 1 -- rather than waiting to be asked twice."""
+    categories = ", ".join(all_technology_categories())
+    segments = ", ".join(all_technology_segments())
+    sizes = ", ".join(COMPANY_SIZE_BANDS)
+    return (
+        f"You are Frankie, BuyersForce's AI assistant, embedded in {user['name']}'s "
+        f"\"Build with Frankie\" evaluation wizard on the Evaluate page. Right now "
+        f"you're helping with ONE specific step: finding vendors to add to this "
+        f"scorecard. {context}\n\n"
+        f"VERIFIED DIRECTORY SEARCH ONLY\n"
+        f"You can only search BuyersForce's own vetted vendor directory here, via "
+        f"the search_vendors tool -- there's no web search in this wizard. Call "
+        f"search_vendors as soon as you have enough to go on -- including "
+        f"proactively on your very first reply when the buyer already described "
+        f"what they need back in step 1 -- rather than asking them to repeat "
+        f"themselves. Only ever call a result \"on BuyersForce\" if it actually "
+        f"came back from the tool. Valid technology categories: {categories}. "
+        f"Valid segments: {segments}. Valid company-size bands: {sizes}.\n\n"
+        f"SEARCH THOROUGHLY\n"
+        f"Always pass `query` with the buyer's own topic/phrase -- it matches "
+        f"every field on a listing, including sub-category/segment tags and "
+        f"freeform tags, not just the written description.\n\n"
+        f"AFTER SEARCHING\n"
+        f"The app already shows the full result cards right below your reply, "
+        f"each with its own one-click \"+ Add\" button that drops it straight "
+        f"into the scorecard -- so keep your reply to a short, warm sentence or "
+        f"two (what you searched for, or that nothing matched) rather than "
+        f"re-listing every vendor by name. If nothing matches, say so plainly and "
+        f"suggest the buyer either try different wording or add a vendor "
+        f"manually by name using the search box above this chat.\n\n"
+        f"FORMATTING\n"
+        f"If you ask a follow-up question or list more than a couple of things in "
+        f"your own text, use a short bulleted list (one line per item, starting "
+        f"with \"\u2022\") instead of a run-on sentence.\n\n"
+        f"STYLE\n"
+        f"Be concise, warm, and consultative -- a few sentences per turn, not a "
+        f"wall of text."
+    )
+
+
+@app.route("/app/buyer/evaluations/frankie/vendor-chat", methods=("POST",))
+@role_required("buyer")
+def buyer_frankie_vendor_chat():
+    """AJAX-only: the wizard vendor step's embedded "Ask Frankie" chat --
+    the conversational counterpart to Discover's Frankie
+    (buyer_discover_chat), scoped to this one scorecard and
+    directory-only (no web_search, no suggest_vendor -- a buyer who
+    wants to add something outside BuyersForce still does that from
+    Discover itself). Reuses the exact same _ai_search_vendors helper and
+    run_chat_turn loop as Discover; a picked vendor gets added to the
+    wizard's own list client-side via the same addVendorRow() the manual
+    search box already uses, not a server round-trip, so there's no
+    separate "add" endpoint here."""
+    if request.content_length and request.content_length > _AI_CHAT_MAX_REQUEST_BYTES:
+        return jsonify({
+            "reply": "This conversation has gotten pretty long -- could you start a fresh one?",
+            "messages": [], "vendor_results": [], "error": "too_large",
+        }), 200
+
+    data = request.get_json(silent=True) or {}
+    history = data.get("messages")
+    if not isinstance(history, list):
+        history = []
+    user_message = (data.get("message") or "").strip()[:2000]
+    if not user_message:
+        return jsonify({"error": "empty_message"}), 400
+
+    project_name = (data.get("project_name") or "").strip()[:200]
+    about = (data.get("about") or "").strip()[:1000]
+    context_bits = []
+    if project_name:
+        context_bits.append(f'The evaluation project is named "{project_name}".')
+    if about:
+        context_bits.append(f"What the buyer said they're evaluating: {about}")
+    context = " ".join(context_bits) or "No extra context given yet -- ask what they're looking for."
+
+    def handle_search_vendors(tool_input):
+        try:
+            requested_limit = int(tool_input.get("limit") or 12)
+        except (TypeError, ValueError):
+            requested_limit = 12
+        vendors = _ai_search_vendors(
+            query=tool_input.get("query"),
+            categories=tool_input.get("technology_categories") or [],
+            segments=tool_input.get("segments") or [],
+            company_size=tool_input.get("company_size"),
+            ownership_status=tool_input.get("ownership_status"),
+            limit=requested_limit,
+        )
+        summary = [{
+            "id": v["id"], "company_name": v["company_name"], "category": v["category"],
+            "tagline": v.get("tagline") or (v.get("description") or "")[:160],
+            "company_size": v.get("company_size"), "hq_location": v.get("hq_location"),
+            "founded_year": v.get("founded_year"),
+        } for v in vendors]
+        # Trimmed, frontend-facing shape -- just enough to render a mini
+        # card and let the buyer add it; same idea as Discover's chat,
+        # minus fields this wizard's cards don't show.
+        frontend_vendors = [{
+            "id": v["id"], "company_name": v["company_name"], "category": v["category"],
+            "tagline": v.get("tagline") or (v.get("description") or "")[:160],
+            "accent": v.get("accent"), "initials": v.get("initials"), "logo_url": v.get("logo_url"),
+        } for v in vendors]
+        return json.dumps(summary), frontend_vendors
+
+    system_prompt = _ai_frankie_vendor_system_prompt(g.user, context)
+    tools = ai_assistant.build_directory_tools(
+        all_technology_categories(), all_technology_segments(), COMPANY_SIZE_BANDS
+    )
+    result = ai_assistant.run_chat_turn(
+        system_prompt=system_prompt, tools=tools,
+        tool_handlers={"search_vendors": handle_search_vendors},
+        history=history, user_message=user_message,
+    )
+    return jsonify(result)
+
+
+def _ai_frankie_criteria_system_prompt(user, context):
+    """System prompt for the wizard criteria step's embedded,
+    conversational "Refine with Frankie" assistant
+    (buyer_frankie_criteria_chat) -- the back-and-forth counterpart to
+    the quick one-click run_suggest_criteria button above. Frankie
+    proposes via the propose_criteria tool (never free text) so every
+    suggestion renders as its own one-click chip."""
+    return (
+        f"You are Frankie, BuyersForce's AI assistant, embedded in {user['name']}'s "
+        f"\"Build with Frankie\" evaluation wizard on the Evaluate page. Right now "
+        f"you're helping with ONE specific step: proposing success criteria for "
+        f"this scorecard. {context}\n\n"
+        f"Propose criteria the buyer will score each vendor against -- concrete "
+        f"and specific to what's being evaluated (e.g. \"Ease of integration\", "
+        f"\"Total cost of ownership\", \"SOC 2 compliance\"), never generic filler "
+        f"like \"Quality\" or \"Good value\". Call propose_criteria whenever you "
+        f"have one or more to suggest, including proactively on your very first "
+        f"reply once you have enough context -- don't make the buyer ask first. "
+        f"If you genuinely need more context (what they're buying, what matters "
+        f"most), ask one brief question before proposing anything.\n\n"
+        f"The app renders each criterion you propose as its own chip with a "
+        f"one-click Add button, alongside whatever short reply you write -- keep "
+        f"that reply to a sentence or two, since the chips do the showing, and "
+        f"never repeat a criterion already on the buyer's list. If the buyer asks "
+        f"for more, fewer, or a different emphasis (e.g. \"more about "
+        f"compliance\", \"give me 3 more\", \"less about cost\"), propose a "
+        f"fresh batch that fits that ask.\n\n"
+        f"STYLE\n"
+        f"Be concise, warm, and consultative -- a few sentences per turn, not a "
+        f"wall of text."
+    )
+
+
+@app.route("/app/buyer/evaluations/frankie/criteria-chat", methods=("POST",))
+@role_required("buyer")
+def buyer_frankie_criteria_chat():
+    """AJAX-only: the wizard criteria step's embedded, conversational
+    "Refine with Frankie" chat -- sits alongside the quick one-click
+    "Ask Frankie for ideas" button (buyer_frankie_suggest_criteria) as a
+    back-and-forth alternative for a buyer who wants to steer what gets
+    suggested ("more about compliance", "give me 3 more") rather than
+    take one batch and edit it by hand. Every suggestion still only ever
+    reaches the form when the buyer clicks that criterion's own "+ Add"
+    chip -- nothing here writes to the form directly."""
+    if request.content_length and request.content_length > _AI_CHAT_MAX_REQUEST_BYTES:
+        return jsonify({
+            "reply": "This conversation has gotten pretty long -- could you start a fresh one?",
+            "messages": [], "criteria_suggestions": [], "error": "too_large",
+        }), 200
+
+    data = request.get_json(silent=True) or {}
+    history = data.get("messages")
+    if not isinstance(history, list):
+        history = []
+    user_message = (data.get("message") or "").strip()[:2000]
+    if not user_message:
+        return jsonify({"error": "empty_message"}), 400
+
+    project_name = (data.get("project_name") or "").strip()[:200]
+    about = (data.get("about") or "").strip()[:1000]
+    existing_labels = [l.strip() for l in (data.get("existing_labels") or []) if l and l.strip()][:MAX_EVAL_CRITERIA]
+
+    vendor_ids = []
+    for raw in (data.get("vendor_ids") or []):
+        try:
+            vendor_ids.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+    vendor_names = []
+    if vendor_ids:
+        rows = dbm.query("SELECT company_name FROM vendors WHERE id = ANY(?)", (vendor_ids,))
+        vendor_names = [r["company_name"] for r in rows]
+
+    context_bits = []
+    if project_name:
+        context_bits.append(f'The evaluation project is named "{project_name}".')
+    if vendor_names:
+        context_bits.append(f"Vendors being compared: {', '.join(vendor_names)}.")
+    if about:
+        context_bits.append(f"What the buyer said they're buying: {about}")
+    if existing_labels:
+        context_bits.append(f"Criteria already on the scorecard -- never repeat these: {', '.join(existing_labels)}.")
+    context = " ".join(context_bits) or "No extra context given yet -- ask what they're buying."
+
+    def handle_propose_criteria(tool_input):
+        existing_lower = {e.lower() for e in existing_labels}
+        seen = set()
+        cleaned = []
+        for item in (tool_input.get("criteria") or []):
+            if not isinstance(item, str):
+                continue
+            label = item.strip().strip("-\u2022").strip()
+            if not label or len(label) > 60:
+                continue
+            key = label.lower()
+            if key in existing_lower or key in seen:
+                continue
+            seen.add(key)
+            cleaned.append(label)
+            if len(cleaned) >= 8:
+                break
+        return json.dumps({"added": cleaned}), cleaned
+
+    system_prompt = _ai_frankie_criteria_system_prompt(g.user, context)
+    tools = ai_assistant.build_criteria_tools()
+    result = ai_assistant.run_chat_turn(
+        system_prompt=system_prompt, tools=tools,
+        tool_handlers={"propose_criteria": handle_propose_criteria},
+        history=history, user_message=user_message,
+    )
+    result["criteria_suggestions"] = (result.get("tool_side_channels") or {}).get("propose_criteria") or []
     return jsonify(result)
 
 
