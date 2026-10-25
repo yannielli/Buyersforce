@@ -34,6 +34,12 @@
   --good: #0ca30c;
   --good-tint: #e6f7e6;
   --good-ink: #0b6b0b;
+  /* "In progress" status badge -- deliberately a brighter blue, distinct
+     from --brand (teal), so it doesn't read the same as category badges
+     like .cat-tech_support that share the brand tokens. */
+  --progress: #2f6fed;
+  --progress-tint: #e5edff;
+  --progress-ink: #1d4ed8;
   --warning: #fab219;
   --warning-tint: #fff6e2;
   --warning-ink: #96650a;
@@ -83,6 +89,8 @@ html[data-theme="dark"] {
 
   --good-tint: rgba(12,163,12,0.18);
   --good-ink: #7fdb85;
+  --progress-tint: rgba(59,130,246,0.22);
+  --progress-ink: #8ab4ff;
   --warning-tint: rgba(250,178,25,0.16);
   --warning-ink: #ffce6b;
   --warning-border: rgba(250,178,25,0.45);
@@ -265,6 +273,7 @@ button { font-family: inherit; }
 .badge-warning { background: var(--warning-tint); color: var(--warning-ink); }
 .badge-serious { background: var(--serious-tint); color: var(--serious-ink); }
 .badge-brand { background: var(--brand-tint); color: var(--brand-dark); }
+.badge-progress { background: var(--progress-tint); color: var(--progress-ink); }
 .tag { display: inline-block; padding: 3px 9px; border-radius: 6px; background: var(--page); border: 1px solid var(--gridline); font-size: 12px; color: var(--ink-secondary); margin: 0 6px 6px 0; }
 
 /* ---------- support ticket chips: reference number + category ----------

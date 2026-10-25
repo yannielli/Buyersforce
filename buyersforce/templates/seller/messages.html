@@ -102,7 +102,7 @@
       {% if t.latest_ticket %}
       <span class="ref-badge" style="margin-left:6px;">#BF-{{ t.latest_ticket.reference_number }}</span>
       <span class="cat-badge cat-{{ t.latest_ticket.category }}" style="margin-left:4px;">{{ category_labels[t.latest_ticket.category] if category_labels else t.latest_ticket.category }}</span>
-      <span class="badge {{ 'badge-good' if t.latest_ticket.status == 'resolved' else ('badge-brand' if t.latest_ticket.status == 'in_progress' else 'badge-warning') }}" style="margin-left:4px;">{{ t.latest_ticket.status.replace('_', ' ')|capitalize }}</span>
+      <span class="badge {{ 'badge-good' if t.latest_ticket.status == 'resolved' else ('badge-progress' if t.latest_ticket.status == 'in_progress' else 'badge-warning') }}" style="margin-left:4px;">{{ t.latest_ticket.status.replace('_', ' ')|capitalize }}</span>
       {% endif %}
       <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
     </div>

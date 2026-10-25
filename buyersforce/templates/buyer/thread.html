@@ -58,7 +58,7 @@
     <span>
       {% if support_request.reference_number %}<span class="ref-badge" style="margin-right:4px;">#BF-{{ support_request.reference_number }}</span>{% endif %}
       <span class="cat-badge cat-{{ support_request.category }}">{{ category_labels[support_request.category] }}</span>
-      <span class="badge {{ 'badge-good' if support_request.status == 'resolved' else ('badge-brand' if support_request.status == 'in_progress' else 'badge-warning') }}" style="margin-left:4px;">{{ support_request.status.replace('_', ' ')|capitalize }}</span>
+      <span class="badge {{ 'badge-good' if support_request.status == 'resolved' else ('badge-progress' if support_request.status == 'in_progress' else 'badge-warning') }}" style="margin-left:4px;">{{ support_request.status.replace('_', ' ')|capitalize }}</span>
       <span class="hint" style="margin-left:8px;">Submitted {{ support_request.created_at|fmt_time }}</span>
       {% if support_request.attachment_data_url %}
       <div style="margin-top:10px;">
