@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% block title %}Build with Frankie{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Guided setup</span>
+    <h1>✨ Build with Frankie</h1>
+    <p class="lede">Answer a few quick questions and Frankie will put together a full scorecard -- vendors, success criteria, and a rating scale -- and start the evaluation project for you.</p>
+  </div>
+  <a href="{{ url_for('buyer_evaluations') }}" class="btn btn-ghost btn-sm">← Back to Evaluate</a>
+</div>
+
+<form method="post" action="{{ url_for('buyer_frankie_create') }}" id="frankie-form" class="card frankie-wizard" style="max-width:680px;">
+
+  <div class="frankie-progress" aria-hidden="true">
+    <div class="frankie-progress-track"><div class="frankie-progress-fill" id="frankie-progress-fill"></div></div>
+    <span class="hint" id="frankie-progress-label">Step 1 of 5</span>
+  </div>
+
+  <fieldset class="frankie-step" data-step="1">
+    <legend>What's this evaluation called?</legend>
+    <p class="hint" style="margin-top:0;">A short name for the project -- you and your team will see this on the Evaluate page.</p>
+    <div class="field">
+      <label for="frankie-name">Project name</label>
+      <input type="text" name="name" id="frankie-name" placeholder="e.g. CrowdStrike vs. SentinelOne" autocomplete="off" value="{{ form_name }}" required>
+    </div>
+  </fieldset>
+
+  <fieldset class="frankie-step" data-step="2" hidden>
+    <legend>How many vendors are you comparing?</legend>
+    <p class="hint" style="margin-top:0;">Just a rough number -- you'll pick the actual vendors next.</p>
+    <div class="field">
+      <label for="frankie-vendor-count">Vendor count</label>
+      <input type="number" name="vendor_count" id="frankie-vendor-count" min="1" max="20" step="1" value="{{ vendor_count }}" style="width:100px;">
+    </div>
+  </fieldset>
+
+  <fieldset class="frankie-step" data-step="3" hidden>
+    <legend>Name your vendors</legend>
+    <p class="hint" id="frankie-vendor-hint" style="margin-top:0;">Add the vendors you're comparing -- these become the columns on your scorecard.</p>
+    <div class="field">
+      <label for="frankie-vendor-search">Search for a vendor</label>
+      <input type="text" id="frankie-vendor-search" list="frankie-all-vendors" placeholder="Start typing a company name…" autocomplete="off">
+      <datalist id="frankie-all-vendors">
+        {% for v in all_vendors %}<option value="{{ v.company_name }}">{% endfor %}
+      </datalist>
+      <p class="hint" style="margin-top:4px;">Pick a match from the suggestions to add it below.</p>
+    </div>
+    <div class="ready-vendor-list" id="frankie-vendor-list">
+      {% for r in vendor_rows %}
+      <div class="ready-vendor-row">
+        <label style="display:flex; align-items:center; gap:8px; margin:0; cursor:pointer;">
+          <input type="checkbox" name="vendor_ids" value="{{ r.id }}" class="ready-vendor-checkbox" checked>
+          <span class="vendor-logo" style="background:var(--brand); width:32px;height:32px;font-size:11px;">{{ r.company_name[:2]|upper }}</span>
+          <strong>{{ r.company_name }}</strong>
+        </label>
+        <button type="button" class="ready-vendor-remove frankie-remove-vendor" title="Remove {{ r.company_name }}">&times;</button>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="hint" id="frankie-no-vendors-hint" style="margin-top:8px;" {{ 'hidden' if vendor_rows }}>Nothing added yet -- search above to add your first vendor.</p>
+  </fieldset>
+
+  <fieldset class="frankie-step" data-step="4" hidden>
+    <legend>What will you score them on?</legend>
+    <p class="hint" style="margin-top:0;">These are your success criteria -- add your own, or let Frankie suggest some to start from.</p>
+
+    <div class="field">
+      <label for="frankie-about">What are you buying? (optional, helps Frankie's suggestions)</label>
+      <textarea id="frankie-about" name="about" rows="2" placeholder="e.g. An endpoint security tool for a 200-person engineering org"></textarea>
+    </div>
+    <button type="button" id="frankie-suggest-btn" class="btn btn-secondary btn-sm">✨ Ask Frankie for ideas</button>
+    <span class="hint" id="frankie-suggest-status" style="margin-left:8px;"></span>
+
+    <div class="form-row criteria-col-headers" style="margin-top:16px; margin-bottom:6px;">
+      <span class="hint" style="margin:0;">Criterion</span>
+      <span class="hint criteria-weight-header" style="margin:0;">Weight</span>
+    </div>
+    <div id="criteria-rows" data-max="{{ max_criteria }}">
+      {% for label, weight in criterion_rows %}
+      <div class="form-row criterion-input-row" style="margin-bottom:8px;">
+        <input type="text" name="criterion_label" placeholder="Criterion {{ loop.index }} (e.g. Ease of integration)" value="{{ label }}">
+        <div class="weight-input-wrap">
+          <input type="number" name="criterion_weight" min="0" max="100" step="1" value="{{ weight }}" class="criterion-weight-input" title="Weight (%)">
+          <span class="weight-suffix">%</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="criteria-controls">
+      <button type="button" id="add-criterion-btn" class="btn btn-ghost btn-sm">+ Add criterion</button>
+      <span class="hint" id="criteria-total-hint" style="margin:0;">Total weight: <strong id="criteria-total-value">0</strong>%</span>
+    </div>
+    <p class="hint">Leave a row blank to skip it. Weight is the percent of the overall score each criterion carries -- <strong>all weights must add up to 100%.</strong></p>
+  </fieldset>
+
+  <fieldset class="frankie-step" data-step="5" hidden>
+    <legend>Pick a rating scale and name your scorecard</legend>
+    <div class="field">
+      <label for="frankie-scale">Rating scale</label>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="hint" style="margin:0;">Rate vendors on a scale of 1 to</span>
+        <input type="number" name="scale_max" id="frankie-scale" min="{{ min_scale }}" max="{{ max_scale }}" step="1" value="{{ scale_max }}" style="width:70px;">
+      </div>
+      <p class="hint">Most teams use 1-5 or 1-10. This is set once and can't be changed later, so scores already recorded always mean what they said.</p>
+    </div>
+    <div class="field">
+      <label for="frankie-template-name">Scorecard name</label>
+      <input type="text" name="template_name" id="frankie-template-name" placeholder="e.g. Security Tooling Scorecard" value="{{ template_name }}">
+    </div>
+    <div class="field">
+      <label for="frankie-template-description">Description (optional)</label>
+      <textarea name="template_description" id="frankie-template-description" placeholder="What is this scorecard for?">{{ template_description }}</textarea>
+    </div>
+
+    <div class="card" id="frankie-review" style="background:var(--surface-2, #f6f6f4);">
+      <h3 style="font-size:14px; margin-top:0;">Review</h3>
+      <p class="hint" style="margin:0 0 4px;" id="frankie-review-name">Project: --</p>
+      <p class="hint" style="margin:0 0 4px;" id="frankie-review-vendors">Vendors: --</p>
+      <p class="hint" style="margin:0;" id="frankie-review-criteria">Criteria: --</p>
+    </div>
+  </fieldset>
+
+  <div class="frankie-nav">
+    <button type="button" id="frankie-back-btn" class="btn btn-ghost" hidden>← Back</button>
+    <button type="button" id="frankie-next-btn" class="btn btn-primary">Next →</button>
+    <button type="submit" id="frankie-submit-btn" class="btn btn-primary" hidden>Create evaluation</button>
+  </div>
+</form>
+
+<script>
+(function() {
+  var form = document.getElementById('frankie-form');
+  if (!form) { return; }
+  var steps = Array.from(form.querySelectorAll('.frankie-step'));
+  var backBtn = document.getElementById('frankie-back-btn');
+  var nextBtn = document.getElementById('frankie-next-btn');
+  var submitBtn = document.getElementById('frankie-submit-btn');
+  var progressFill = document.getElementById('frankie-progress-fill');
+  var progressLabel = document.getElementById('frankie-progress-label');
+  var current = 0;
+
+  function showStep(i) {
+    steps.forEach(function(s, idx) { s.hidden = (idx !== i); });
+    backBtn.hidden = (i === 0);
+    nextBtn.hidden = (i === steps.length - 1);
+    submitBtn.hidden = (i !== steps.length - 1);
+    progressFill.style.width = Math.round(((i + 1) / steps.length) * 100) + '%';
+    progressLabel.textContent = 'Step ' + (i + 1) + ' of ' + steps.length;
+    if (i === steps.length - 1) { updateReview(); }
+    current = i;
+  }
+
+  function stepValid(i) {
+    if (i === 0) {
+      var name = document.getElementById('frankie-name');
+      if (!name.value.trim()) { name.reportValidity(); return false; }
+    }
+    if (i === 2) {
+      if (!form.querySelectorAll('.ready-vendor-checkbox').length) {
+        document.getElementById('frankie-no-vendors-hint').hidden = false;
+        return false;
+      }
+    }
+    return true;
+  }
+
+  nextBtn.addEventListener('click', function() {
+    if (!stepValid(current)) { return; }
+    if (current < steps.length - 1) { showStep(current + 1); }
+  });
+  backBtn.addEventListener('click', function() {
+    if (current > 0) { showStep(current - 1); }
+  });
+  showStep(0);
+
+  // Step 3 -- vendor search/add, same pattern as the plain "New
+  // Evaluation" form on evaluations.html, but writing into
+  // #frankie-vendor-list instead.
+  var vendorMap = {};
+  ({{ all_vendors | tojson }}).forEach(function(v) { vendorMap[v.company_name] = v.id; });
+  var vendorInput = document.getElementById('frankie-vendor-search');
+  var vendorList = document.getElementById('frankie-vendor-list');
+  var noVendorsHint = document.getElementById('frankie-no-vendors-hint');
+
+  function removeVendorRow(row) {
+    row.remove();
+    if (noVendorsHint && !vendorList.querySelector('.ready-vendor-checkbox')) {
+      noVendorsHint.hidden = false;
+    }
+  }
+  vendorList.querySelectorAll('.frankie-remove-vendor').forEach(function(btn) {
+    btn.addEventListener('click', function() { removeVendorRow(btn.closest('.ready-vendor-row')); });
+  });
+
+  function addVendorRow(id, name) {
+    if (vendorList.querySelector('.ready-vendor-checkbox[value="' + id + '"]')) { return; }
+    var row = document.createElement('div');
+    row.className = 'ready-vendor-row';
+    var label = document.createElement('label');
+    label.style.cssText = 'display:flex; align-items:center; gap:8px; margin:0; cursor:pointer;';
+    var checkbox = document.createElement('input');
+    checkbox.type = 'checkbox'; checkbox.name = 'vendor_ids'; checkbox.value = id;
+    checkbox.className = 'ready-vendor-checkbox'; checkbox.checked = true;
+    var logo = document.createElement('span');
+    logo.className = 'vendor-logo';
+    logo.style.cssText = 'background:var(--brand); width:32px;height:32px;font-size:11px;';
+    logo.textContent = name.slice(0, 2).toUpperCase();
+    var strong = document.createElement('strong');
+    strong.textContent = name;
+    label.appendChild(checkbox); label.appendChild(logo); label.appendChild(strong);
+    var removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'ready-vendor-remove frankie-remove-vendor';
+    removeBtn.title = 'Remove ' + name;
+    removeBtn.innerHTML = '&times;';
+    removeBtn.addEventListener('click', function() { removeVendorRow(row); });
+    row.appendChild(label); row.appendChild(removeBtn);
+    vendorList.appendChild(row);
+    if (noVendorsHint) { noVendorsHint.hidden = true; }
+  }
+  if (vendorInput) {
+    vendorInput.addEventListener('input', function() {
+      var name = vendorInput.value.trim();
+      var id = vendorMap[name];
+      if (!id) { return; }
+      addVendorRow(id, name);
+      vendorInput.value = '';
+    });
+  }
+
+  // Step 4 -- "Ask Frankie for ideas": sends the project name, picked
+  // vendors, and the optional "about" note to the suggest-criteria
+  // endpoint, then drops the results into empty/new criterion rows and
+  // re-splits weights evenly across everything filled in so the total
+  // still reads 100%. Entirely optional -- a failure here just shows a
+  // small inline note and leaves the form exactly as it was.
+  var suggestBtn = document.getElementById('frankie-suggest-btn');
+  var suggestStatus = document.getElementById('frankie-suggest-status');
+  var criteriaRows = document.getElementById('criteria-rows');
+  var SUGGEST_URL = {{ url_for('buyer_frankie_suggest_criteria') | tojson }};
+
+  function criterionLabelInputs() {
+    return Array.from(criteriaRows.querySelectorAll('input[name="criterion_label"]'));
+  }
+
+  function rebalanceWeights() {
+    var rows = Array.from(criteriaRows.querySelectorAll('.criterion-input-row')).filter(function(row) {
+      var l = row.querySelector('input[name="criterion_label"]');
+      return l && l.value.trim();
+    });
+    if (!rows.length) { return; }
+    var base = Math.floor(100 / rows.length);
+    var remainder = 100 - base * rows.length;
+    rows.forEach(function(row, idx) {
+      var w = row.querySelector('input[name="criterion_weight"]');
+      if (w) { w.value = base + (idx < remainder ? 1 : 0); }
+    });
+    criteriaRows.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  if (suggestBtn) {
+    suggestBtn.addEventListener('click', function() {
+      suggestBtn.disabled = true;
+      suggestStatus.textContent = 'Thinking…';
+      var fd = new FormData();
+      fd.append('project_name', document.getElementById('frankie-name').value.trim());
+      fd.append('about', document.getElementById('frankie-about').value.trim());
+      vendorList.querySelectorAll('.ready-vendor-checkbox').forEach(function(cb) { fd.append('vendor_ids', cb.value); });
+      criterionLabelInputs().forEach(function(l) { if (l.value.trim()) { fd.append('existing_labels', l.value.trim()); } });
+
+      fetch(SUGGEST_URL, { method: 'POST', body: fd })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          suggestBtn.disabled = false;
+          if (!data || data.error || !data.criteria || !data.criteria.length) {
+            suggestStatus.textContent = data && data.error === 'no_api_key'
+              ? "Frankie's AI suggestions aren't set up on this account -- add your own criteria above."
+              : "Couldn't get suggestions right now -- add your own above.";
+            return;
+          }
+          var emptyInputs = criterionLabelInputs().filter(function(l) { return !l.value.trim(); });
+          data.criteria.forEach(function(label) {
+            var target = emptyInputs.shift();
+            if (!target && addCriterionBtn && !addCriterionBtn.disabled) {
+              addCriterionBtn.click();
+              var rows = criterionLabelInputs();
+              target = rows[rows.length - 1];
+            }
+            if (target) { target.value = label; }
+          });
+          rebalanceWeights();
+          suggestStatus.textContent = 'Added ' + data.criteria.length + ' suggestion' + (data.criteria.length !== 1 ? 's' : '') + ' -- feel free to edit or remove any of them.';
+        })
+        .catch(function() {
+          suggestBtn.disabled = false;
+          suggestStatus.textContent = "Couldn't reach Frankie right now -- add your own criteria above.";
+        });
+    });
+  }
+  var addCriterionBtn = document.getElementById('add-criterion-btn');
+
+  // Step 5 review summary.
+  function updateReview() {
+    var name = document.getElementById('frankie-name').value.trim();
+    document.getElementById('frankie-review-name').textContent = 'Project: ' + (name || '--');
+    var vendorNames = Array.from(vendorList.querySelectorAll('.ready-vendor-row strong')).map(function(s) { return s.textContent; });
+    document.getElementById('frankie-review-vendors').textContent = 'Vendors (' + vendorNames.length + '): ' + (vendorNames.join(', ') || '--');
+    var criteriaLabels = criterionLabelInputs().map(function(l) { return l.value.trim(); }).filter(Boolean);
+    document.getElementById('frankie-review-criteria').textContent = 'Criteria (' + criteriaLabels.length + '): ' + (criteriaLabels.join(', ') || '--');
+    var templateNameField = document.getElementById('frankie-template-name');
+    if (templateNameField && !templateNameField.value.trim() && name) {
+      templateNameField.value = name + ' Scorecard';
+    }
+  }
+})();
+</script>
+{% endblock %}

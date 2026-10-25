@@ -5658,6 +5658,209 @@ def buyer_start_project():
     return redirect(url_for("buyer_project_detail", project_id=project_id))
 
 
+# ---------------------------------------------------------------------------
+# Frankie -- guided checklist (Evaluate Roadmap step 7). A step-by-step
+# wizard that walks a buyer through the same four things they'd otherwise
+# fill in across two separate forms (New Evaluation's vendor picker +
+# scorecard-template fields, and "+ New Scorecard"'s criteria/weights/
+# scale) -- vendor count, the vendors themselves (the scorecard's column
+# headers), success criteria (optionally AI-suggested), and a rating
+# scale -- then creates the template and starts the project in one step,
+# via the exact same INSERTs buyer_evaluation_new/buyer_start_project use.
+# Deliberately NOT a conversational chat like Discover's Frankie (see
+# buyer_discover_chat) -- the roadmap calls for "a guided wizard,
+# optionally AI-assisted", so this is a structured form with one
+# AI-assisted step, not a freeform back-and-forth.
+# ---------------------------------------------------------------------------
+
+def _frankie_form_defaults():
+    return {
+        "form_name": "",
+        "vendor_count": 3,
+        "vendor_rows": [],
+        "criterion_rows": [("", 20)] * 5,
+        "scale_max": DEFAULT_EVAL_SCALE,
+        "template_name": "",
+        "template_description": "",
+        "about": "",
+    }
+
+
+def _render_frankie_wizard(**overrides):
+    ctx = _frankie_form_defaults()
+    ctx.update(overrides)
+    all_vendors = dbm.query("SELECT id, company_name FROM vendors ORDER BY company_name")
+    return render_template(
+        "buyer/evaluation_frankie.html",
+        all_vendors=all_vendors,
+        max_criteria=MAX_EVAL_CRITERIA, min_scale=MIN_EVAL_SCALE, max_scale=MAX_EVAL_SCALE,
+        **ctx,
+    )
+
+
+@app.route("/app/buyer/evaluations/frankie")
+@role_required("buyer")
+def buyer_evaluation_frankie():
+    return _render_frankie_wizard()
+
+
+@app.route("/app/buyer/evaluations/frankie/suggest-criteria", methods=("POST",))
+@role_required("buyer")
+def buyer_frankie_suggest_criteria():
+    """AJAX-only: the wizard's "Ask Frankie for ideas" button on the
+    criteria step. Never raises on a missing/misconfigured API key or an
+    Anthropic error -- those come back as a plain {"error": ...} the
+    frontend shows a friendly inline note for, since this step is
+    explicitly optional (a buyer can always just type their own
+    criteria) and shouldn't be able to break the wizard."""
+    project_name = request.form.get("project_name", "").strip()
+    about = request.form.get("about", "").strip()
+    existing_labels = [l.strip() for l in request.form.getlist("existing_labels") if l.strip()]
+
+    vendor_ids = []
+    for v in request.form.getlist("vendor_ids"):
+        try:
+            vendor_ids.append(int(v))
+        except (TypeError, ValueError):
+            continue
+    vendor_rows = dbm.query(
+        "SELECT company_name, category FROM vendors WHERE id = ANY(?)", (vendor_ids,)
+    ) if vendor_ids else []
+    vendor_names = [r["company_name"] for r in vendor_rows]
+    categories = sorted({r["category"] for r in vendor_rows if r.get("category")})
+
+    context_parts = []
+    if project_name:
+        context_parts.append(f"Evaluation project: {project_name}.")
+    if vendor_names:
+        context_parts.append(f"Vendors being compared: {', '.join(vendor_names)}.")
+    if categories:
+        context_parts.append(f"Vendor category/categories: {', '.join(categories)}.")
+    if about:
+        context_parts.append(f"What they're buying / what matters to them: {about}")
+    context = " ".join(context_parts)
+
+    result = ai_assistant.run_suggest_criteria(context, existing_labels)
+    return jsonify(result)
+
+
+@app.route("/app/buyer/evaluations/frankie/create", methods=("POST",))
+@role_required("buyer")
+def buyer_frankie_create():
+    name = request.form.get("name", "").strip()
+    try:
+        vendor_count = int(request.form.get("vendor_count", 3))
+    except (TypeError, ValueError):
+        vendor_count = 3
+
+    seen = set()
+    vendor_ids = []
+    for v in request.form.getlist("vendor_ids"):
+        try:
+            vid = int(v)
+        except (TypeError, ValueError):
+            continue
+        if vid not in seen:
+            seen.add(vid)
+            vendor_ids.append(vid)
+
+    template_name = request.form.get("template_name", "").strip() or (f"{name} Scorecard" if name else "")
+    template_description = request.form.get("template_description", "").strip()
+    about = request.form.get("about", "").strip()
+
+    labels = request.form.getlist("criterion_label")
+    weights = request.form.getlist("criterion_weight")
+    filled = [(l.strip(), w) for l, w in zip(labels, weights) if l.strip()]
+
+    try:
+        scale_max = int(request.form.get("scale_max", DEFAULT_EVAL_SCALE))
+    except (TypeError, ValueError):
+        scale_max = DEFAULT_EVAL_SCALE
+    scale_max = max(MIN_EVAL_SCALE, min(MAX_EVAL_SCALE, scale_max))
+
+    def _sticky_vendor_rows():
+        if not vendor_ids:
+            return []
+        rows = dbm.query(
+            "SELECT id, company_name FROM vendors WHERE id = ANY(?) ORDER BY company_name", (vendor_ids,)
+        )
+        return rows
+
+    error = None
+    parsed = []
+    if not name:
+        error = "Give this evaluation project a name."
+    elif not vendor_ids:
+        error = "Add at least one vendor to compare."
+    elif not template_name:
+        error = "Give your scorecard a name."
+    elif not filled:
+        error = "Add at least one success criterion -- that's the whole point of Frankie's checklist!"
+    elif len(filled) > MAX_EVAL_CRITERIA:
+        error = f"A scorecard can have at most {MAX_EVAL_CRITERIA} criteria."
+    else:
+        total = 0
+        for label, w in filled:
+            try:
+                weight = max(0, int(w))
+            except (TypeError, ValueError):
+                weight = 0
+            parsed.append((label, weight))
+            total += weight
+        if total != 100:
+            error = f"Criteria weights must add up to 100% -- they currently add up to {total}%."
+
+    if error:
+        flash(error, "error")
+        return _render_frankie_wizard(
+            form_name=name, vendor_count=vendor_count, vendor_rows=_sticky_vendor_rows(),
+            criterion_rows=list(zip(labels, weights)) or [("", "")],
+            scale_max=scale_max, template_name=template_name,
+            template_description=template_description, about=about,
+        )
+
+    template_id = dbm.execute(
+        "INSERT INTO eval_templates (owner_user_id, company, name, description, is_shared, scale_max) "
+        "VALUES (?, ?, ?, ?, 1, ?)",
+        (g.user["id"], g.user["company"], template_name, template_description, scale_max),
+    )
+    for pos, (label, weight) in enumerate(parsed):
+        dbm.execute(
+            "INSERT INTO eval_criteria (template_id, label, weight, position) VALUES (?, ?, ?, ?)",
+            (template_id, label, weight, pos),
+        )
+
+    project_id = dbm.execute(
+        "INSERT INTO eval_projects (template_id, company, name, created_by) VALUES (?, ?, ?, ?)",
+        (template_id, g.user["company"], name, g.user["id"]),
+    )
+    vendor_names = []
+    for vendor_id in vendor_ids:
+        dbm.execute(
+            "INSERT INTO evaluations (template_id, vendor_id, company, created_by, project_id) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (template_id, vendor_id, g.user["company"], g.user["id"], project_id),
+        )
+        existing_sl = dbm.query(
+            "SELECT * FROM shortlist WHERE buyer_user_id=? AND vendor_id=?",
+            (g.user["id"], vendor_id), one=True,
+        )
+        if existing_sl:
+            dbm.execute("UPDATE shortlist SET status='evaluating' WHERE id=?", (existing_sl["id"],))
+        else:
+            dbm.execute(
+                "INSERT INTO shortlist (buyer_user_id, vendor_id, status) VALUES (?, ?, 'evaluating')",
+                (g.user["id"], vendor_id),
+            )
+        vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
+        if vendor:
+            vendor_names.append(vendor["company_name"])
+
+    log_activity(g.user["id"], f"built an evaluation with Frankie for {', '.join(vendor_names) or 'a vendor'}")
+    flash(f'Built "{name}" with Frankie -- {len(parsed)} criteria, {len(vendor_names)} vendor{"s" if len(vendor_names) != 1 else ""}.', "success")
+    return redirect(url_for("buyer_project_detail", project_id=project_id))
+
+
 @app.route("/app/buyer/evaluations/project/<int:project_id>", methods=("GET", "POST"))
 @role_required("buyer")
 def buyer_project_detail(project_id):

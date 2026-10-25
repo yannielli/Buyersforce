@@ -1,5 +1,15 @@
-"""AI Directory Assistant -- a conversational, tool-using Claude agent
-embedded on the buyer Discover page (see buyer_discover_chat in app.py).
+"""Frankie, BuyersForce's AI assistant -- plumbing for every Claude call
+the app makes on a buyer's behalf. Two call shapes live here:
+
+  - A conversational, tool-using loop (run_chat_turn) embedded on the
+    buyer Discover page (see buyer_discover_chat in app.py) -- Frankie
+    can search BuyersForce's own directory and, once the buyer asks,
+    the open web too.
+  - One-shot, tool-free (or single-server-tool) structured lookups that
+    resolve in a single messages.create() call: run_vendor_lookup (the
+    "Suggest a vendor" form's autofill) and run_suggest_criteria (the
+    Evaluate page's "Build with Frankie" guided-checklist wizard's
+    optional "suggest criteria" step).
 
 This module owns the Anthropic API plumbing only: building the tool
 schemas, running the tool-use loop, and handing back a plain-dict result
@@ -306,6 +316,77 @@ def run_vendor_lookup(company_name, website_hint, known_segments, company_size_b
         "segments": segments,
         "web_sources": web_sources,
     }
+
+
+def run_suggest_criteria(context, existing_labels, max_suggestions=6):
+    """One-shot helper for Frankie's "guided checklist" wizard on the
+    Evaluate page (buyer_frankie_suggest_criteria in app.py) -- given a
+    short free-text description of what's being evaluated (project name,
+    the vendors already picked, an optional "what are you buying?" note),
+    suggests common SUCCESS CRITERIA a buyer would score each vendor
+    against. Unlike run_vendor_lookup, this needs no web_search -- it's
+    drawing on Claude's own general knowledge of how B2B software
+    purchases get evaluated, not looking anything up -- so it's a single
+    plain messages.create() call with no tools at all.
+
+    Returns {"criteria": [...]} (zero or more short labels, already
+    de-duplicated against existing_labels and each other, case-
+    insensitively) or {"error": "..."}. Never raises -- a failure here
+    should just leave the wizard's criteria list untouched, since the AI
+    assist is explicitly optional (a buyer can always type their own).
+    """
+    client = get_client()
+    if client is None:
+        return {"error": "no_api_key"}
+
+    existing_list = ", ".join(existing_labels) if existing_labels else "(none yet)"
+    system_prompt = (
+        "You help a B2B software buyer build an evaluation scorecard for comparing "
+        "vendors side by side. Given a short description of what they're buying, "
+        f"suggest up to {max_suggestions} genuinely useful SUCCESS CRITERIA a buyer "
+        "would score each vendor against -- concrete and specific to what's being "
+        "evaluated (e.g. \"Ease of integration\", \"Total cost of ownership\", "
+        "\"Customer support quality\", \"SOC 2 compliance\"), never generic filler "
+        "like \"Quality\" or \"Good value\". Each suggestion is a short label, 2-6 "
+        "words, title case, no numbering or bullets, no explanation. Never repeat "
+        f"or closely duplicate any of these criteria already on the buyer's list: "
+        f"{existing_list}. Respond with ONLY a single JSON object, no markdown "
+        "fences, no words before or after it, in exactly this shape: "
+        '{"criteria": ["Label one", "Label two", ...]}.'
+    )
+
+    try:
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=500,
+            system=system_prompt,
+            messages=[{"role": "user", "content": context or "A general software purchase."}],
+        )
+    except anthropic.APIError as exc:
+        print(f"[ai_assistant] suggest-criteria API error: {type(exc).__name__}: {exc}", flush=True)
+        return {"error": str(exc)}
+
+    data = _parse_json_object(_reply_text(response.content))
+    if data is None:
+        return {"error": "unparseable"}
+
+    existing_lower = {e.strip().lower() for e in existing_labels if e and e.strip()}
+    seen = set()
+    cleaned = []
+    for item in data.get("criteria") or []:
+        if not isinstance(item, str):
+            continue
+        label = item.strip().strip("-•").strip()
+        if not label or len(label) > 60:
+            continue
+        key = label.lower()
+        if key in existing_lower or key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(label)
+        if len(cleaned) >= max_suggestions:
+            break
+    return {"criteria": cleaned}
 
 
 def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):
