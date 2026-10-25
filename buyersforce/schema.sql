@@ -450,6 +450,19 @@ CREATE TABLE thread_reads (
     -- (see the folder-filtering queries in app.py) without needing a
     -- separate purge job -- it just stops being selected by anything.
     deleted_at TEXT,
+    -- Manual override: this user pushed an already-read thread back
+    -- into "unread" (bold in the list) as a personal follow-up flag.
+    -- Cleared the next time they actually open the thread (see
+    -- mark_thread_read in app.py), same as the computed unread check
+    -- it's OR'd together with.
+    manually_unread BOOLEAN NOT NULL DEFAULT false,
+    -- This user flagged the thread as important -- purely a per-viewer
+    -- highlight, never shared with the other party.
+    is_flagged BOOLEAN NOT NULL DEFAULT false,
+    -- This user saved the thread into their own "Saved" bucket, which
+    -- pulls it out of its normal section so the main list stays
+    -- clean. Also per-viewer only.
+    is_saved BOOLEAN NOT NULL DEFAULT false,
     PRIMARY KEY (user_id, thread_id)
 );
 

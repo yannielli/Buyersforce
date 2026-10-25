@@ -2583,6 +2583,9 @@ def unread_count_for(user):
     # Compares message ids rather than timestamps: this app's timestamps
     # only have one-second resolution, so a message posted in the same
     # second as a "mark as read" could otherwise tie and be missed.
+    # Matches THREAD_UNREAD_SQL's two ways a thread counts as unread:
+    # an actual newer message from someone else, OR this user manually
+    # pushed it back into "unread" as a follow-up flag.
     ids = visible_thread_ids(user)
     if not ids:
         return 0
@@ -2592,15 +2595,13 @@ def unread_count_for(user):
         f"WHERE thread_id IN ({placeholders}) AND sender_user_id != ?",
         list(ids) + [user["id"]],
     )
-    if not others_messages:
-        return 0
     read_rows = dbm.query(
-        f"SELECT thread_id, last_read_message_id FROM thread_reads "
+        f"SELECT thread_id, last_read_message_id, manually_unread FROM thread_reads "
         f"WHERE user_id=? AND thread_id IN ({placeholders})",
         [user["id"]] + list(ids),
     )
     last_read = {r["thread_id"]: r["last_read_message_id"] for r in read_rows}
-    unread = set()
+    unread = {r["thread_id"] for r in read_rows if r["manually_unread"]}
     for m in others_messages:
         if m["id"] > last_read.get(m["thread_id"], 0):
             unread.add(m["thread_id"])
@@ -2608,13 +2609,18 @@ def unread_count_for(user):
 
 
 def mark_thread_read(user_id, thread_id):
+    """Also clears manually_unread -- opening a thread that was pushed
+    back into "unread" as a follow-up flag naturally reads it again,
+    same as any other thread (see toggle_thread_unread)."""
     latest = dbm.query(
         "SELECT MAX(id) AS max_id FROM messages WHERE thread_id=?", (thread_id,), one=True
     )
     latest_id = (latest["max_id"] if latest else 0) or 0
     dbm.execute(
-        "INSERT INTO thread_reads (user_id, thread_id, last_read_message_id) VALUES (?, ?, ?) "
-        "ON CONFLICT (user_id, thread_id) DO UPDATE SET last_read_message_id = EXCLUDED.last_read_message_id "
+        "INSERT INTO thread_reads (user_id, thread_id, last_read_message_id, manually_unread) "
+        "VALUES (?, ?, ?, false) "
+        "ON CONFLICT (user_id, thread_id) DO UPDATE SET "
+        "last_read_message_id = EXCLUDED.last_read_message_id, manually_unread = false "
         "RETURNING user_id",
         (user_id, thread_id, latest_id),
     )
@@ -2636,25 +2642,37 @@ def mark_thread_read(user_id, thread_id):
 #     the other party's view of the thread never changes.
 #   Unread: this viewer has at least one message in the thread, from
 #     someone else, newer than the last one they've read (thread_reads.
-#     last_read_message_id, bumped by mark_thread_read on every visit).
-#     Drives the bold row styling and the unread counters.
+#     last_read_message_id, bumped by mark_thread_read on every visit),
+#     OR this viewer manually pushed it back into "unread" as a
+#     follow-up flag (thread_reads.manually_unread -- see
+#     toggle_thread_unread). Drives the bold row styling and the
+#     unread counters either way.
+#   Flagged / Saved: two more per-viewer toggles (thread_reads.
+#     is_flagged, is_saved) with no computed component -- a plain
+#     on/off this viewer controls directly. Flagged highlights the row;
+#     Saved pulls it out of its normal section into a separate Saved
+#     bucket (see split_saved).
 #
 # Every thread-listing query needs a LEFT JOIN against thread_reads (for
-# THIS viewer, via thread_reads_join_sql) plus the two SELECT-list
-# fragments below, which read off that join.
+# THIS viewer, via thread_reads_join_sql) plus the SELECT-list fragments
+# below, which read off that join.
 # ---------------------------------------------------------------------------
 
 THREAD_DELETE_RETENTION_DAYS = 30
 
 THREAD_UNREAD_SQL = (
-    "EXISTS (SELECT 1 FROM messages um WHERE um.thread_id=t.id AND um.sender_user_id <> ? "
-    "AND um.id > COALESCE(tr.last_read_message_id, 0)) is_unread"
+    "(COALESCE(tr.manually_unread, false) OR EXISTS ("
+    "SELECT 1 FROM messages um WHERE um.thread_id=t.id AND um.sender_user_id <> ? "
+    "AND um.id > COALESCE(tr.last_read_message_id, 0))) is_unread"
 )
 
 THREAD_ARCHIVED_SQL = (
     "(tr.deleted_at IS NOT NULL AND tr.deleted_at::timestamp > "
     f"(now() - interval '{THREAD_DELETE_RETENTION_DAYS} days')) is_archived"
 )
+
+THREAD_FLAGGED_SQL = "COALESCE(tr.is_flagged, false) is_flagged"
+THREAD_SAVED_SQL = "COALESCE(tr.is_saved, false) is_saved"
 
 
 def thread_reads_join_sql(alias="tr"):
@@ -2680,6 +2698,37 @@ def split_by_archived(rows):
     for row in rows:
         (archived if row.get("is_archived") else active).append(row)
     return active, archived
+
+
+def split_saved(rows):
+    """Pulls this viewer's saved rows (is_saved, from THREAD_SAVED_SQL)
+    out of a list of thread rows -- (rest, saved), each still in the
+    caller's original order -- so a Messages page can show Saved as its
+    own bucket instead of wherever the thread would normally land."""
+    rest, saved = [], []
+    for row in rows:
+        (saved if row.get("is_saved") else rest).append(row)
+    return rest, saved
+
+
+def _pull_saved_threads(sections):
+    """sections: {name: rows} for every section on one Messages page
+    (e.g. "direct", "team", "support", plus a page-specific one like
+    "vendor"). Pulls each section's saved rows out (split_saved) and
+    combines them into one Saved bucket, newest-first regardless of
+    which section they came from -- each row is tagged "_section" so
+    the Saved bucket template knows which per-section body markup to
+    reuse for it. Returns (filtered_sections, saved_threads)."""
+    filtered = {}
+    saved_all = []
+    for name, rows in sections.items():
+        rest, saved = split_saved(rows)
+        filtered[name] = rest
+        for row in saved:
+            row["_section"] = name
+        saved_all.extend(saved)
+    saved_all.sort(key=lambda r: r.get("last_at") or "", reverse=True)
+    return filtered, saved_all
 
 
 SUPPORT_STATUS_ORDER = {"open": 0, "in_progress": 1, "resolved": 2}
@@ -2749,6 +2798,88 @@ def restore_thread(thread_id):
     _load_thread_for_user(thread_id, g.user)
     set_thread_deleted(g.user["id"], thread_id, False)
     flash("Conversation restored.", "success")
+    return redirect(_safe_redirect_target(request.form.get("next"), url_for(_messages_route_for(g.user))))
+
+
+def thread_is_unread(user_id, thread_id):
+    """Live is_unread check for one thread (same logic as THREAD_UNREAD_SQL
+    in a listing query) -- used by toggle_thread_unread to decide which
+    way to flip."""
+    row = dbm.query(
+        f"SELECT {THREAD_UNREAD_SQL} FROM threads t " + thread_reads_join_sql() + " WHERE t.id=?",
+        (user_id, user_id, thread_id), one=True,
+    )
+    return bool(row and row["is_unread"])
+
+
+def set_thread_manually_unread(user_id, thread_id, value):
+    dbm.execute(
+        "INSERT INTO thread_reads (user_id, thread_id, manually_unread) VALUES (?, ?, ?) "
+        "ON CONFLICT (user_id, thread_id) DO UPDATE SET manually_unread = EXCLUDED.manually_unread "
+        "RETURNING user_id",
+        (user_id, thread_id, value),
+    )
+
+
+def thread_flag_value(user_id, thread_id, column):
+    """Reads one of the plain on/off thread_reads columns (is_flagged,
+    is_saved) for one viewer -- a bare SELECT rather than the
+    COALESCE'd SQL fragments, since there's no listing query involved
+    here, just a single row."""
+    assert column in ("is_flagged", "is_saved")
+    row = dbm.query(
+        f"SELECT {column} FROM thread_reads WHERE user_id=? AND thread_id=?",
+        (user_id, thread_id), one=True,
+    )
+    return bool(row and row[column])
+
+
+def set_thread_flag(user_id, thread_id, column, value):
+    assert column in ("is_flagged", "is_saved")
+    dbm.execute(
+        f"INSERT INTO thread_reads (user_id, thread_id, {column}) VALUES (?, ?, ?) "
+        f"ON CONFLICT (user_id, thread_id) DO UPDATE SET {column} = EXCLUDED.{column} "
+        "RETURNING user_id",
+        (user_id, thread_id, value),
+    )
+
+
+@app.route("/app/messages/<int:thread_id>/toggle-unread", methods=("POST",))
+@login_required
+def toggle_thread_unread(thread_id):
+    """Mirrors a mail client's "mark unread": if the thread currently
+    shows unread (computed or manually flagged), reading it clears both
+    at once via mark_thread_read; otherwise it's pushed back into
+    unread as a personal follow-up flag, without touching
+    last_read_message_id, so re-opening it later still reads it
+    normally."""
+    _load_thread_for_user(thread_id, g.user)
+    if thread_is_unread(g.user["id"], thread_id):
+        mark_thread_read(g.user["id"], thread_id)
+        flash("Marked as read.", "success")
+    else:
+        set_thread_manually_unread(g.user["id"], thread_id, True)
+        flash("Marked as unread.", "success")
+    return redirect(_safe_redirect_target(request.form.get("next"), url_for(_messages_route_for(g.user))))
+
+
+@app.route("/app/messages/<int:thread_id>/toggle-flag", methods=("POST",))
+@login_required
+def toggle_thread_flag(thread_id):
+    _load_thread_for_user(thread_id, g.user)
+    new_value = not thread_flag_value(g.user["id"], thread_id, "is_flagged")
+    set_thread_flag(g.user["id"], thread_id, "is_flagged", new_value)
+    flash("Flagged as important." if new_value else "Flag removed.", "success")
+    return redirect(_safe_redirect_target(request.form.get("next"), url_for(_messages_route_for(g.user))))
+
+
+@app.route("/app/messages/<int:thread_id>/toggle-save", methods=("POST",))
+@login_required
+def toggle_thread_save(thread_id):
+    _load_thread_for_user(thread_id, g.user)
+    new_value = not thread_flag_value(g.user["id"], thread_id, "is_saved")
+    set_thread_flag(g.user["id"], thread_id, "is_saved", new_value)
+    flash("Saved." if new_value else "Removed from Saved.", "success")
     return redirect(_safe_redirect_target(request.form.get("next"), url_for(_messages_route_for(g.user))))
 
 
@@ -3169,7 +3300,7 @@ def admin_messages():
         "SELECT t.*, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL} "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
         "FROM threads t " + thread_reads_join_sql() + " "
         "WHERE t.type='direct' AND (t.participant_a_id=? OR t.participant_b_id=?) "
         "ORDER BY last_at DESC",
@@ -3204,7 +3335,7 @@ def admin_messages():
         "SELECT t.*, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL} "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
         "FROM threads t " + thread_reads_join_sql() + " WHERE t.type='teammate' AND "
         "(t.created_by=? OR t.id IN (SELECT thread_id FROM messages WHERE sender_user_id=?)) "
         "AND t.subject LIKE ? ORDER BY last_at DESC",
@@ -3212,8 +3343,24 @@ def admin_messages():
     )
     team_active, team_archived = split_by_archived(team_rows)
     team_threads = team_archived if view == "archived" else team_active
+    direct_threads = direct_archived if view == "archived" else direct_active
 
     support_shown = sort_support_rows(support_archived if view == "archived" else support_active)
+    # Saved items are pulled out ahead of everything else below (resolved
+    # split, category boxing) -- a saved thread shows ONLY in the Saved
+    # bucket, regardless of its status or section, so it's one place to
+    # find anything flagged for later. Archived view is untouched, same
+    # as the Resolved split just below.
+    if view == "archived":
+        saved_threads = []
+    else:
+        sections, saved_threads = _pull_saved_threads({
+            "direct": direct_threads, "team": team_threads, "support": support_shown,
+        })
+        direct_threads, team_threads, support_shown = (
+            sections["direct"], sections["team"], sections["support"]
+        )
+
     category_label = dict(SUPPORT_CATEGORY_LABELS, _vendor_suggestion="Vendor suggestions")
     # Resolved tickets move out of the category boxes into their own
     # collapsed "Resolved" bucket, so the boxes above only show tickets
@@ -3251,9 +3398,9 @@ def admin_messages():
 
     return render_template(
         "admin/messages.html",
-        direct_threads=direct_archived if view == "archived" else direct_active,
+        direct_threads=direct_threads,
         team_threads=team_threads, support_boxes=support_boxes,
-        resolved_threads=resolved_threads,
+        resolved_threads=resolved_threads, saved_threads=saved_threads,
         category_labels=SUPPORT_CATEGORY_LABELS, view=view,
     )
 
@@ -4412,7 +4559,7 @@ def buyer_messages():
         "SELECT t.*, v.company_name, v.initials, v.accent, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL} "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
         "FROM threads t JOIN vendors v ON v.id = t.vendor_id " + thread_reads_join_sql() + " "
         "WHERE t.type='vendor' AND t.buyer_user_id=? ORDER BY last_at DESC",
         (u["id"], u["id"], u["id"]),
@@ -4422,7 +4569,7 @@ def buyer_messages():
         "SELECT t.*, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL} "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
         "FROM threads t " + thread_reads_join_sql() + " WHERE t.type='teammate' AND "
         "(t.created_by=? OR t.buyer_user_id=? OR t.id IN "
         "(SELECT thread_id FROM messages WHERE sender_user_id=?)) "
@@ -4434,14 +4581,21 @@ def buyer_messages():
     if view == "archived":
         vendor_threads, team_threads = vendor_archived, team_archived
         direct_threads, support_threads = direct_archived, support_archived
+        saved_threads = []
     else:
         vendor_threads, team_threads = vendor_active, team_active
         direct_threads, support_threads = direct_active, support_active
+        sections, saved_threads = _pull_saved_threads({
+            "vendor": vendor_threads, "team": team_threads,
+            "direct": direct_threads, "support": support_threads,
+        })
+        vendor_threads, team_threads = sections["vendor"], sections["team"]
+        direct_threads, support_threads = sections["direct"], sections["support"]
     support_threads = sort_support_rows(support_threads)
     return render_template(
         "buyer/messages.html", vendor_threads=vendor_threads, team_threads=team_threads,
         direct_threads=direct_threads, support_threads=support_threads,
-        view=view, category_labels=SUPPORT_CATEGORY_LABELS,
+        saved_threads=saved_threads, view=view, category_labels=SUPPORT_CATEGORY_LABELS,
     )
 
 
@@ -4461,7 +4615,7 @@ def _direct_threads_for(user):
         "SELECT t.*, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL} "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
         "FROM threads t " + thread_reads_join_sql() + " "
         "WHERE t.type='direct' AND (t.participant_a_id=? OR t.participant_b_id=?) "
         "ORDER BY last_at DESC",
@@ -7321,7 +7475,7 @@ def seller_messages():
         "SELECT t.*, u.name buyer_name, u.company buyer_company, u.photo_data_url buyer_photo, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL} "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
         "FROM threads t JOIN users u ON u.id = t.buyer_user_id " + thread_reads_join_sql() + " "
         "WHERE t.type='vendor' AND t.vendor_id=? ORDER BY last_at DESC",
         (u["id"], u["id"], vendor["id"]),
@@ -7331,7 +7485,7 @@ def seller_messages():
         "SELECT t.*, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL} "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
         "FROM threads t " + thread_reads_join_sql() + " WHERE t.type='teammate' AND "
         "(t.created_by=? OR t.id IN "
         "(SELECT thread_id FROM messages WHERE sender_user_id=?)) "
@@ -7343,14 +7497,21 @@ def seller_messages():
     if view == "archived":
         threads, team_threads = vendor_archived, team_archived
         direct_threads, support_threads = direct_archived, support_archived
+        saved_threads = []
     else:
         threads, team_threads = vendor_active, team_active
         direct_threads, support_threads = direct_active, support_active
+        sections, saved_threads = _pull_saved_threads({
+            "buyer": threads, "team": team_threads,
+            "direct": direct_threads, "support": support_threads,
+        })
+        threads, team_threads = sections["buyer"], sections["team"]
+        direct_threads, support_threads = sections["direct"], sections["support"]
     support_threads = sort_support_rows(support_threads)
     return render_template(
         "seller/messages.html", threads=threads, vendor=vendor, direct_threads=direct_threads,
         team_threads=team_threads, support_threads=support_threads,
-        view=view, category_labels=SUPPORT_CATEGORY_LABELS,
+        saved_threads=saved_threads, view=view, category_labels=SUPPORT_CATEGORY_LABELS,
     )
 
 

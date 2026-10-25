@@ -1,5 +1,65 @@
 {% extends "base.html" %}
+{% import "_thread_row.html" as tr %}
 {% block title %}Messages{% endblock %}
+
+{% macro direct_body(t) %}
+  {% if t.kind == 'direct' %}
+  {% if t.other_user.photo_data_url %}
+  <img src="{{ t.other_user.photo_data_url }}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
+  {% else %}
+  <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:13px;">{{ t.other_user.name[0] }}</span>
+  {% endif %}
+  <div style="flex:1; min-width:0;">
+    <strong style="font-size:14px;">{{ t.other_user.name }}</strong> <span class="hint">· {{ t.other_user.company }}</span>
+    <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
+  </div>
+  {% else %}
+  <span class="vendor-logo" style="background:var(--brand-mcm-mustard); width:36px;height:36px;font-size:13px;">@</span>
+  <div style="flex:1; min-width:0;">
+    <strong style="font-size:14px;">{{ t.external_name or t.external_email }}</strong>
+    <span class="badge badge-warning" style="margin-left:6px;">{{ "Emailed" if t.email_sent else "Not delivered" }}</span>
+    <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
+  </div>
+  {% endif %}
+  <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
+{% endmacro %}
+
+{% macro buyer_body(t) %}
+  {% if t.buyer_photo %}
+  <img src="{{ t.buyer_photo }}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
+  {% else %}
+  <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:13px;">{{ t.buyer_name[0] }}</span>
+  {% endif %}
+  <div style="flex:1; min-width:0;">
+    <strong style="font-size:14px;">{{ t.buyer_name }}</strong> <span class="hint">· {{ t.buyer_company }}</span>
+    <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
+  </div>
+  <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
+{% endmacro %}
+
+{% macro team_body(t) %}
+  <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:14px;">{{ g.user.company[0] }}</span>
+  <div style="flex:1; min-width:0;">
+    <strong style="font-size:14px;">{{ t.subject.split('] ')[1] if '] ' in t.subject else t.subject }}</strong>
+    <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
+  </div>
+  <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
+{% endmacro %}
+
+{% macro support_body(t) %}
+  <span class="vendor-logo" style="background:var(--brand-mcm-mustard); width:36px;height:36px;font-size:13px;">🛟</span>
+  <div style="flex:1; min-width:0;">
+    <strong style="font-size:14px;">BuyersForce Support</strong>
+    {% if t.latest_ticket %}
+    <span class="ref-badge" style="margin-left:6px;">#BF-{{ t.latest_ticket.reference_number }}</span>
+    <span class="cat-badge cat-{{ t.latest_ticket.category }}" style="margin-left:4px;">{{ category_labels[t.latest_ticket.category] if category_labels else t.latest_ticket.category }}</span>
+    <span class="badge {{ 'badge-good' if t.latest_ticket.status == 'resolved' else ('badge-progress' if t.latest_ticket.status == 'in_progress' else 'badge-warning') }}" style="margin-left:4px;">{{ t.latest_ticket.status.replace('_', ' ')|capitalize }}</span>
+    {% endif %}
+    <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
+  </div>
+  <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
+{% endmacro %}
+
 {% block content %}
 <div class="page-header">
   <div>
@@ -15,27 +75,7 @@
 <div class="section-title"><h2>Direct messages</h2></div>
 <div class="thread-list" style="margin-bottom:28px;">
   {% for t in direct_threads %}
-  <a class="thread-row{{ ' unread' if t.is_unread }}" href="{{ url_for('seller_thread', thread_id=t.id) }}">
-    {% if t.kind == 'direct' %}
-    {% if t.other_user.photo_data_url %}
-    <img src="{{ t.other_user.photo_data_url }}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
-    {% else %}
-    <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:13px;">{{ t.other_user.name[0] }}</span>
-    {% endif %}
-    <div style="flex:1; min-width:0;">
-      <strong style="font-size:14px;">{{ t.other_user.name }}</strong> <span class="hint">· {{ t.other_user.company }}</span>
-      <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
-    </div>
-    {% else %}
-    <span class="vendor-logo" style="background:var(--brand-mcm-mustard); width:36px;height:36px;font-size:13px;">@</span>
-    <div style="flex:1; min-width:0;">
-      <strong style="font-size:14px;">{{ t.external_name or t.external_email }}</strong>
-      <span class="badge badge-warning" style="margin-left:6px;">{{ "Emailed" if t.email_sent else "Not delivered" }}</span>
-      <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
-    </div>
-    {% endif %}
-    <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
-  </a>
+  {% call tr.thread_row(t, 'seller_thread', request.full_path) %}{{ direct_body(t) }}{% endcall %}
   {% else %}
   <div class="card empty-state"><div class="icon">💬</div>{% if view == 'active' %}No direct messages yet — click Create message above.{% else %}Nothing archived.{% endif %}</div>
   {% endfor %}
@@ -46,18 +86,7 @@
     <div class="section-title"><h2>Buyer conversations</h2></div>
     <div class="thread-list">
       {% for t in threads %}
-      <a class="thread-row{{ ' unread' if t.is_unread }}" href="{{ url_for('seller_thread', thread_id=t.id) }}">
-        {% if t.buyer_photo %}
-        <img src="{{ t.buyer_photo }}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
-        {% else %}
-        <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:13px;">{{ t.buyer_name[0] }}</span>
-        {% endif %}
-        <div style="flex:1; min-width:0;">
-          <strong style="font-size:14px;">{{ t.buyer_name }}</strong> <span class="hint">· {{ t.buyer_company }}</span>
-          <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
-        </div>
-        <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
-      </a>
+      {% call tr.thread_row(t, 'seller_thread', request.full_path) %}{{ buyer_body(t) }}{% endcall %}
       {% else %}
       <div class="card empty-state"><div class="icon">✉️</div>{% if view == 'active' %}No buyer conversations yet — click Create message to reach out first.{% else %}Nothing archived.{% endif %}</div>
       {% endfor %}
@@ -76,14 +105,7 @@
     </details>
     <div class="thread-list">
       {% for t in team_threads %}
-      <a class="thread-row{{ ' unread' if t.is_unread }}" href="{{ url_for('seller_thread', thread_id=t.id) }}">
-        <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:14px;">{{ g.user.company[0] }}</span>
-        <div style="flex:1; min-width:0;">
-          <strong style="font-size:14px;">{{ t.subject.split('] ')[1] if '] ' in t.subject else t.subject }}</strong>
-          <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
-        </div>
-        <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
-      </a>
+      {% call tr.thread_row(t, 'seller_thread', request.full_path) %}{{ team_body(t) }}{% endcall %}
       {% else %}
       <div class="card empty-state"><div class="icon">👥</div>{% if view == 'active' %}No team threads yet.{% else %}Nothing archived.{% endif %}</div>
       {% endfor %}
@@ -95,21 +117,30 @@
 <p class="hint" style="margin-top:-6px; margin-bottom:12px;">Support tickets, vendor suggestions, and anything else you've sent to the BuyersForce team -- kept separate from messages with other users. Open requests first, then in progress, then resolved.</p>
 <div class="thread-list">
   {% for t in support_threads %}
-  <a class="thread-row{{ ' unread' if t.is_unread }}" href="{{ url_for('seller_thread', thread_id=t.id) }}">
-    <span class="vendor-logo" style="background:var(--brand-mcm-mustard); width:36px;height:36px;font-size:13px;">🛟</span>
-    <div style="flex:1; min-width:0;">
-      <strong style="font-size:14px;">BuyersForce Support</strong>
-      {% if t.latest_ticket %}
-      <span class="ref-badge" style="margin-left:6px;">#BF-{{ t.latest_ticket.reference_number }}</span>
-      <span class="cat-badge cat-{{ t.latest_ticket.category }}" style="margin-left:4px;">{{ category_labels[t.latest_ticket.category] if category_labels else t.latest_ticket.category }}</span>
-      <span class="badge {{ 'badge-good' if t.latest_ticket.status == 'resolved' else ('badge-progress' if t.latest_ticket.status == 'in_progress' else 'badge-warning') }}" style="margin-left:4px;">{{ t.latest_ticket.status.replace('_', ' ')|capitalize }}</span>
-      {% endif %}
-      <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
-    </div>
-    <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
-  </a>
+  {% call tr.thread_row(t, 'seller_thread', request.full_path) %}{{ support_body(t) }}{% endcall %}
   {% else %}
   <div class="card empty-state"><div class="icon">🛟</div>{% if view == 'active' %}No support requests yet — visit <a href="{{ url_for('support_new') }}">Contact support</a> to send one.{% else %}Nothing archived.{% endif %}</div>
   {% endfor %}
 </div>
+
+{% if view != 'archived' %}
+<details class="category-box" style="margin-top:20px;">
+  <summary class="category-box-head" style="cursor:pointer;">
+    <span class="badge badge-progress">🔖 Saved</span>
+    <span class="hint">{{ saved_threads|length }} saved{{ ' message' if saved_threads|length == 1 else ' messages' }} -- click to show/hide</span>
+  </summary>
+  <div class="category-box-body">
+    {% for t in saved_threads %}
+    {% call tr.thread_row(t, 'seller_thread', request.full_path, align_top=true) %}
+      {% if t._section == 'buyer' %}{{ buyer_body(t) }}
+      {% elif t._section == 'team' %}{{ team_body(t) }}
+      {% elif t._section == 'support' %}{{ support_body(t) }}
+      {% else %}{{ direct_body(t) }}{% endif %}
+    {% endcall %}
+    {% else %}
+    <p class="hint" style="margin:4px 0;">Nothing saved yet -- use the 🔖 button on any message to keep it here.</p>
+    {% endfor %}
+  </div>
+</details>
+{% endif %}
 {% endblock %}

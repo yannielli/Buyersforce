@@ -1,0 +1,48 @@
+{#
+  Shared row wrapper for every thread-listing row across buyer, seller,
+  and admin Messages pages. Handles the three per-viewer toggles (mark
+  unread, flag important, save) plus the unread/flagged row styling --
+  callers only supply the row's own content (avatar, name, badges,
+  snippet, timestamp), exactly as before this existed, wrapped in a
+  {% call %} block instead of a bare <a class="thread-row">.
+
+  Usage:
+    {% call tr.thread_row(t, 'buyer_thread', request.full_path) %}
+      ...avatar, info div, timestamp span...
+    {% endcall %}
+
+  next_url is passed in explicitly (rather than read off `request`
+  inside this macro) so this works the same whether or not the caller
+  imported this file "with context".
+
+  align_top=true for rows whose content can wrap to multiple lines
+  (category-box / Resolved / Saved rows), matching the old inline
+  style="align-items:flex-start;" those rows used to carry directly.
+
+  extra_action_html: optional pre-rendered HTML (e.g. a small local
+  macro's output) appended after the 3 standard toggles -- used by
+  admin's Resolved bucket to add its own Delete button without every
+  other row everywhere needing one.
+#}
+{% macro thread_row(t, thread_route, next_url, align_top=false, extra_action_html=none) %}
+<div class="thread-row{{ ' unread' if t.is_unread }}{{ ' flagged' if t.is_flagged }}"{% if align_top %} style="align-items:flex-start;"{% endif %}>
+  <a class="thread-row-main{{ ' align-top' if align_top }}" href="{{ url_for(thread_route, thread_id=t.id) }}">
+    {{ caller() }}
+  </a>
+  <div class="thread-row-actions">
+    <form method="post" action="{{ url_for('toggle_thread_unread', thread_id=t.id) }}">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <button type="submit" class="icon-btn" title="{{ 'Mark as read' if t.is_unread else 'Mark as unread' }}">{{ '✓' if t.is_unread else '✉️' }}</button>
+    </form>
+    <form method="post" action="{{ url_for('toggle_thread_flag', thread_id=t.id) }}">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <button type="submit" class="icon-btn{{ ' flag-active' if t.is_flagged }}" title="{{ 'Remove important flag' if t.is_flagged else 'Flag as important' }}">🚩</button>
+    </form>
+    <form method="post" action="{{ url_for('toggle_thread_save', thread_id=t.id) }}">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <button type="submit" class="icon-btn{{ ' save-active' if t.is_saved }}" title="{{ 'Remove from Saved' if t.is_saved else 'Save' }}">🔖</button>
+    </form>
+    {% if extra_action_html %}{{ extra_action_html }}{% endif %}
+  </div>
+</div>
+{% endmacro %}

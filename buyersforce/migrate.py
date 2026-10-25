@@ -94,6 +94,7 @@ def run_migrations():
             _add_support_requests_reference_number_2026_10_24(cur)
             _add_thread_reads_deleted_at_2026_10_24(cur)
             _add_messages_attachment_columns_2026_10_24(cur)
+            _add_thread_reads_flags_2026_10_25(cur)
     finally:
         con.close()
 
@@ -2098,6 +2099,15 @@ def _add_messages_attachment_columns_2026_10_24(cur):
     cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_content_type TEXT")
     cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_data_url TEXT")
     cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_size_bytes INTEGER")
+
+
+def _add_thread_reads_flags_2026_10_25(cur):
+    # Per-viewer manual-unread / important-flag / saved toggles on every
+    # Messages list row (buyer, seller, admin). See schema.sql's comment
+    # on these columns for new installs.
+    cur.execute("ALTER TABLE thread_reads ADD COLUMN IF NOT EXISTS manually_unread BOOLEAN NOT NULL DEFAULT false")
+    cur.execute("ALTER TABLE thread_reads ADD COLUMN IF NOT EXISTS is_flagged BOOLEAN NOT NULL DEFAULT false")
+    cur.execute("ALTER TABLE thread_reads ADD COLUMN IF NOT EXISTS is_saved BOOLEAN NOT NULL DEFAULT false")
 
 
 if __name__ == "__main__":
