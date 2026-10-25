@@ -3215,8 +3215,24 @@ def admin_messages():
 
     support_shown = sort_support_rows(support_archived if view == "archived" else support_active)
     category_label = dict(SUPPORT_CATEGORY_LABELS, _vendor_suggestion="Vendor suggestions")
+    # Resolved tickets move out of the category boxes into their own
+    # collapsed "Resolved" bucket, so the boxes above only show tickets
+    # that still need attention. A resolved ticket stays in that bucket
+    # indefinitely (no 30-day expiry, unlike Archive) until this admin
+    # explicitly deletes it from there, which just archives the thread --
+    # same reversible mechanism as "Archive conversation" on the thread
+    # page, so it's recoverable from the Archived tab for 30 days.
+    # The Archived tab itself is untouched by this split: a resolved
+    # ticket that's already archived still shows boxed by category there.
+    if view == "archived":
+        resolved_threads, boxed_threads = [], support_shown
+    else:
+        resolved_threads, boxed_threads = [], []
+        for row in support_shown:
+            is_resolved = row["latest_ticket"] and row["latest_ticket"]["status"] == "resolved"
+            (resolved_threads if is_resolved else boxed_threads).append(row)
     by_category = {}
-    for row in support_shown:
+    for row in boxed_threads:
         key = row["latest_ticket"]["category"] if row["latest_ticket"] else "_vendor_suggestion"
         by_category.setdefault(key, []).append(row)
     # The boxes themselves are ordered by whichever category has the most
@@ -3237,6 +3253,7 @@ def admin_messages():
         "admin/messages.html",
         direct_threads=direct_archived if view == "archived" else direct_active,
         team_threads=team_threads, support_boxes=support_boxes,
+        resolved_threads=resolved_threads,
         category_labels=SUPPORT_CATEGORY_LABELS, view=view,
     )
 

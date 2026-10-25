@@ -55,7 +55,7 @@
 </div>
 
 <div class="section-title" style="margin-top:28px;"><h2>Support tickets</h2></div>
-<p class="hint" style="margin-top:-6px; margin-bottom:14px;">Boxed by category, most recent activity first -- within each box, open requests first, then in progress, then resolved.</p>
+<p class="hint" style="margin-top:-6px; margin-bottom:14px;">Boxed by category, most recent activity first -- within each box, open requests first, then in progress. Resolved tickets move to the Resolved bucket below.</p>
 {% if support_boxes %}
   {% for box in support_boxes %}
   <div class="category-box">
@@ -95,5 +95,46 @@
   <div class="card empty-state"><div class="icon">💬</div>
     {% if view == 'active' %}Nothing here yet — support tickets and vendor suggestions from buyers and sellers will show up here.{% else %}Nothing archived.{% endif %}
   </div>
+{% endif %}
+
+{% if view != 'archived' %}
+<details class="category-box" style="margin-top:4px;">
+  <summary class="category-box-head" style="cursor:pointer;">
+    <span class="badge badge-good">Resolved</span>
+    <span class="hint">{{ resolved_threads|length }} ticket{{ 's' if resolved_threads|length != 1 }} -- click to show/hide</span>
+  </summary>
+  <div class="category-box-body">
+    {% for t in resolved_threads %}
+    <div class="thread-row{{ ' unread' if t.is_unread }}" style="align-items:flex-start;">
+      <a href="{{ url_for('admin_thread', thread_id=t.id) }}" style="display:flex; align-items:flex-start; gap:12px; flex:1; min-width:0;">
+        {% if t.other_user.photo_data_url %}
+        <img src="{{ t.other_user.photo_data_url }}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+        {% else %}
+        <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:13px;flex-shrink:0;">{{ t.other_user.name[0] }}</span>
+        {% endif %}
+        <div style="flex:1; min-width:0;">
+          <strong style="font-size:14px;">{{ t.other_user.name }}</strong>
+          <span class="badge badge-neutral" style="margin-left:4px;">{{ t.other_user.role|capitalize }}</span>
+          <span class="hint">· {{ t.other_user.company }}</span>
+          {% if t.latest_ticket %}
+          <span class="ref-badge" style="margin-left:4px;">#BF-{{ t.latest_ticket.reference_number }}</span>
+          <span class="cat-badge cat-{{ t.latest_ticket.category }}" style="margin-left:4px;">{{ category_labels[t.latest_ticket.category] if category_labels else t.latest_ticket.category }}</span>
+          <span class="badge badge-good" style="margin-left:4px;">Resolved</span>
+          {% endif %}
+          {% if t.has_attachment %}<span class="hint" style="margin-left:4px;">📎</span>{% endif %}
+          <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
+        </div>
+        <span class="hint" style="white-space:nowrap;">{{ t.last_at|fmt_time if t.last_at }}</span>
+      </a>
+      <form method="post" action="{{ url_for('delete_thread', thread_id=t.id) }}" style="margin-left:8px; flex-shrink:0;">
+        <input type="hidden" name="next" value="{{ request.full_path }}">
+        <button class="btn btn-danger btn-sm" type="submit">🗑 Delete</button>
+      </form>
+    </div>
+    {% else %}
+    <p class="hint" style="margin:4px 0;">No resolved tickets.</p>
+    {% endfor %}
+  </div>
+</details>
 {% endif %}
 {% endblock %}
