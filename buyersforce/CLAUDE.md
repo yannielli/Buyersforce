@@ -60,7 +60,13 @@ land in one read, without Kj having to re-explain months of context.
   `full/*.png` = original uncropped renders, kept for a possible larger
   placement later). Kj is producing animated (Runway, white background)
   versions of the same six moods in parallel -- not wired in yet, would be
-  a round-two swap-in once ready.
+  a round-two swap-in once ready. (2026-10-31, same day: Kj liked the small
+  zoomed avatars in chat but wanted a bigger, more personalized Frankie on
+  Discover, so added a second floating element -- `.ai-mascot-btn`, the
+  full torso-up `wave` pose at ~104px with a gentle float animation --
+  hovering just above the launcher pill button; clicking it opens the same
+  panel as the button. Uses `static/img/frankie/full/*.png`, not the head
+  crops.)
 - **Infra**: Claude pushes directly to `main` via the `claude-ssh` deploy-key
   remote (since 2026-10-15); every push auto-deploys on Railway. Database is
   Railway's managed Postgres -- never SQLite or Railway volumes (data-wiping

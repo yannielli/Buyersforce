@@ -866,6 +866,32 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .ai-launcher-btn .ai-launcher-icon { font-size: 16px; }
 .ai-launcher-btn[hidden] { display: none; }
 
+/* Floating mascot -- a larger, torso-up Frankie hovering just above the
+   launcher button so the assistant reads as a character, not just an
+   icon, per Kj's ask for a "more pronounced" / personalized look.
+   Clickable (opens the same panel as the pill button beneath it). No
+   separate show/hide-on-open logic needed: it sits inside the same
+   bottom-right footprint as .ai-launcher-btn, and the open panel's
+   higher z-index already covers that whole corner, same as it already
+   does for the button today. */
+.ai-mascot-btn {
+  position: fixed; right: 14px; bottom: 76px; z-index: 59;
+  width: 104px; height: 104px; padding: 0; border: none; background: none;
+  cursor: pointer; animation: ai-mascot-float 3.6s ease-in-out infinite;
+}
+.ai-mascot-btn img {
+  display: block; width: 100%; height: 100%; object-fit: contain;
+  filter: drop-shadow(0 10px 16px rgba(13,95,92,0.32));
+}
+.ai-mascot-btn[hidden] { display: none; }
+@keyframes ai-mascot-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-mascot-btn { animation: none; }
+}
+
 .ai-panel {
   position: fixed; right: 24px; bottom: 24px; z-index: 70;
   width: 392px; max-width: calc(100vw - 32px);
@@ -1035,6 +1061,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 @media (max-width: 480px) {
   .ai-panel { right: 8px; left: 8px; bottom: 8px; width: auto; height: min(72vh, calc(100vh - 16px)); }
   .ai-launcher-btn { right: 12px; bottom: 12px; }
+  .ai-mascot-btn { right: 2px; bottom: 64px; width: 82px; height: 82px; }
 }
 /* Clickable Name/Company column headers on the admin Buyers/Sellers tables (Kj's request) */
 .sort-link { color: inherit; text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }

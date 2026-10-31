@@ -140,6 +140,9 @@
   <img class="ai-launcher-icon frankie-avatar frankie-avatar-sm" src="{{ url_for('static', filename='img/frankie/neutral-head.png') }}" alt="">
   <span>Ask Frankie</span>
 </button>
+<button id="aiMascotToggle" class="ai-mascot-btn" type="button" aria-expanded="false" aria-controls="aiAssistantPanel" aria-label="Ask Frankie">
+  <img src="{{ url_for('static', filename='img/frankie/full/wave.png') }}" alt="">
+</button>
 
 <div id="aiAssistantPanel" class="ai-panel" hidden>
   <div class="ai-panel-header">
@@ -193,6 +196,7 @@
 <script>
 (function () {
   var toggleBtn = document.getElementById('aiAssistantToggle');
+  var mascotBtn = document.getElementById('aiMascotToggle');
   var closeBtn = document.getElementById('aiAssistantClose');
   var panel = document.getElementById('aiAssistantPanel');
   var messagesEl = document.getElementById('aiAssistantMessages');
@@ -229,6 +233,7 @@
   function openPanel() {
     panel.hidden = false;
     toggleBtn.setAttribute('aria-expanded', 'true');
+    if (mascotBtn) { mascotBtn.setAttribute('aria-expanded', 'true'); }
     if (!greeted) {
       greeted = true;
       addAssistantBubble("Hi, I'm Frankie! Tell me a bit about what you're trying to solve -- the kind of tool, roughly how big your team is, anything that's a must-have -- and I'll check BuyersForce for a fit.", { mood: 'wave' });
@@ -238,10 +243,16 @@
   function closePanel() {
     panel.hidden = true;
     toggleBtn.setAttribute('aria-expanded', 'false');
+    if (mascotBtn) { mascotBtn.setAttribute('aria-expanded', 'false'); }
   }
   toggleBtn.addEventListener('click', function () {
     if (panel.hidden) { openPanel(); } else { closePanel(); }
   });
+  if (mascotBtn) {
+    mascotBtn.addEventListener('click', function () {
+      if (panel.hidden) { openPanel(); } else { closePanel(); }
+    });
+  }
   closeBtn.addEventListener('click', closePanel);
 
   function addUserBubble(text) {
