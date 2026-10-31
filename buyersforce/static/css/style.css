@@ -869,7 +869,15 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .frankie-avatar-sm { width: 26px; height: 26px; }
 .frankie-avatar-md { width: 36px; height: 36px; }
 
-.ai-launcher-wrap { position: fixed; right: 24px; bottom: 24px; z-index: 60; }
+/* Compound selector (not just .ai-launcher-wrap) so this reliably beats
+   .frankie-mascot-wrap's `position: relative` below -- same specificity,
+   and this element carries both classes. Without the extra specificity
+   here, whichever of the two rules happens to load later in the
+   cascade wins the `position` property, and when that was
+   .frankie-mascot-wrap, the whole launcher silently dropped out of its
+   fixed, bottom-right placement and rendered inline in the page flow
+   instead -- invisible unless you scrolled all the way down. */
+.ai-launcher-wrap.frankie-mascot-wrap { position: fixed; right: 24px; bottom: 24px; z-index: 60; }
 .ai-launcher-wrap[hidden] { display: none; }
 .ai-launcher-btn {
   display: inline-flex; align-items: center; gap: 8px;

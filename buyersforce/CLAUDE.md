@@ -107,6 +107,26 @@ land in one read, without Kj having to re-explain months of context.
   line below -- `.page-header-frankie > div:first-child { flex: 1 1 0%;
   min-width: 0 }` makes the title shrink/wrap in place instead. This
   fix is shared by both page-header-frankie pages.
+- **Fixed: Discover's floating "Ask Frankie" launcher had silently
+  disappeared** (2026-10-31, later still). Root cause: the mascot-wizard
+  commit above gave `#aiLauncherWrap` both `.ai-launcher-wrap` (which sets
+  `position: fixed; right/bottom` to float it) and `.frankie-mascot-wrap`
+  (which sets `position: relative`, defined later in style.css). Same
+  specificity, so source order wins -- `.frankie-mascot-wrap` clobbered the
+  fixed positioning and the whole launcher dropped into normal document
+  flow, invisible unless scrolled to its exact flow position. Fixed by
+  raising the launcher rule to the compound selector
+  `.ai-launcher-wrap.frankie-mascot-wrap { position: fixed; ... }` so it
+  wins regardless of source order, rather than depending on rule order
+  (fragile -- the next unrelated CSS edit could flip it back). Also a
+  verification-process note: the screenshot used to "confirm" that same
+  earlier commit was staged with an inline `style="position:absolute;..."`
+  on the test harness's wrapper div, which (being higher-specificity than
+  any class rule) masked this exact bug and produced a false-positive
+  pass. Re-verified this fix with a clean harness carrying no inline
+  overrides, on a tall simulated page, confirming computed `position` and
+  bounding box both before (buried in flow) and after (pinned
+  bottom-right) the fix.
 - **Infra**: Claude pushes directly to `main` via the `claude-ssh` deploy-key
   remote (since 2026-10-15); every push auto-deploys on Railway. Database is
   Railway's managed Postgres -- never SQLite or Railway volumes (data-wiping
