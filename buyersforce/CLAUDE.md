@@ -91,6 +91,22 @@ land in one read, without Kj having to re-explain months of context.
   other pages' page-header spacing is untouched. Confirmed this time
   with a pixel-level zoom crop, not just a glance at the full screenshot
   -- that's how the first version's identical clipping bug got missed.)
+- **Frankie on the Build-with-Frankie wizard** (2026-10-31, later still):
+  Kj wanted her kept visible across the wizard's steps too, not just the
+  two small chat-panel avatars inside it. Gave the wizard page-header a
+  `.frankie-mascot-wrap` the same way (standing on the "<- Back to
+  Evaluate" button, `page-header-frankie` for topbar clearance), and
+  wired its mood to track whatever the two embedded chat panels'
+  `addAssistantBubble`/`addTypingBubble` helpers already resolve (now
+  also writing to a `FRANKIE_MASCOTS`-sourced `#frankieWizardMascot`
+  image, not just the small per-row avatar) -- plus `excited` on
+  reaching the final (review/submit) step. Also found and fixed a
+  layout bug this surfaced: `.page-header`'s title block has no width
+  constraint, so a long lede (this page's is) sized the flex item to
+  its full unwrapped text width, forcing the button block onto its own
+  line below -- `.page-header-frankie > div:first-child { flex: 1 1 0%;
+  min-width: 0 }` makes the title shrink/wrap in place instead. This
+  fix is shared by both page-header-frankie pages.
 - **Infra**: Claude pushes directly to `main` via the `claude-ssh` deploy-key
   remote (since 2026-10-15); every push auto-deploys on Railway. Database is
   Railway's managed Postgres -- never SQLite or Railway volumes (data-wiping

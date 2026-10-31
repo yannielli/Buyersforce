@@ -1,13 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Build with Frankie{% endblock %}
 {% block content %}
-<div class="page-header">
+<div class="page-header page-header-frankie">
   <div>
     <span class="eyebrow">Guided setup</span>
     <h1>✨ Build with Frankie</h1>
     <p class="lede">Answer a few quick questions and Frankie will put together a full scorecard -- vendors, success criteria, and a rating scale -- and start the evaluation project for you.</p>
   </div>
-  <a href="{{ url_for('buyer_evaluations') }}" class="btn btn-ghost btn-sm">← Back to Evaluate</a>
+  <div class="frankie-mascot-wrap">
+    <a href="{{ url_for('buyer_evaluations') }}" class="frankie-mascot-btn" aria-label="Back to Evaluate">
+      <img id="frankieWizardMascot" src="{{ url_for('static', filename='img/frankie/mascot/wave.png') }}" alt="">
+    </a>
+    <a href="{{ url_for('buyer_evaluations') }}" class="btn btn-ghost btn-sm">← Back to Evaluate</a>
+  </div>
 </div>
 
 <form method="post" action="{{ url_for('buyer_frankie_create') }}" id="frankie-form" class="card frankie-wizard" style="max-width:680px;">
@@ -208,7 +213,11 @@
     submitBtn.hidden = (i !== steps.length - 1);
     progressFill.style.width = Math.round(((i + 1) / steps.length) * 100) + '%';
     progressLabel.textContent = 'Step ' + (i + 1) + ' of ' + steps.length;
-    if (i === steps.length - 1) { updateReview(); }
+    if (i === steps.length - 1) {
+      updateReview();
+      var mascotImg = document.getElementById('frankieWizardMascot');
+      if (mascotImg) { mascotImg.src = "{{ url_for('static', filename='img/frankie/mascot/excited.png') }}"; }
+    }
     if (i === 2) { maybeGreetVendorChat(); }
     if (i === 3) { maybeGreetCriteriaChat(); }
     current = i;
@@ -330,9 +339,29 @@
     img.alt = '';
     return img;
   }
+
+  // The bigger, full-torso Frankie standing on the page-header's "Back
+  // to Evaluate" button (see .frankie-mascot-wrap in style.css) stays
+  // on screen across every wizard step -- not just the two chat panels
+  // below -- and tracks whichever mood the most recent chat activity
+  // (from either panel) set, same mood values as FRANKIE_AVATARS above.
+  var FRANKIE_MASCOTS = {
+    neutral: "{{ url_for('static', filename='img/frankie/mascot/neutral.png') }}",
+    thinking: "{{ url_for('static', filename='img/frankie/mascot/thinking.png') }}",
+    wave: "{{ url_for('static', filename='img/frankie/mascot/wave.png') }}",
+    shrug: "{{ url_for('static', filename='img/frankie/mascot/shrug.png') }}",
+    excited: "{{ url_for('static', filename='img/frankie/mascot/excited.png') }}",
+    point: "{{ url_for('static', filename='img/frankie/mascot/point.png') }}"
+  };
+  var wizardMascotImg = document.getElementById('frankieWizardMascot');
+  function setWizardMood(mood) {
+    if (!wizardMascotImg) { return; }
+    wizardMascotImg.src = FRANKIE_MASCOTS[mood] || FRANKIE_MASCOTS.neutral;
+  }
   function addAssistantBubble(container, text, opts) {
     opts = opts || {};
     var mood = opts.mood || (opts.system ? 'shrug' : 'neutral');
+    setWizardMood(mood);
     var row = document.createElement('div');
     row.className = 'ai-msg ai-msg-assistant' + (opts.system ? ' ai-msg-system' : '');
     row.appendChild(frankieAvatarImg(mood));
@@ -345,6 +374,7 @@
     return row;
   }
   function addTypingBubble(container) {
+    setWizardMood('thinking');
     var row = document.createElement('div');
     row.className = 'ai-msg ai-msg-assistant ai-msg-typing';
     row.appendChild(frankieAvatarImg('thinking'));

@@ -219,6 +219,16 @@ button { font-family: inherit; }
    it. Scoped to this modifier only, not the base .page-header, so pages
    without a mascot keep their normal spacing. */
 .page-header.page-header-frankie { margin-top: 48px; }
+/* Build with Frankie's lede is long enough to otherwise force the
+   button block onto its own line below the title (flex items default
+   to their content's natural width, and .page-header's flex-wrap
+   means a too-wide line wraps instead of overflowing) -- which then
+   put the mascot standing on top of the title text instead of beside
+   it. Letting the title shrink/wrap within its own column, and
+   keeping the button block at its natural size, keeps both on one
+   line at normal widths. */
+.page-header.page-header-frankie > div:first-child { flex: 1 1 0%; min-width: 0; }
+.page-header.page-header-frankie > .frankie-mascot-wrap { flex-shrink: 0; }
 .eyebrow {
   text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; font-weight: 700;
   color: var(--brand); margin-bottom: 8px; display: block;
