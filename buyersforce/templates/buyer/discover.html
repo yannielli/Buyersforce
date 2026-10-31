@@ -137,15 +137,18 @@
 <button id="backToTop" class="back-to-top" type="button" aria-label="Back to top" title="Back to top">&uarr;</button>
 
 <button id="aiAssistantToggle" class="ai-launcher-btn" type="button" aria-expanded="false" aria-controls="aiAssistantPanel">
-  <span class="ai-launcher-icon">&#10024;</span>
+  <img class="ai-launcher-icon frankie-avatar frankie-avatar-sm" src="{{ url_for('static', filename='img/frankie/neutral-head.png') }}" alt="">
   <span>Ask Frankie</span>
 </button>
 
 <div id="aiAssistantPanel" class="ai-panel" hidden>
   <div class="ai-panel-header">
-    <div>
-      <strong>Frankie</strong>
-      <span class="ai-panel-sub">BuyersForce's AI Directory Assistant -- I'll check BuyersForce first, then you can ask me to look further.</span>
+    <div class="ai-panel-header-main">
+      <img class="frankie-avatar frankie-avatar-md" src="{{ url_for('static', filename='img/frankie/neutral-head.png') }}" alt="Frankie">
+      <div>
+        <strong>Frankie</strong>
+        <span class="ai-panel-sub">BuyersForce's AI Directory Assistant -- I'll check BuyersForce first, then you can ask me to look further.</span>
+      </div>
     </div>
     <button id="aiAssistantClose" class="ai-panel-close" type="button" aria-label="Close assistant">&times;</button>
   </div>
@@ -203,12 +206,32 @@
   var sending = false;
   var pendingChoiceButtons = null;  // buttons from the most recent "did this answer it?" prompt, if any
 
+  // Frankie's avatar, swapped by mood. Falls back to the neutral pose if a
+  // caller passes something unrecognized. Keep in sync with the copies in
+  // evaluation_frankie.html (same art, duplicated per-template like the
+  // rest of these chat helpers).
+  var FRANKIE_AVATARS = {
+    neutral: "{{ url_for('static', filename='img/frankie/neutral-head.png') }}",
+    thinking: "{{ url_for('static', filename='img/frankie/thinking-head.png') }}",
+    wave: "{{ url_for('static', filename='img/frankie/wave-head.png') }}",
+    shrug: "{{ url_for('static', filename='img/frankie/shrug-head.png') }}",
+    excited: "{{ url_for('static', filename='img/frankie/excited-head.png') }}",
+    point: "{{ url_for('static', filename='img/frankie/point-head.png') }}"
+  };
+  function frankieAvatarImg(mood) {
+    var img = document.createElement('img');
+    img.className = 'frankie-avatar frankie-avatar-sm';
+    img.src = FRANKIE_AVATARS[mood] || FRANKIE_AVATARS.neutral;
+    img.alt = '';
+    return img;
+  }
+
   function openPanel() {
     panel.hidden = false;
     toggleBtn.setAttribute('aria-expanded', 'true');
     if (!greeted) {
       greeted = true;
-      addAssistantBubble("Hi, I'm Frankie! Tell me a bit about what you're trying to solve -- the kind of tool, roughly how big your team is, anything that's a must-have -- and I'll check BuyersForce for a fit.");
+      addAssistantBubble("Hi, I'm Frankie! Tell me a bit about what you're trying to solve -- the kind of tool, roughly how big your team is, anything that's a must-have -- and I'll check BuyersForce for a fit.", { mood: 'wave' });
     }
     input.focus();
   }
@@ -234,8 +257,10 @@
 
   function addAssistantBubble(text, opts) {
     opts = opts || {};
+    var mood = opts.mood || (opts.system ? 'shrug' : 'neutral');
     var row = document.createElement('div');
     row.className = 'ai-msg ai-msg-assistant' + (opts.system ? ' ai-msg-system' : '');
+    row.appendChild(frankieAvatarImg(mood));
     var bubble = document.createElement('div');
     bubble.className = 'ai-msg-bubble';
     bubble.textContent = text;
@@ -248,6 +273,7 @@
   function addTypingBubble() {
     var row = document.createElement('div');
     row.className = 'ai-msg ai-msg-assistant ai-msg-typing';
+    row.appendChild(frankieAvatarImg('thinking'));
     var bubble = document.createElement('div');
     bubble.className = 'ai-msg-bubble thinking-shimmer';
     bubble.textContent = 'Thinking…';
@@ -380,7 +406,7 @@
     yesBtn.addEventListener('click', function () {
       disablePendingChoice();
       row.classList.add('ai-choice-done');
-      addAssistantBubble("Great -- let me know if there's anything else I can help you find.");
+      addAssistantBubble("Great -- let me know if there's anything else I can help you find.", { mood: 'excited' });
     });
 
     var webBtn = document.createElement('button');

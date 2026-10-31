@@ -838,6 +838,21 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
    app (brand/surface/ink/warning) so it reads as part of BuyersForce,
    not a bolted-on widget.
 --------------------------------------------------------------------- */
+
+/* Frankie avatar -- shared circular crop used on the launcher button,
+   both assist-panel headers, and every assistant chat row (Discover's
+   floating panel + the Build-with-Frankie wizard's embedded panels).
+   Source files are pre-cropped head/shoulders PNGs, same canvas size
+   and head position across all six moods, so one fixed size works
+   everywhere without per-image tuning. */
+.frankie-avatar {
+  display: block; flex-shrink: 0; border-radius: 50%;
+  object-fit: cover; background: var(--surface-raised);
+  border: 1px solid var(--gridline);
+}
+.frankie-avatar-sm { width: 26px; height: 26px; }
+.frankie-avatar-md { width: 36px; height: 36px; }
+
 .ai-launcher-btn {
   position: fixed; right: 24px; bottom: 24px; z-index: 60;
   display: inline-flex; align-items: center; gap: 8px;
@@ -865,6 +880,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
   padding: 16px 16px 14px; background: linear-gradient(135deg, var(--brand), var(--brand-dark));
   color: #fff; flex-shrink: 0;
 }
+.ai-panel-header-main { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
 .ai-panel-header strong { display: block; font-size: 15px; }
 .ai-panel-sub { display: block; font-size: 12.5px; opacity: 0.88; margin-top: 3px; line-height: 1.4; }
 .ai-panel-close {
@@ -880,10 +896,10 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .ai-msg-bubble { padding: 10px 13px; border-radius: 14px; white-space: pre-wrap; word-wrap: break-word; }
 .ai-msg-user { align-self: flex-end; }
 .ai-msg-user .ai-msg-bubble { background: var(--brand); color: #fff; border-bottom-right-radius: 4px; }
-.ai-msg-assistant { align-self: flex-start; }
+.ai-msg-assistant { align-self: flex-start; display: flex; align-items: flex-start; gap: 8px; }
 .ai-msg-assistant .ai-msg-bubble {
   background: var(--surface-raised); border: 1px solid var(--gridline); color: var(--ink-primary);
-  border-bottom-left-radius: 4px;
+  border-bottom-left-radius: 4px; flex: 1; min-width: 0;
 }
 .ai-msg-system .ai-msg-bubble {
   background: var(--warning-tint); border: 1px solid var(--warning-border); color: var(--warning-ink-strong);

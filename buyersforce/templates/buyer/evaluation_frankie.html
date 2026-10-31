@@ -46,7 +46,7 @@
 
     <div class="frankie-assist-panel" id="frankie-vendor-assist">
       <div class="frankie-assist-header">
-        <span class="frankie-assist-icon">✨</span>
+        <img class="frankie-assist-icon frankie-avatar frankie-avatar-sm" src="{{ url_for('static', filename='img/frankie/neutral-head.png') }}" alt="Frankie">
         <div>
           <strong>Ask Frankie</strong>
           <span class="hint">Describe what you need and Frankie will search BuyersForce's directory for matching vendors -- add any of its picks with one click.</span>
@@ -113,7 +113,7 @@
 
     <div class="frankie-assist-panel" id="frankie-criteria-assist" style="margin-top:16px;">
       <div class="frankie-assist-header">
-        <span class="frankie-assist-icon">✨</span>
+        <img class="frankie-assist-icon frankie-avatar frankie-avatar-sm" src="{{ url_for('static', filename='img/frankie/neutral-head.png') }}" alt="Frankie">
         <div>
           <strong>Refine with Frankie</strong>
           <span class="hint">Ask for more, fewer, or a different focus -- Frankie proposes criteria you can add with one click.</span>
@@ -312,10 +312,30 @@
     container.appendChild(row);
     container.scrollTop = container.scrollHeight;
   }
+  // Frankie's avatar, swapped by mood. Kept in sync with the copy in
+  // discover.html (same art, duplicated per-template like the rest of
+  // these chat helpers).
+  var FRANKIE_AVATARS = {
+    neutral: "{{ url_for('static', filename='img/frankie/neutral-head.png') }}",
+    thinking: "{{ url_for('static', filename='img/frankie/thinking-head.png') }}",
+    wave: "{{ url_for('static', filename='img/frankie/wave-head.png') }}",
+    shrug: "{{ url_for('static', filename='img/frankie/shrug-head.png') }}",
+    excited: "{{ url_for('static', filename='img/frankie/excited-head.png') }}",
+    point: "{{ url_for('static', filename='img/frankie/point-head.png') }}"
+  };
+  function frankieAvatarImg(mood) {
+    var img = document.createElement('img');
+    img.className = 'frankie-avatar frankie-avatar-sm';
+    img.src = FRANKIE_AVATARS[mood] || FRANKIE_AVATARS.neutral;
+    img.alt = '';
+    return img;
+  }
   function addAssistantBubble(container, text, opts) {
     opts = opts || {};
+    var mood = opts.mood || (opts.system ? 'shrug' : 'neutral');
     var row = document.createElement('div');
     row.className = 'ai-msg ai-msg-assistant' + (opts.system ? ' ai-msg-system' : '');
+    row.appendChild(frankieAvatarImg(mood));
     var bubble = document.createElement('div');
     bubble.className = 'ai-msg-bubble';
     bubble.textContent = text;
@@ -327,6 +347,7 @@
   function addTypingBubble(container) {
     var row = document.createElement('div');
     row.className = 'ai-msg ai-msg-assistant ai-msg-typing';
+    row.appendChild(frankieAvatarImg('thinking'));
     var bubble = document.createElement('div');
     bubble.className = 'ai-msg-bubble thinking-shimmer';
     bubble.textContent = 'Thinking…';
@@ -453,10 +474,10 @@
     vendorChatGreeted = true;
     var about = document.getElementById('frankie-about').value.trim();
     if (about) {
-      addAssistantBubble(vendorChatMessages, "Hi, I'm Frankie! Searching BuyersForce based on what you told me in step 1...");
+      addAssistantBubble(vendorChatMessages, "Hi, I'm Frankie! Searching BuyersForce based on what you told me in step 1...", { mood: 'wave' });
       sendVendorChat(about, { showUserBubble: false });
     } else {
-      addAssistantBubble(vendorChatMessages, "Hi, I'm Frankie! Tell me what you're looking for -- the kind of tool, roughly how big your team is, anything that's a must-have -- and I'll search BuyersForce for a fit.");
+      addAssistantBubble(vendorChatMessages, "Hi, I'm Frankie! Tell me what you're looking for -- the kind of tool, roughly how big your team is, anything that's a must-have -- and I'll search BuyersForce for a fit.", { mood: 'wave' });
     }
   }
 

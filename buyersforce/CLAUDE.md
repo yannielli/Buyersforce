@@ -50,6 +50,17 @@ land in one read, without Kj having to re-explain months of context.
 - **Messaging, meetings, admin**: direct + vendor threads, meeting
   scheduling, support requests, invite-only signup with configurable invite
   expiration, an Admin Dashboard split out from Access Control.
+- **Frankie's visual identity** (2026-10-31): custom mascot artwork (Kj's
+  ChatGPT-generated character, torso-up on transparent PNGs, pre-cropped to
+  head/shoulders) wired in as `.frankie-avatar` -- the launcher button, both
+  panel headers, and every assistant chat row in Discover's floating panel
+  and the Build-with-Frankie wizard's embedded panels, swapped by mood
+  (neutral/thinking/wave/shrug/excited -- `point` is captured but not yet
+  used). Source art: static/img/frankie/ (`*-head.png` = what's wired in;
+  `full/*.png` = original uncropped renders, kept for a possible larger
+  placement later). Kj is producing animated (Runway, white background)
+  versions of the same six moods in parallel -- not wired in yet, would be
+  a round-two swap-in once ready.
 - **Infra**: Claude pushes directly to `main` via the `claude-ssh` deploy-key
   remote (since 2026-10-15); every push auto-deploys on Railway. Database is
   Railway's managed Postgres -- never SQLite or Railway volumes (data-wiping
