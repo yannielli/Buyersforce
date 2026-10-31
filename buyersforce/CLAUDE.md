@@ -65,8 +65,22 @@ land in one read, without Kj having to re-explain months of context.
   Discover, so added a second floating element -- `.ai-mascot-btn`, the
   full torso-up `wave` pose at ~104px with a gentle float animation --
   hovering just above the launcher pill button; clicking it opens the same
-  panel as the button. Uses `static/img/frankie/full/*.png`, not the head
-  crops.)
+  panel as the button -- SUPERSEDED same day, see below.)
+- **Frankie mascot v2** (2026-10-31, later same day): Kj didn't like the
+  floating/animated version -- wanted her static, with zero gap, sitting
+  directly on top of a Frankie button so she reads as sticking out of it,
+  and wanted the identical treatment anywhere Frankie has a button to
+  stand on (consistency across the app). Replaced the fixed-position
+  floating mascot with a reusable pattern: `.frankie-mascot-wrap`
+  (`position: relative`) wraps a button/link + `.frankie-mascot-btn`
+  (`position: absolute; bottom: 100%; left: 50%; transform:
+  translateX(-50%)`), so she's pinned to the top-center of whatever's in
+  the wrapper with zero gap, at any button width, no JS and no animation.
+  Used on Discover's floating launcher (`#aiLauncherWrap`) and the
+  Evaluate page's "Build with Frankie" button. Source art:
+  `static/img/frankie/mascot/*.png` -- cropped tight to content (no
+  transparent margin below her feet) so the zero-gap stacking looks
+  seamless; `full/*.png` stays as the untouched original renders.
 - **Infra**: Claude pushes directly to `main` via the `claude-ssh` deploy-key
   remote (since 2026-10-15); every push auto-deploys on Railway. Database is
   Railway's managed Postgres -- never SQLite or Railway volumes (data-wiping

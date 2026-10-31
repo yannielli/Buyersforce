@@ -136,13 +136,15 @@
 
 <button id="backToTop" class="back-to-top" type="button" aria-label="Back to top" title="Back to top">&uarr;</button>
 
-<button id="aiAssistantToggle" class="ai-launcher-btn" type="button" aria-expanded="false" aria-controls="aiAssistantPanel">
-  <img class="ai-launcher-icon frankie-avatar frankie-avatar-sm" src="{{ url_for('static', filename='img/frankie/neutral-head.png') }}" alt="">
-  <span>Ask Frankie</span>
-</button>
-<button id="aiMascotToggle" class="ai-mascot-btn" type="button" aria-expanded="false" aria-controls="aiAssistantPanel" aria-label="Ask Frankie">
-  <img src="{{ url_for('static', filename='img/frankie/full/wave.png') }}" alt="">
-</button>
+<div id="aiLauncherWrap" class="ai-launcher-wrap frankie-mascot-wrap">
+  <button id="aiMascotToggle" class="frankie-mascot-btn" type="button" aria-expanded="false" aria-controls="aiAssistantPanel" aria-label="Ask Frankie">
+    <img src="{{ url_for('static', filename='img/frankie/mascot/wave.png') }}" alt="">
+  </button>
+  <button id="aiAssistantToggle" class="ai-launcher-btn" type="button" aria-expanded="false" aria-controls="aiAssistantPanel">
+    <img class="ai-launcher-icon frankie-avatar frankie-avatar-sm" src="{{ url_for('static', filename='img/frankie/neutral-head.png') }}" alt="">
+    <span>Ask Frankie</span>
+  </button>
+</div>
 
 <div id="aiAssistantPanel" class="ai-panel" hidden>
   <div class="ai-panel-header">

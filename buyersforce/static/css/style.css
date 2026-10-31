@@ -853,8 +853,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .frankie-avatar-sm { width: 26px; height: 26px; }
 .frankie-avatar-md { width: 36px; height: 36px; }
 
+.ai-launcher-wrap { position: fixed; right: 24px; bottom: 24px; z-index: 60; }
+.ai-launcher-wrap[hidden] { display: none; }
 .ai-launcher-btn {
-  position: fixed; right: 24px; bottom: 24px; z-index: 60;
   display: inline-flex; align-items: center; gap: 8px;
   padding: 13px 20px; border: none; border-radius: 999px;
   background: linear-gradient(135deg, var(--brand), var(--brand-dark));
@@ -864,32 +865,25 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 }
 .ai-launcher-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 36px rgba(13,95,92,0.42); }
 .ai-launcher-btn .ai-launcher-icon { font-size: 16px; }
-.ai-launcher-btn[hidden] { display: none; }
 
-/* Floating mascot -- a larger, torso-up Frankie hovering just above the
-   launcher button so the assistant reads as a character, not just an
-   icon, per Kj's ask for a "more pronounced" / personalized look.
-   Clickable (opens the same panel as the pill button beneath it). No
-   separate show/hide-on-open logic needed: it sits inside the same
-   bottom-right footprint as .ai-launcher-btn, and the open panel's
-   higher z-index already covers that whole corner, same as it already
-   does for the button today. */
-.ai-mascot-btn {
-  position: fixed; right: 14px; bottom: 76px; z-index: 59;
-  width: 104px; height: 104px; padding: 0; border: none; background: none;
-  cursor: pointer; animation: ai-mascot-float 3.6s ease-in-out infinite;
+/* Frankie mascot, standing static on top of a teal Frankie button with
+   zero gap, so she reads as sticking straight out of it rather than
+   floating separately. Shared by Discover's floating launcher and the
+   Evaluate page's "Build with Frankie" button -- same look everywhere
+   there's a button to stand on (Kj's ask for consistency). The source
+   art is pre-cropped so the image's own bottom edge is her feet (no
+   leftover transparent margin), and bottom: 100% + translateX(-50%)
+   anchors her to the top-center of whatever button is inside the same
+   .frankie-mascot-wrap, at any button width, with no JS needed. */
+.frankie-mascot-wrap { position: relative; display: inline-flex; }
+.frankie-mascot-btn {
+  position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%);
+  width: 76px; padding: 0; margin: 0; border: none; background: none;
+  line-height: 0; cursor: pointer; text-decoration: none; z-index: 1;
 }
-.ai-mascot-btn img {
-  display: block; width: 100%; height: 100%; object-fit: contain;
-  filter: drop-shadow(0 10px 16px rgba(13,95,92,0.32));
-}
-.ai-mascot-btn[hidden] { display: none; }
-@keyframes ai-mascot-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ai-mascot-btn { animation: none; }
+.frankie-mascot-btn img {
+  display: block; width: 100%; height: auto;
+  filter: drop-shadow(0 6px 10px rgba(13,95,92,0.3));
 }
 
 .ai-panel {
@@ -1060,8 +1054,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 
 @media (max-width: 480px) {
   .ai-panel { right: 8px; left: 8px; bottom: 8px; width: auto; height: min(72vh, calc(100vh - 16px)); }
-  .ai-launcher-btn { right: 12px; bottom: 12px; }
-  .ai-mascot-btn { right: 2px; bottom: 64px; width: 82px; height: 82px; }
+  .ai-launcher-wrap { right: 12px; bottom: 12px; }
+  .frankie-mascot-btn { width: 62px; }
 }
 /* Clickable Name/Company column headers on the admin Buyers/Sellers tables (Kj's request) */
 .sort-link { color: inherit; text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }
