@@ -81,6 +81,16 @@ land in one read, without Kj having to re-explain months of context.
   `static/img/frankie/mascot/*.png` -- cropped tight to content (no
   transparent margin below her feet) so the zero-gap stacking looks
   seamless; `full/*.png` stays as the untouched original renders.
+  (2026-10-31, later still: Kj caught that on Evaluate her head was
+  rendering under the sticky topbar -- `.frankie-mascot-wrap`'s own
+  height in the page-header's flex row doesn't include the mascot,
+  since she's `position: absolute`, so there wasn't actually enough
+  clearance above the button for her to fit without reaching into the
+  topbar. Added a `.page-header-frankie` modifier (48px margin-top),
+  applied only to Evaluate's `<div class="page-header">` -- scoped so
+  other pages' page-header spacing is untouched. Confirmed this time
+  with a pixel-level zoom crop, not just a glance at the full screenshot
+  -- that's how the first version's identical clipping bug got missed.)
 - **Infra**: Claude pushes directly to `main` via the `claude-ssh` deploy-key
   remote (since 2026-10-15); every push auto-deploys on Railway. Database is
   Railway's managed Postgres -- never SQLite or Railway volumes (data-wiping

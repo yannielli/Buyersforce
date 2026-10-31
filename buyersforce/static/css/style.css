@@ -213,6 +213,12 @@ button { font-family: inherit; }
    instead of the usual left-aligned, space-between layout. */
 .page-header.page-header-center { justify-content: center; text-align: center; }
 .page-header.page-header-center > div { flex: 0 1 auto; }
+/* Extra headroom for a page-header that has a Frankie mascot standing on
+   its button (see .frankie-mascot-wrap/.frankie-mascot-btn) -- without
+   it, her head renders underneath the sticky topbar instead of below
+   it. Scoped to this modifier only, not the base .page-header, so pages
+   without a mascot keep their normal spacing. */
+.page-header.page-header-frankie { margin-top: 48px; }
 .eyebrow {
   text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; font-weight: 700;
   color: var(--brand); margin-bottom: 8px; display: block;
