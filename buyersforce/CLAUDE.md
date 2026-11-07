@@ -397,3 +397,63 @@ Known rough edges worth remembering, not yet fixed:
   admin still links to its existing anchor on the Engineering Queue
   page, since that's still where the per-ticket Reopen control lives
   -- only its Dashboard grouping changed, not where it's managed.
+
+- **Ticketing rewired off Messages; Open Tickets merged into All Tickets**
+  (2026-11-07, Kj's follow-up): two fixes to Support Queue.
+  1) Viewing or replying to a support ticket used to land on the shared
+     `admin_thread` view/template, which is also Messages' own thread
+     page -- nav highlighted "Messages", the back-link said "All
+     messages", even though the ticket itself lives on Support Queue
+     now. `admin_thread` is still the one shared route for every thread
+     type (direct, vendor, teammate, support ticket) -- duplicating it
+     risked drifting out of sync with buyer/seller's own thread views --
+     so instead it now works out whether the thread it's showing is
+     ticket-shaped (has a `support_requests` row, or is a vendor
+     suggestion thread) and sets `g.admin_thread_is_ticket` + passes
+     `is_ticket_thread` into the template. `base.html`'s nav and
+     `admin/thread.html`'s back-link both branch on that flag: a ticket
+     thread highlights "Support Queue" and says "← Back to Support
+     Queue"; every other thread keeps "Messages" / "← All messages".
+     Same route, same POST-to-reply handler -- just correctly branded
+     either way, so Kj's "Messages has nothing to do with ticketing"
+     holds for viewing AND replying.
+  2) Support Queue's "Open tickets" (the always-visible decision list)
+     and "All conversations" (the category-boxed inbox) were redundant
+     -- merged into one "All tickets" section, keeping "All
+     conversations"'s exact layout/organization. Each row is now a
+     `<details>` accordion (`ticket_row()` in support_queue.html) --
+     clicking it expands in place to show `ticket_panel()` for every
+     ticket on that thread (the Build-this? Action/Defer/Reject form or
+     resulting status, Frankie's suggested-resolution approve/modify/
+     reject/defer form, Reply, Mark resolved) -- exactly what the old
+     standalone Open Tickets list rendered, just one click down instead
+     of always visible. Nothing from either section was dropped: the
+     Resolved and Saved buckets got their own local accordion-aware
+     versions (`ticket_resolved_subsection`/`ticket_saved_subsection`)
+     instead of reusing `_thread_row.html`'s `thread_row`/
+     `resolved_subsection`/`saved_subsection` macros, since those
+     navigate away on click -- changing them would've affected Direct
+     messages/Team threads and buyer/seller's own Messages pages too.
+     `_admin_support_queue_context()`'s thread-scoped ticket query has
+     no user join (unlike the old open-tickets query), so each ticket
+     dict's requester_name/company/role now get backfilled from the
+     thread's own `other_user` before the template sees it.
+     Nav badges changed meaning along with this: `g.support_queue_count`
+     used to be `support_requests.status='open'`, which never moved just
+     from looking at a ticket -- now it's "ticket-shaped threads admin
+     hasn't read yet" (the same unread-thread tracking `g.unread_count`
+     uses), so it clears via the per-row mark-as-read toggle, replying,
+     or any disposition action (admin_support_status/_decide/_engineering_
+     decide all call `mark_thread_read` now too) -- matching Kj: "once I
+     click it as read... or disposition the ticket... the new ticket
+     counter... should change automatically." `g.engineering_queue_count`
+     used to be `engineering_status='none'`, which only duplicated
+     Support Queue's own "not yet decided" set -- now it's
+     `engineering_status='action_requested'` ("Queued for Claude"), so
+     clicking Action: Coding visibly moves a ticket off the Support
+     Queue badge and onto the Engineering Queue badge, matching Kj:
+     "if I move it over to Engineering Queue... it would show a new
+     item in the counters." The Dashboard's own tiles (engineering_counts,
+     keyed by exact pipeline stage) are unchanged by any of this -- only
+     the two nav badges' definitions moved.
+

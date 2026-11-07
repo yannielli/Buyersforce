@@ -436,20 +436,36 @@ def load_logged_in_user():
     g.impersonating = session.get("impersonator_id") is not None
     g.unread_count = unread_count_for(g.user) if g.user and g.user["role"] in ("buyer", "seller", "admin") else 0
     # Nav badges for the two admin-only queue pages (Kj's request,
-    # 2026-11-07), same spirit as g.unread_count above: a cheap count of
-    # "new, not yet looked at" items, computed on every request so the
-    # badge is right no matter which page admin is actually on.
-    # Support Queue: tickets still at their just-submitted default status
-    # ('open') -- Frankie or Kj moving one to in_progress/resolved is what
-    # clears it. Engineering Queue: tickets Kj hasn't made ANY
-    # Action/Defer/Reject call on yet (engineering_status='none') -- same
-    # definition as the Dashboard's "Pending" tile.
+    # 2026-11-07; redefined 2026-11-07 per his follow-up on what "new"
+    # should mean for each), same spirit as g.unread_count above: a
+    # cheap count computed on every request so the badge is right no
+    # matter which page admin is actually on.
+    # Support Queue: ticket-shaped threads admin hasn't read yet (same
+    # unread tracking g.unread_count itself uses) -- clicking a ticket's
+    # mark-as-read toggle, replying, or dispositioning it (any of the
+    # engineering-decide/status/decide routes below all call
+    # mark_thread_read too) clears it, exactly like Messages' own badge.
+    # This replaced an earlier version keyed off support_requests.status
+    # == 'open', which never moved just by looking at a ticket.
+    # Engineering Queue: tickets freshly queued for Claude to build
+    # (engineering_status='action_requested', "Queued for Claude") --
+    # i.e. something NEW just entered the build pipeline. This replaced
+    # an earlier version keyed off engineering_status='none', which
+    # only duplicated Support Queue's own "not yet decided" set instead
+    # of meaning anything distinct about Engineering Queue itself.
     if g.user and g.user["role"] == "admin":
         g.support_queue_count = dbm.query(
-            "SELECT COUNT(*) AS n FROM support_requests WHERE status = 'open'", one=True
+            "SELECT COUNT(*) AS n FROM threads t " + thread_reads_join_sql() + " "
+            "WHERE t.type='direct' AND (t.participant_a_id=? OR t.participant_b_id=?) "
+            "AND (COALESCE(tr.manually_unread, false) OR EXISTS ("
+            "SELECT 1 FROM messages um WHERE um.thread_id=t.id AND um.sender_user_id <> ? "
+            "AND um.id > COALESCE(tr.last_read_message_id, 0))) "
+            "AND (EXISTS (SELECT 1 FROM support_requests sr WHERE sr.thread_id=t.id) "
+            "OR EXISTS (SELECT 1 FROM vendor_requests vr WHERE vr.thread_id=t.id))",
+            (g.user["id"], g.user["id"], g.user["id"], g.user["id"]), one=True
         )["n"]
         g.engineering_queue_count = dbm.query(
-            "SELECT COUNT(*) AS n FROM support_requests WHERE engineering_status = 'none'", one=True
+            "SELECT COUNT(*) AS n FROM support_requests WHERE engineering_status = 'action_requested'", one=True
         )["n"]
     else:
         g.support_queue_count = 0
@@ -3316,6 +3332,11 @@ def admin_support_status(request_id):
     req = dbm.query("SELECT * FROM support_requests WHERE id=?", (request_id,), one=True)
     if not req:
         abort(404)
+    # Taking any action on a ticket counts as having seen it, even if
+    # admin never explicitly opened/expanded it or hit the mark-as-read
+    # toggle -- keeps g.support_queue_count's unread-based count honest
+    # (Kj, 2026-11-07).
+    mark_thread_read(g.user["id"], req["thread_id"])
     status = request.form.get("status", "")
     if status not in ("open", "in_progress", "resolved"):
         abort(400)
@@ -3345,6 +3366,7 @@ def admin_support_decide(request_id):
     req = dbm.query("SELECT * FROM support_requests WHERE id=?", (request_id,), one=True)
     if not req:
         abort(404)
+    mark_thread_read(g.user["id"], req["thread_id"])  # see admin_support_status's comment
     action = request.form.get("action", "")
     if action not in ("approve", "modify", "reject", "defer"):
         abort(400)
@@ -3413,11 +3435,13 @@ def admin_support_decide(request_id):
 # ---------------------------------------------------------------------------
 
 def _admin_support_queue_context():
-    open_support_requests = dbm.query(
-        "SELECT sr.*, u.name requester_name, u.company requester_company, u.role requester_role "
-        "FROM support_requests sr JOIN users u ON u.id = sr.user_id "
-        "WHERE sr.status != 'resolved' ORDER BY sr.created_at DESC"
-    )
+    # Kj's 2026-11-07 merge request: the standalone "Open tickets" list
+    # (built from open_support_requests, joined with users for the
+    # requester's name/company/role) is gone -- every ticket's full
+    # disposition panel now renders inline inside its "All tickets" row
+    # instead (see support_queue.html's ticket_panel() macro), so the
+    # requester fields it needs get backfilled onto each support_boxes
+    # row's own t["tickets"] entries below instead of a separate query.
 
     # The rest of this mirrors admin_messages()'s old "Support tickets"
     # section exactly (support_rows/support_boxes/resolved/saved/view) --
@@ -3446,6 +3470,15 @@ def _admin_support_queue_context():
             continue  # not support-shaped -- stays on the Messages page instead
         info = thread_display_info(t, g.user)
         row = {**dict(t), **info}
+        # Backfill the requester's identity onto each ticket dict -- the
+        # thread-scoped query above has no user join (unlike the old
+        # open_support_requests query), but every ticket on a direct
+        # thread was filed by the same person: the thread's other_user.
+        other_user = info.get("other_user") or {}
+        for tk in tickets:
+            tk["requester_name"] = other_user.get("name")
+            tk["requester_company"] = other_user.get("company")
+            tk["requester_role"] = other_user.get("role")
         row["tickets"] = tickets
         row["latest_ticket"] = tickets[0] if tickets else None
         row["open_ticket_count"] = sum(1 for tk in tickets if tk["status"] != "resolved")
@@ -3476,7 +3509,7 @@ def _admin_support_queue_context():
     ]
 
     return dict(
-        open_support_requests=open_support_requests, support_category_labels=SUPPORT_CATEGORY_LABELS,
+        support_category_labels=SUPPORT_CATEGORY_LABELS,
         support_boxes=support_boxes, resolved_threads=resolved_threads, saved_support=saved_support,
         category_labels=SUPPORT_CATEGORY_LABELS, view=view,
     )
@@ -3519,6 +3552,7 @@ def admin_support_engineering_decide(request_id):
     req = dbm.query("SELECT * FROM support_requests WHERE id=?", (request_id,), one=True)
     if not req:
         abort(404)
+    mark_thread_read(g.user["id"], req["thread_id"])  # see admin_support_status's comment
     action = request.form.get("action", "")
     if action not in ("reject", "defer", "action_coding", "action_admin"):
         abort(400)
@@ -3878,11 +3912,25 @@ def admin_thread(thread_id):
     support_requests = dbm.query(
         "SELECT * FROM support_requests WHERE thread_id = ? ORDER BY created_at DESC", (thread_id,)
     )
+    # Kj's 2026-11-07 request: ticketing "has nothing to do with
+    # Messages" -- this route is still the one shared thread view for
+    # every thread type (direct, vendor, teammate, support ticket), but
+    # when the thread carries a ticket or a vendor suggestion, both the
+    # nav (base.html, via g.admin_thread_is_ticket) and this page's own
+    # back-link brand it as Support Queue instead of Messages, for both
+    # viewing AND replying (same route handles the POST above). Same
+    # "is this ticket-shaped" check admin_messages()/_admin_support_
+    # queue_context() already use elsewhere.
+    is_ticket_thread = bool(support_requests) or dbm.query(
+        "SELECT 1 FROM vendor_requests WHERE thread_id = ? LIMIT 1", (thread_id,), one=True
+    ) is not None
+    g.admin_thread_is_ticket = is_ticket_thread
     return render_template(
         "admin/thread.html", thread=thread, messages=messages, info=info,
         support_requests=support_requests, category_labels=SUPPORT_CATEGORY_LABELS,
         is_deleted=thread_is_deleted(g.user["id"], thread_id),
         is_saved=thread_flag_value(g.user["id"], thread_id, "is_saved"),
+        is_ticket_thread=is_ticket_thread,
     )
 
 

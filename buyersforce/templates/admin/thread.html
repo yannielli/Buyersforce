@@ -2,7 +2,11 @@
 {% block title %}{% if info.kind == 'direct' %}{{ info.other_user.name }}{% else %}{{ thread.subject }}{% endif %}{% endblock %}
 {% block content %}
 <div style="display:flex; gap:8px; margin-bottom:16px; align-items:center;">
+  {% if is_ticket_thread %}
+  <a href="{{ url_for('admin_support_queue') }}" class="btn btn-ghost btn-sm">← Back to Support Queue</a>
+  {% else %}
   <a href="{{ url_for('admin_messages') }}" class="btn btn-ghost btn-sm">← All messages</a>
+  {% endif %}
   <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">Dashboard</a>
   <div style="display:flex; gap:8px; margin-left:auto;">
     <form method="post" action="{{ url_for('toggle_thread_save', thread_id=thread.id) }}">

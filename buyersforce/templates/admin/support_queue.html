@@ -30,122 +30,247 @@
 
 {% macro support_body_flat(t) %}{{ support_body(t, show_category=true) }}{% endmacro %}
 
+{#
+  One ticket's full "disposition panel" -- Kj's build-or-not call (the
+  4-button Action/Defer/Reject form, or the resulting status once he's
+  made it), Frankie's suggested-resolution approve/modify/reject/defer
+  form, and the Reply/Mark-resolved buttons. This used to be the ONLY
+  way to see or act on a ticket (the standalone "Open tickets" section
+  above "All conversations"). Kj's 2026-11-07 merge request folded that
+  section into "All tickets" instead -- every ticket row there expands
+  in place to show exactly this, so nothing from Open Tickets is lost,
+  it just lives one click down instead of always-visible up top. Called
+  once per ticket in a thread's t.tickets (almost always one; a thread
+  can carry more if the same person filed more than one ticket).
+#}
+{% macro ticket_panel(r) %}
+<div class="card" style="margin:0; padding:12px 14px; display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap;">
+  {% if r.status != 'resolved' %}
+  <span style="min-width:120px; max-width:128px; width:128px; display:flex; flex-direction:column; gap:8px; flex-shrink:0;">
+    <strong style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-secondary);">Build this?</strong>
+    {% if r.engineering_status == 'none' or not r.engineering_status %}
+    <form method="post" action="{{ url_for('admin_support_engineering_decide', request_id=r.id) }}" style="width:100%;">
+      <input type="hidden" name="next" value="{{ url_for('admin_support_queue') }}#all-tickets">
+      <input type="text" name="engineering_note" placeholder="Note (optional)" style="width:100%; margin-bottom:6px; font-size:12px;">
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <button class="btn btn-sm" type="submit" name="action" value="action_admin" style="width:100%; white-space:normal; line-height:1.2; background:var(--good); border-color:var(--good); color:#fff;">Action: Admin</button>
+        <button class="btn btn-sm" type="submit" name="action" value="action_coding" style="width:100%; white-space:normal; line-height:1.2; background:var(--critical); border-color:var(--critical); color:#fff;">Action: Coding</button>
+        <button class="btn btn-sm" type="submit" name="action" value="defer" style="width:100%; white-space:normal; line-height:1.2; background:var(--brand); border-color:var(--brand); color:#fff;">Defer</button>
+        <button class="btn btn-sm" type="submit" name="action" value="reject" style="width:100%; white-space:normal; line-height:1.2; background:var(--ink-muted); border-color:var(--ink-muted); color:#fff;">Reject</button>
+      </div>
+    </form>
+    {% else %}
+    <span class="badge {{ {'rejected': 'badge-neutral', 'deferred': 'badge-warning', 'admin_completed': 'badge-good', 'action_requested': 'badge-good', 'build_ready': 'badge-good', 'approved_to_ship': 'badge-good', 'shipped': 'badge-good'}.get(r.engineering_status, 'badge-neutral') }}">
+      {{ {'rejected': 'Rejected', 'deferred': 'Deferred', 'admin_completed': 'Completed by admin', 'action_requested': 'Queued for Claude', 'build_ready': 'Build ready', 'approved_to_ship': 'Approved to ship', 'shipped': 'Shipped'}.get(r.engineering_status, r.engineering_status) }}
+    </span>
+    {% if r.engineering_note %}<div class="hint" style="font-size:11.5px;">&ldquo;{{ r.engineering_note }}&rdquo;</div>{% endif %}
+    <a class="hint" href="{{ url_for('admin_support_engineering_queue') }}">Manage in Engineering Queue &rarr;</a>
+    {% endif %}
+  </span>
+  {% else %}
+  <span style="min-width:120px; max-width:128px; width:128px; flex-shrink:0;">
+    <span class="badge badge-good">Resolved</span>
+  </span>
+  {% endif %}
+  <span style="flex:1; min-width:220px;">
+    <strong style="font-size:14px;">{{ r.requester_name }}</strong>
+    {% if r.reference_number %}<span class="ref-badge" style="margin-left:4px;">#BF-{{ r.reference_number }}</span>{% endif %}
+    <span class="badge badge-neutral" style="margin-left:6px;">{{ r.requester_role|capitalize }}</span>
+    <span class="cat-badge cat-{{ r.category }}" style="margin-left:4px;">{{ category_labels[r.category] }}</span>
+    <span class="badge {{ 'badge-good' if r.status == 'in_progress' else 'badge-warning' }}" style="margin-left:4px;">{{ r.status.replace('_', ' ')|capitalize }}</span>
+    <div class="hint">{{ r.requester_company }} · {{ r.created_at|fmt_time }}</div>
+    <div class="snippet" style="white-space:normal;">{{ r.notes }}</div>
+    {% if r.attachment_data_url %}
+    <div style="margin-top:8px;">
+      {% if r.attachment_content_type and r.attachment_content_type.startswith('image/') %}
+      <a href="{{ url_for('support_download_attachment', request_id=r.id) }}" target="_blank">
+        <img src="{{ url_for('support_download_attachment', request_id=r.id) }}" alt="Attached screenshot"
+          style="max-width:180px; max-height:120px; border-radius:8px; border:1px solid var(--border); display:block;">
+      </a>
+      {% else %}
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('support_download_attachment', request_id=r.id) }}">
+        📎 {{ r.attachment_filename }}
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if r.ai_suggested_resolution %}
+    <div class="card" style="margin-top:10px; margin-bottom:0; background:var(--brand-tint); border-color:var(--brand); padding:12px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+        <strong style="font-size:12.5px; color:var(--brand-dark);">🤖 Frankie's suggested resolution</strong>
+        <span class="badge badge-neutral">Suggested: {{ r.ai_suggested_status.replace('_', ' ')|capitalize }}</span>
+      </div>
+      {% if r.decision == 'pending_review' %}
+      <form method="post" action="{{ url_for('admin_support_decide', request_id=r.id) }}" style="margin-top:8px;">
+        <input type="hidden" name="next" value="{{ url_for('admin_support_queue') }}#all-tickets">
+        <div class="field"><textarea name="resolution_text" rows="4" style="width:100%;">{{ r.ai_suggested_resolution }}</textarea></div>
+        <div class="field" style="display:inline-block; margin-right:10px;">
+          <label>Status to set</label>
+          <select name="status">
+            <option value="open" {{ 'selected' if r.ai_suggested_status == 'open' }}>Open</option>
+            <option value="in_progress" {{ 'selected' if r.ai_suggested_status == 'in_progress' }}>In progress</option>
+            <option value="resolved" {{ 'selected' if r.ai_suggested_status == 'resolved' }}>Resolved</option>
+          </select>
+        </div>
+        <div class="field" style="display:inline-block;">
+          <label>Internal note (optional, not sent to requester)</label>
+          <input type="text" name="decision_note" placeholder="Optional">
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
+          <button class="btn btn-primary btn-sm" type="submit" name="action" value="approve">Approve as drafted</button>
+          <button class="btn btn-secondary btn-sm" type="submit" name="action" value="modify">Save edits &amp; approve</button>
+          <button class="btn btn-ghost btn-sm" type="submit" name="action" value="reject">Reject</button>
+          <button class="btn btn-ghost btn-sm" type="submit" name="action" value="defer">Defer</button>
+        </div>
+      </form>
+      {% else %}
+      <div class="hint" style="margin-top:6px;">
+        {{ {'approved': 'Approved as drafted', 'modified_approved': 'Approved with edits', 'rejected': 'Rejected', 'deferred': 'Deferred'}[r.decision] }}
+        {% if r.decided_at %} · {{ r.decided_at|fmt_time }}{% endif %}
+        {% if r.decision_note %} — &ldquo;{{ r.decision_note }}&rdquo;{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </span>
+  <span style="display:flex; gap:6px; align-items:flex-start; flex-shrink:0;">
+    <a class="btn btn-primary btn-sm" href="{{ url_for('admin_thread', thread_id=r.thread_id) }}">Reply</a>
+    {% if r.status != 'resolved' %}
+    <form method="post" action="{{ url_for('admin_support_status', request_id=r.id) }}">
+      <input type="hidden" name="next" value="{{ url_for('admin_support_queue') }}#all-tickets">
+      <input type="hidden" name="status" value="resolved">
+      <button class="btn btn-ghost btn-sm" type="submit">Mark resolved</button>
+    </form>
+    {% endif %}
+  </span>
+</div>
+{% endmacro %}
+
+{#
+  The 4 per-viewer toggle buttons (mark unread/read, flag, save,
+  archive/restore) -- same routes/behavior as _thread_row.html's
+  thread_row() action bar, copied locally rather than imported because
+  a ticket row here is a <details> accordion (click to expand in
+  place) instead of thread_row's navigate-away <a>, so it can't reuse
+  that macro's wrapper, just its action buttons.
+#}
+{% macro ticket_row_actions(t, next_url) %}
+<form method="post" action="{{ url_for('toggle_thread_unread', thread_id=t.id) }}">
+  <input type="hidden" name="next" value="{{ next_url }}">
+  <button type="submit" class="icon-btn" title="{{ 'Mark as read' if t.is_unread else 'Mark as unread' }}">{{ '✓' if t.is_unread else '✉️' }}</button>
+</form>
+<form method="post" action="{{ url_for('toggle_thread_flag', thread_id=t.id) }}">
+  <input type="hidden" name="next" value="{{ next_url }}">
+  <button type="submit" class="icon-btn{{ ' flag-active' if t.is_flagged }}" title="{{ 'Remove important flag' if t.is_flagged else 'Flag as important' }}">🚩</button>
+</form>
+<form method="post" action="{{ url_for('toggle_thread_save', thread_id=t.id) }}">
+  <input type="hidden" name="next" value="{{ next_url }}">
+  <button type="submit" class="icon-btn{{ ' save-active' if t.is_saved }}" title="{{ 'Remove from Saved' if t.is_saved else 'Save' }}">🔖</button>
+</form>
+<form method="post" action="{{ url_for('restore_thread' if t.is_archived else 'delete_thread', thread_id=t.id) }}">
+  <input type="hidden" name="next" value="{{ next_url }}">
+  <button type="submit" class="icon-btn" title="{{ 'Restore from Archive' if t.is_archived else 'Archive conversation' }}">{{ '↩️' if t.is_archived else '🗄️' }}</button>
+</form>
+{% endmacro %}
+
+{#
+  One row of "All tickets" -- Kj's merge request (2026-11-07): keeps
+  the exact look/organization "All conversations" already had
+  (category-boxed, most-recent-first, same badges), but clicking the
+  row now expands it in place to show ticket_panel() for every ticket
+  on that thread, instead of navigating to the thread/reply page. The
+  4 per-viewer toggles still work exactly as before (they're a plain
+  form post + redirect back to this same page either way, so the
+  accordion's open/closed state doesn't matter to them).
+#}
+{% macro ticket_row(t, next_url, extra_action_html=none) %}
+<details class="thread-row-accordion{{ ' unread' if t.is_unread }}{{ ' flagged' if t.is_flagged }}">
+  <summary>
+    <span class="ticket-chevron" aria-hidden="true">▸</span>
+    <span class="thread-row-main align-top">{{ support_body(t) }}</span>
+    <span class="thread-row-actions">{{ ticket_row_actions(t, next_url) }}{% if extra_action_html %}{{ extra_action_html }}{% endif %}</span>
+  </summary>
+  <div class="ticket-expand">
+    {% if t.tickets %}
+      {% for r in t.tickets %}{{ ticket_panel(r) }}{% endfor %}
+    {% else %}
+      <p class="hint" style="margin:0;">Vendor suggestion thread -- no ticket to action here.
+        <a href="{{ url_for('admin_thread', thread_id=t.id) }}">Open the conversation</a> to review it.</p>
+    {% endif %}
+  </div>
+</details>
+{% endmacro %}
+
+{% macro ticket_resolved_subsection(items, next_url) %}
+<details class="category-box" style="margin-top:4px;">
+  <summary class="category-box-head" style="cursor:pointer;">
+    <span class="badge badge-good">Resolved</span>
+    <span class="hint">{{ items|length }} ticket{{ 's' if items|length != 1 }} -- click to show/hide</span>
+  </summary>
+  <div class="category-box-body">
+    {% for t in items %}
+    {{ ticket_row(t, next_url, extra_action_html=tr.delete_button(t, next_url)) }}
+    {% else %}
+    <p class="hint" style="margin:4px 0;">No resolved tickets.</p>
+    {% endfor %}
+  </div>
+</details>
+{% endmacro %}
+
+{% macro ticket_saved_subsection(items, next_url) %}
+<details class="category-box" style="margin-top:8px;">
+  <summary class="category-box-head" style="cursor:pointer;">
+    <span class="badge badge-progress">🔖 Saved</span>
+    <span class="hint">{{ items|length }} saved{{ ' message' if items|length == 1 else ' messages' }} -- click to show/hide</span>
+  </summary>
+  <div class="category-box-body">
+    {% for t in items %}
+    {{ ticket_row(t, next_url) }}
+    {% else %}
+    <p class="hint" style="margin:4px 0;">Nothing saved here yet -- use the 🔖 button to keep one.</p>
+    {% endfor %}
+  </div>
+</details>
+{% endmacro %}
+
 {% block content %}
+<style>
+  /* Ticket accordion rows (2026-11-07 merge of Open Tickets + All
+     conversations into All Tickets) -- same bordered-row look as
+     .thread-row, but a <details> so the whole row expands in place
+     instead of navigating away. */
+  .thread-row-accordion {
+    border: 1px solid var(--gridline); border-radius: 12px; background: var(--surface-raised);
+  }
+  .thread-row-accordion:hover { border-color: var(--brand); }
+  .thread-row-accordion[open] { border-color: var(--brand); }
+  .thread-row-accordion > summary {
+    display: flex; align-items: center; gap: 10px; padding: 14px 16px; cursor: pointer; list-style: none;
+  }
+  .thread-row-accordion > summary::-webkit-details-marker { display: none; }
+  .thread-row-accordion.unread strong { font-weight: 800; }
+  .thread-row-accordion.unread .snippet { color: var(--ink-primary); font-weight: 600; }
+  .thread-row-accordion.flagged { background: var(--warning-tint); border-color: var(--warning-border); }
+  .ticket-chevron { flex-shrink: 0; color: var(--ink-muted); transition: transform 0.15s ease; }
+  .thread-row-accordion[open] .ticket-chevron { transform: rotate(90deg); }
+  .ticket-expand {
+    border-top: 1px dashed var(--gridline); padding: 14px 16px; background: var(--page);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+</style>
 <div class="page-header">
   <div>
     <span class="eyebrow">Administrator</span>
     <h1>Support Queue {% if g.support_queue_count %}<span class="badge badge-brand" style="vertical-align:middle;">{{ g.support_queue_count }} new</span>{% endif %}</h1>
-    <p class="lede">Every support ticket and vendor suggestion sent to BuyersForce, in one place --
-      the open ones needing a decision first, then the full conversation history boxed by category.
-      Separate from the engineering call on whether a ticket's underlying fix/feature gets built;
-      see <a href="{{ url_for('admin_support_engineering_queue') }}">Engineering Queue</a> for that.</p>
+    <p class="lede">Every support ticket and vendor suggestion sent to BuyersForce, most recent first and
+      boxed by category -- click any ticket to expand it and action it right there (build it, reply,
+      mark resolved). Separate from the engineering call on whether a ticket's underlying fix/feature
+      gets built; see <a href="{{ url_for('admin_support_engineering_queue') }}">Engineering Queue</a> for that.</p>
   </div>
   <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">← Back to dashboard</a>
 </div>
 
-<div class="section-title" id="open-tickets"><h2>Open tickets</h2></div>
-{% if open_support_requests %}
-<div class="card" style="margin-bottom:24px;">
-  {% for r in open_support_requests %}
-  <div class="mock-row" style="align-items:flex-start;">
-    <span style="min-width:120px; max-width:128px; width:128px; display:flex; flex-direction:column; gap:8px; flex-shrink:0;">
-      <strong style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-secondary);">Build this?</strong>
-      {% if r.engineering_status == 'none' or not r.engineering_status %}
-      <form method="post" action="{{ url_for('admin_support_engineering_decide', request_id=r.id) }}" style="width:100%;">
-        <input type="hidden" name="next" value="{{ url_for('admin_support_queue') }}#open-tickets">
-        <input type="text" name="engineering_note" placeholder="Note (optional)" style="width:100%; margin-bottom:6px; font-size:12px;">
-        <div style="display:flex; flex-direction:column; gap:4px;">
-          <button class="btn btn-sm" type="submit" name="action" value="action_admin" style="width:100%; white-space:normal; line-height:1.2; background:var(--good); border-color:var(--good); color:#fff;">Action: Admin</button>
-          <button class="btn btn-sm" type="submit" name="action" value="action_coding" style="width:100%; white-space:normal; line-height:1.2; background:var(--critical); border-color:var(--critical); color:#fff;">Action: Coding</button>
-          <button class="btn btn-sm" type="submit" name="action" value="defer" style="width:100%; white-space:normal; line-height:1.2; background:var(--brand); border-color:var(--brand); color:#fff;">Defer</button>
-          <button class="btn btn-sm" type="submit" name="action" value="reject" style="width:100%; white-space:normal; line-height:1.2; background:var(--ink-muted); border-color:var(--ink-muted); color:#fff;">Reject</button>
-        </div>
-      </form>
-      {% else %}
-      <span class="badge {{ {'rejected': 'badge-neutral', 'deferred': 'badge-warning', 'admin_completed': 'badge-good', 'action_requested': 'badge-good', 'build_ready': 'badge-good', 'approved_to_ship': 'badge-good', 'shipped': 'badge-good'}.get(r.engineering_status, 'badge-neutral') }}">
-        {{ {'rejected': 'Rejected', 'deferred': 'Deferred', 'admin_completed': 'Completed by admin', 'action_requested': 'Queued for Claude', 'build_ready': 'Build ready', 'approved_to_ship': 'Approved to ship', 'shipped': 'Shipped'}.get(r.engineering_status, r.engineering_status) }}
-      </span>
-      {% if r.engineering_note %}<div class="hint" style="font-size:11.5px;">&ldquo;{{ r.engineering_note }}&rdquo;</div>{% endif %}
-      <a class="hint" href="{{ url_for('admin_support_engineering_queue') }}">Manage in Engineering Queue &rarr;</a>
-      {% endif %}
-    </span>
-    <span>
-      <strong style="font-size:14px;">{{ r.requester_name }}</strong>
-      {% if r.reference_number %}<span class="ref-badge" style="margin-left:4px;">#BF-{{ r.reference_number }}</span>{% endif %}
-      <span class="badge badge-neutral" style="margin-left:6px;">{{ r.requester_role|capitalize }}</span>
-      <span class="cat-badge cat-{{ r.category }}" style="margin-left:4px;">{{ support_category_labels[r.category] }}</span>
-      <span class="badge {{ 'badge-good' if r.status == 'in_progress' else 'badge-warning' }}" style="margin-left:4px;">{{ r.status.replace('_', ' ')|capitalize }}</span>
-      <div class="hint">{{ r.requester_company }} · {{ r.created_at|fmt_time }}</div>
-      <div class="snippet">{{ r.notes }}</div>
-      {% if r.attachment_data_url %}
-      <div style="margin-top:8px;">
-        {% if r.attachment_content_type and r.attachment_content_type.startswith('image/') %}
-        <a href="{{ url_for('support_download_attachment', request_id=r.id) }}" target="_blank">
-          <img src="{{ url_for('support_download_attachment', request_id=r.id) }}" alt="Attached screenshot"
-            style="max-width:180px; max-height:120px; border-radius:8px; border:1px solid var(--border); display:block;">
-        </a>
-        {% else %}
-        <a class="btn btn-ghost btn-sm" href="{{ url_for('support_download_attachment', request_id=r.id) }}">
-          📎 {{ r.attachment_filename }}
-        </a>
-        {% endif %}
-      </div>
-      {% endif %}
-      {% if r.ai_suggested_resolution %}
-      <div class="card" style="margin-top:10px; margin-bottom:0; background:var(--brand-tint); border-color:var(--brand); padding:12px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
-          <strong style="font-size:12.5px; color:var(--brand-dark);">🤖 Frankie's suggested resolution</strong>
-          <span class="badge badge-neutral">Suggested: {{ r.ai_suggested_status.replace('_', ' ')|capitalize }}</span>
-        </div>
-        {% if r.decision == 'pending_review' %}
-        <form method="post" action="{{ url_for('admin_support_decide', request_id=r.id) }}" style="margin-top:8px;">
-          <input type="hidden" name="next" value="{{ url_for('admin_support_queue') }}#open-tickets">
-          <div class="field"><textarea name="resolution_text" rows="4" style="width:100%;">{{ r.ai_suggested_resolution }}</textarea></div>
-          <div class="field" style="display:inline-block; margin-right:10px;">
-            <label>Status to set</label>
-            <select name="status">
-              <option value="open" {{ 'selected' if r.ai_suggested_status == 'open' }}>Open</option>
-              <option value="in_progress" {{ 'selected' if r.ai_suggested_status == 'in_progress' }}>In progress</option>
-              <option value="resolved" {{ 'selected' if r.ai_suggested_status == 'resolved' }}>Resolved</option>
-            </select>
-          </div>
-          <div class="field" style="display:inline-block;">
-            <label>Internal note (optional, not sent to requester)</label>
-            <input type="text" name="decision_note" placeholder="Optional">
-          </div>
-          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
-            <button class="btn btn-primary btn-sm" type="submit" name="action" value="approve">Approve as drafted</button>
-            <button class="btn btn-secondary btn-sm" type="submit" name="action" value="modify">Save edits &amp; approve</button>
-            <button class="btn btn-ghost btn-sm" type="submit" name="action" value="reject">Reject</button>
-            <button class="btn btn-ghost btn-sm" type="submit" name="action" value="defer">Defer</button>
-          </div>
-        </form>
-        {% else %}
-        <div class="hint" style="margin-top:6px;">
-          {{ {'approved': 'Approved as drafted', 'modified_approved': 'Approved with edits', 'rejected': 'Rejected', 'deferred': 'Deferred'}[r.decision] }}
-          {% if r.decided_at %} · {{ r.decided_at|fmt_time }}{% endif %}
-          {% if r.decision_note %} — &ldquo;{{ r.decision_note }}&rdquo;{% endif %}
-        </div>
-        {% endif %}
-      </div>
-      {% endif %}
-    </span>
-    <span style="display:flex; gap:6px; align-items:flex-start;">
-      <a class="btn btn-primary btn-sm" href="{{ url_for('admin_thread', thread_id=r.thread_id) }}">Reply</a>
-      <form method="post" action="{{ url_for('admin_support_status', request_id=r.id) }}">
-        <input type="hidden" name="next" value="{{ url_for('admin_support_queue') }}#open-tickets">
-        <input type="hidden" name="status" value="resolved">
-        <button class="btn btn-ghost btn-sm" type="submit">Mark resolved</button>
-      </form>
-    </span>
-  </div>
-  {% endfor %}
-</div>
-{% else %}
-<div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✅</div>Nothing to see here, all caught up!</div>
-{% endif %}
-
-<div class="section-title" style="margin-top:28px;"><h2>All conversations</h2></div>
+<div class="section-title" id="all-tickets"><h2>All tickets</h2></div>
 {% include "_archive_toggle.html" %}
 <p class="hint" style="margin-top:-12px; margin-bottom:14px;">Boxed by category, most recent activity first -- within each box, open requests first, then in progress. Resolved tickets move to the Resolved bucket below.</p>
 {% if support_boxes %}
@@ -157,7 +282,7 @@
     </div>
     <div class="category-box-body">
       {% for t in box.threads %}
-      {% call tr.thread_row(t, 'admin_thread', request.full_path, align_top=true) %}{{ support_body(t) }}{% endcall %}
+      {{ ticket_row(t, request.full_path) }}
       {% endfor %}
     </div>
   </div>
@@ -169,7 +294,7 @@
 {% endif %}
 
 {% if view != 'archived' %}
-{{ tr.resolved_subsection(resolved_threads, support_body_flat, 'admin_thread', request.full_path) }}
-{{ tr.saved_subsection(saved_support, support_body_flat, 'admin_thread', request.full_path) }}
+{{ ticket_resolved_subsection(resolved_threads, request.full_path) }}
+{{ ticket_saved_subsection(saved_support, request.full_path) }}
 {% endif %}
 {% endblock %}
