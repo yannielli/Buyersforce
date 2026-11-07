@@ -100,6 +100,7 @@ def run_migrations():
             _add_prelaunch_checklist_table_2026_11_07(cur)
             _add_support_requests_engineering_decision_columns_2026_11_07(cur)
             _add_support_requests_admin_completed_status_2026_11_07(cur)
+            _backfill_engineering_decisions_2026_11_07(cur)
     finally:
         con.close()
 
@@ -2257,6 +2258,51 @@ def _add_support_requests_admin_completed_status_2026_11_07(cur):
         "CHECK (engineering_status IN ("
         "'none', 'rejected', 'deferred', 'admin_completed', 'action_requested', "
         "'build_ready', 'approved_to_ship', 'shipped'))"
+    )
+
+
+_ENGINEERING_BACKFILL_2026_11_07 = [
+    # (reference_number, engineering_status, note) -- Kj's retroactive
+    # call on the three tickets that were already open when the
+    # engineering-decision queue shipped, so they never got a
+    # Reject/Defer/Action click and sat at the 'none' default.
+    (4002, "deferred", "Backfilled retroactively (2026-11-07) -- Kj: defer."),
+    (4003, "rejected", "Backfilled retroactively (2026-11-07) -- Kj: reject."),
+    (4004, "deferred", "Backfilled retroactively (2026-11-07) -- Kj: defer."),
+]
+
+
+def _backfill_engineering_decisions_2026_11_07(cur):
+    """One-time backfill for tickets #BF-4002/4003/4004 -- see
+    _ENGINEERING_BACKFILL_2026_11_07 above for Kj's actual call on each.
+    Guarded by _data_patches so this never re-runs, and the UPDATE itself
+    only touches a row still sitting at engineering_status='none', so it
+    can never clobber a real decision Kj makes himself from the admin UI
+    before this deploy lands.
+    """
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches (name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "backfill_engineering_decisions_2026_11_07"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+
+    cur.execute("SELECT id FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1")
+    admin_row = cur.fetchone()
+    admin_id = admin_row[0] if admin_row else None
+
+    for reference_number, status, note in _ENGINEERING_BACKFILL_2026_11_07:
+        cur.execute(
+            "UPDATE support_requests SET engineering_status = %s, engineering_note = %s, "
+            "engineering_decided_at = to_char(now(), 'YYYY-MM-DD HH24:MI:SS'), engineering_decided_by = %s "
+            "WHERE reference_number = %s AND engineering_status = 'none'",
+            (status, note, admin_id, reference_number),
+        )
+
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
     )
 
 
