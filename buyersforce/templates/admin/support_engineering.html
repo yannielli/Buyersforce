@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Engineering Queue{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Administrator</span>
+    <h1>Engineering Queue</h1>
+    <p class="lede">Support tickets and feature requests Kj's made an engineering call on -- separate from the
+      per-ticket reply you approve on the Dashboard. This is about whether the underlying fix or feature
+      actually gets built.</p>
+  </div>
+</div>
+
+{% macro ticket_card(r) %}
+<div class="mock-row" style="align-items:flex-start;">
+  <span>
+    <strong style="font-size:14px;">{{ r.requester_name }}</strong>
+    {% if r.reference_number %}<span class="ref-badge" style="margin-left:4px;">#BF-{{ r.reference_number }}</span>{% endif %}
+    <span class="cat-badge cat-{{ r.category }}" style="margin-left:4px;">{{ support_category_labels[r.category] }}</span>
+    <div class="hint">{{ r.requester_company }} &middot; {{ r.created_at|fmt_time }}</div>
+    <div class="snippet">{{ r.notes }}</div>
+    {% if r.engineering_note %}
+    <div class="hint" style="margin-top:6px;">Kj's note: &ldquo;{{ r.engineering_note }}&rdquo;</div>
+    {% endif %}
+    {% if r.engineering_summary %}
+    <div class="card" style="margin-top:8px; margin-bottom:0; background:var(--brand-tint); border-color:var(--brand); padding:10px 12px;">
+      <strong style="font-size:12px; color:var(--brand-dark);">What Claude built</strong>
+      <div style="font-size:13px; margin-top:4px;">{{ r.engineering_summary }}</div>
+      {% if r.engineering_branch %}<div class="hint" style="margin-top:4px;">Branch: <code>{{ r.engineering_branch }}</code></div>{% endif %}
+    </div>
+    {% endif %}
+  </span>
+  <span style="display:flex; flex-direction:column; gap:6px; min-width:160px; align-items:flex-end;">
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('admin_thread', thread_id=r.thread_id) }}">View ticket</a>
+    {% if r.engineering_status == 'action_requested' %}
+    <form method="post" action="{{ url_for('admin_support_engineering_cancel', request_id=r.id) }}">
+      <input type="hidden" name="next" value="{{ url_for('admin_support_engineering_queue') }}">
+      <button class="btn btn-ghost btn-sm" type="submit">Cancel request</button>
+    </form>
+    {% elif r.engineering_status == 'build_ready' %}
+    <form method="post" action="{{ url_for('admin_support_engineering_push', request_id=r.id) }}">
+      <button class="btn btn-primary btn-sm" type="submit">Push to BF</button>
+    </form>
+    <details style="text-align:right;">
+      <summary class="hint" style="cursor:pointer;">Suggest another way</summary>
+      <form method="post" action="{{ url_for('admin_support_engineering_suggest', request_id=r.id) }}" style="margin-top:6px;">
+        <input type="text" name="engineering_note" placeholder="What should be different?" style="width:220px; font-size:12.5px;">
+        <button class="btn btn-ghost btn-sm" type="submit" style="margin-top:4px;">Send back</button>
+      </form>
+    </details>
+    {% elif r.engineering_status == 'deferred' %}
+    <form method="post" action="{{ url_for('admin_support_engineering_decide', request_id=r.id) }}">
+      <input type="hidden" name="next" value="{{ url_for('admin_support_engineering_queue') }}">
+      <button class="btn btn-primary btn-sm" type="submit" name="action" value="action">Move to active queue</button>
+    </form>
+    <form method="post" action="{{ url_for('admin_support_engineering_decide', request_id=r.id) }}">
+      <input type="hidden" name="next" value="{{ url_for('admin_support_engineering_queue') }}">
+      <button class="btn btn-ghost btn-sm" type="submit" name="action" value="reject">Reject instead</button>
+    </form>
+    {% elif r.engineering_status == 'rejected' %}
+    <form method="post" action="{{ url_for('admin_support_engineering_cancel', request_id=r.id) }}">
+      <input type="hidden" name="next" value="{{ url_for('admin_support_engineering_queue') }}">
+      <button class="btn btn-ghost btn-sm" type="submit">Reopen</button>
+    </form>
+    {% endif %}
+  </span>
+</div>
+{% endmacro %}
+
+{% set sections = [
+  ('action_requested', 'Queued for Claude to build'),
+  ('build_ready', 'Build ready -- your review'),
+  ('approved_to_ship', 'Approved -- waiting on Claude to deploy'),
+  ('shipped', 'Shipped'),
+  ('deferred', 'Future queue (deferred)'),
+  ('rejected', 'Archive (rejected)'),
+] %}
+
+{% for key, title in sections %}
+<div class="section-title"><h2>{{ title }}</h2></div>
+{% if buckets[key] %}
+<div class="card" style="margin-bottom:24px;">
+  {% for r in buckets[key] %}{{ ticket_card(r) }}{% endfor %}
+</div>
+{% else %}
+<div class="card empty-state" style="margin-bottom:24px;"><div class="icon">&#9989;</div>Nothing here right now.</div>
+{% endif %}
+{% endfor %}
+{% endblock %}

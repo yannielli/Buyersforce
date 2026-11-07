@@ -3360,62 +3360,146 @@ def admin_support_decide(request_id):
 
 
 # ---------------------------------------------------------------------------
-# Pre-Launch Checklist -- Kj's running list of things that still need doing
-# before BuyersForce launches publicly. Started (2026-11-07) with three TBD
-# items he flagged while scoping the AI support ticket agent's alert
-# mechanism (SMS/Twilio text alerts, iOS app, Android app -- see
-# migrate.py's seed), and open-ended so he can add more from here as they
-# come up. Admin-only, like everything else under /app/admin.
+# Engineering decision on a support ticket -- separate from admin_support_
+# decide above, which is only about whether FRANKIE'S DRAFTED REPLY gets
+# sent to the requester. This is Kj's call on whether the underlying
+# feature/bug the ticket describes is worth actually building (2026-11-07,
+# "AI support ticket agent" v2 -- Kj's correction: these two decisions were
+# tangled together in the first pass and needed their own, separate
+# buttons). See schema.sql's comment on support_requests.engineering_status
+# for the full state machine this walks through.
 # ---------------------------------------------------------------------------
 
-@app.route("/app/admin/prelaunch")
+@app.route("/app/admin/support/<int:request_id>/engineering/decide", methods=("POST",))
 @admin_required
-def admin_prelaunch_checklist():
-    items = dbm.query(
-        "SELECT pci.*, u.name done_by_name FROM prelaunch_checklist_items pci "
-        "LEFT JOIN users u ON u.id = pci.done_by "
-        "ORDER BY pci.is_done ASC, pci.sort_order ASC, pci.id ASC"
-    )
-    return render_template("admin/prelaunch.html", items=items)
-
-
-@app.route("/app/admin/prelaunch/add", methods=("POST",))
-@admin_required
-def admin_prelaunch_add():
-    label = request.form.get("label", "").strip()
-    detail = request.form.get("detail", "").strip()
-    if not label:
-        flash("Add a short label for the checklist item.", "error")
-        return redirect(url_for("admin_prelaunch_checklist"))
-    max_sort = dbm.query(
-        "SELECT COALESCE(MAX(sort_order), 0) AS n FROM prelaunch_checklist_items", one=True
-    )["n"]
-    dbm.execute(
-        "INSERT INTO prelaunch_checklist_items (label, detail, sort_order) VALUES (?, ?, ?)",
-        (label, detail, max_sort + 10),
-    )
-    flash("Added to the pre-launch checklist.", "success")
-    return redirect(url_for("admin_prelaunch_checklist"))
-
-
-@app.route("/app/admin/prelaunch/<int:item_id>/toggle", methods=("POST",))
-@admin_required
-def admin_prelaunch_toggle(item_id):
-    item = dbm.query("SELECT * FROM prelaunch_checklist_items WHERE id=?", (item_id,), one=True)
-    if not item:
+def admin_support_engineering_decide(request_id):
+    """Reject / Defer / Action -- the three buttons on the left side of
+    each ticket's pane on the admin dashboard. Works from ANY current
+    engineering_status, so this same route also covers "move a deferred
+    item into the active build queue" and "re-request after rejecting"
+    from the Engineering Queue page.
+    """
+    req = dbm.query("SELECT * FROM support_requests WHERE id=?", (request_id,), one=True)
+    if not req:
         abort(404)
-    if item["is_done"]:
+    action = request.form.get("action", "")
+    if action not in ("reject", "defer", "action"):
+        abort(400)
+    note = request.form.get("engineering_note", "").strip()
+    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    new_status = {"reject": "rejected", "defer": "deferred", "action": "action_requested"}[action]
+
+    if action == "action":
         dbm.execute(
-            "UPDATE prelaunch_checklist_items SET is_done=false, done_at=NULL, done_by=NULL WHERE id=?",
-            (item_id,),
+            "UPDATE support_requests SET engineering_status=?, engineering_note=?, "
+            "engineering_decided_at=?, engineering_decided_by=?, engineering_requested_at=? WHERE id=?",
+            (new_status, note, now_str, g.user["id"], now_str, request_id),
         )
     else:
-        now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         dbm.execute(
-            "UPDATE prelaunch_checklist_items SET is_done=true, done_at=?, done_by=? WHERE id=?",
-            (now_str, g.user["id"], item_id),
+            "UPDATE support_requests SET engineering_status=?, engineering_note=?, "
+            "engineering_decided_at=?, engineering_decided_by=? WHERE id=?",
+            (new_status, note, now_str, g.user["id"], request_id),
         )
-    return redirect(url_for("admin_prelaunch_checklist"))
+    flash(
+        {
+            "reject": "Archived -- won't be built.",
+            "defer": "Moved to the future queue.",
+            "action": "Queued for Claude to build.",
+        }[action],
+        "success",
+    )
+    return redirect(request.form.get("next") or url_for("admin_dashboard"))
+
+
+@app.route("/app/admin/support/<int:request_id>/engineering/cancel", methods=("POST",))
+@admin_required
+def admin_support_engineering_cancel(request_id):
+    """Pulls a ticket back out of the engineering pipeline to 'none' --
+    undoing an accidental Reject/Defer/Action click, or reopening an
+    archived/deferred item without re-deciding anything about it yet.
+    Blocked once Claude's actually started building (build_ready and
+    later) -- those go through Push/Suggest-another-way instead.
+    """
+    req = dbm.query("SELECT * FROM support_requests WHERE id=?", (request_id,), one=True)
+    if not req:
+        abort(404)
+    if req["engineering_status"] in ("build_ready", "approved_to_ship", "shipped"):
+        flash("Can't undo once Claude's started building this -- use Push or Suggest another way instead.", "error")
+        return redirect(request.form.get("next") or url_for("admin_support_engineering_queue"))
+    dbm.execute(
+        "UPDATE support_requests SET engineering_status='none', engineering_note='', "
+        "engineering_decided_at=NULL, engineering_decided_by=NULL, engineering_requested_at=NULL WHERE id=?",
+        (request_id,),
+    )
+    flash("Back to no engineering decision.", "success")
+    return redirect(request.form.get("next") or url_for("admin_support_engineering_queue"))
+
+
+@app.route("/app/admin/support/<int:request_id>/engineering/push", methods=("POST",))
+@admin_required
+def admin_support_engineering_push(request_id):
+    """Kj's go-ahead on a drafted build (engineering_status='build_ready')
+    -- signals Claude to actually merge the branch and deploy it. Claude
+    picks this up by checking the Engineering Queue, same as every other
+    step here; there's no live wiring from this click straight into a
+    deploy (see CLAUDE.md for why, and how the loop actually closes).
+    """
+    req = dbm.query("SELECT * FROM support_requests WHERE id=?", (request_id,), one=True)
+    if not req or req["engineering_status"] != "build_ready":
+        abort(404)
+    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    dbm.execute(
+        "UPDATE support_requests SET engineering_status='approved_to_ship', "
+        "engineering_decided_at=?, engineering_decided_by=? WHERE id=?",
+        (now_str, g.user["id"], request_id),
+    )
+    flash("Approved to ship -- Claude will merge and deploy it.", "success")
+    return redirect(url_for("admin_support_engineering_queue"))
+
+
+@app.route("/app/admin/support/<int:request_id>/engineering/suggest", methods=("POST",))
+@admin_required
+def admin_support_engineering_suggest(request_id):
+    """Kj's "allow me to suggest another way" option on a drafted build --
+    sends it back to Claude's action_requested queue with his redirect
+    attached, instead of shipping what was drafted.
+    """
+    req = dbm.query("SELECT * FROM support_requests WHERE id=?", (request_id,), one=True)
+    if not req or req["engineering_status"] != "build_ready":
+        abort(404)
+    note = request.form.get("engineering_note", "").strip()
+    if not note:
+        flash("Add what you'd like done differently first.", "error")
+        return redirect(url_for("admin_support_engineering_queue"))
+    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    dbm.execute(
+        "UPDATE support_requests SET engineering_status='action_requested', engineering_note=?, "
+        "engineering_decided_at=?, engineering_decided_by=? WHERE id=?",
+        (note, now_str, g.user["id"], request_id),
+    )
+    flash("Sent back to Claude with your notes.", "success")
+    return redirect(url_for("admin_support_engineering_queue"))
+
+
+@app.route("/app/admin/support/engineering")
+@admin_required
+def admin_support_engineering_queue():
+    rows = dbm.query(
+        "SELECT sr.*, u.name requester_name, u.company requester_company, u.role requester_role "
+        "FROM support_requests sr JOIN users u ON u.id = sr.user_id "
+        "WHERE sr.engineering_status != 'none' "
+        "ORDER BY sr.engineering_decided_at DESC NULLS LAST, sr.created_at DESC"
+    )
+    buckets = {
+        "action_requested": [], "build_ready": [], "approved_to_ship": [],
+        "shipped": [], "deferred": [], "rejected": [],
+    }
+    for r in rows:
+        buckets.setdefault(r["engineering_status"], []).append(r)
+    return render_template(
+        "admin/support_engineering.html", buckets=buckets, support_category_labels=SUPPORT_CATEGORY_LABELS,
+    )
 
 
 @app.route("/app/admin/vendor-requests/<int:request_id>/decide", methods=("POST",))

@@ -422,6 +422,50 @@ CREATE TABLE support_requests (
     decision_note TEXT NOT NULL DEFAULT '',
     decided_at TEXT,
     decided_by INTEGER REFERENCES users(id),
+    -- The ENGINEERING decision -- separate from `decision` above (which is
+    -- only about whether Frankie's drafted REPLY gets sent to the
+    -- requester). This is Kj's call on whether the underlying feature/bug
+    -- the ticket describes is actually worth fixing/building (2026-11-07,
+    -- "AI support ticket agent" v2 -- see admin_support_engineering_decide
+    -- in app.py):
+    --   'none'             -- no engineering call made yet (the default)
+    --   'rejected'         -- Kj decided it's not worth doing; archived,
+    --                         out of the active queue, kept for reference
+    --   'deferred'         -- worth doing, but tabled into a future queue
+    --   'action_requested' -- Kj wants this built now; waiting on Claude
+    --                         to actually write the change
+    --   'build_ready'      -- Claude's drafted the change (see
+    --                         engineering_summary/engineering_branch) and
+    --                         it's sitting in the Pending queue for Kj to
+    --                         review/test before anything ships
+    --   'approved_to_ship' -- Kj reviewed a build_ready item and said go;
+    --                         waiting on Claude to actually merge/deploy
+    --   'shipped'          -- live in production
+    -- 'approved_to_ship' items go back to 'action_requested' if Kj instead
+    -- clicks "Suggest another way" (engineering_note carries his redirect).
+    engineering_status TEXT NOT NULL DEFAULT 'none' CHECK (
+        engineering_status IN (
+            'none', 'rejected', 'deferred', 'action_requested',
+            'build_ready', 'approved_to_ship', 'shipped'
+        )
+    ),
+    -- Kj's own words: why he rejected/deferred it, what he wants built on
+    -- an action request, or his redirect on "suggest another way". Always
+    -- the LATEST note -- older ones don't need to survive, same as
+    -- decision_note above.
+    engineering_note TEXT NOT NULL DEFAULT '',
+    -- Claude's plain-language summary of what was actually built, filled
+    -- in when engineering_status becomes 'build_ready' -- what changed
+    -- and why, so Kj can review it here before even looking at the branch.
+    engineering_summary TEXT,
+    -- The git branch holding the drafted change, if there is one yet --
+    -- never main; a build only reaches main/production once Kj clicks
+    -- "Push" and Claude actually merges it.
+    engineering_branch TEXT,
+    engineering_requested_at TEXT,
+    engineering_ready_at TEXT,
+    engineering_decided_at TEXT,
+    engineering_decided_by INTEGER REFERENCES users(id),
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
 );
 

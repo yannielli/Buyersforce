@@ -231,17 +231,62 @@ land in one read, without Kj having to re-explain months of context.
     ticket alert above supersedes it); `eval_project_share`'s
     external-recipient branch is excluded too (it already gets a
     richer `send_evaluation_share` email with the attachment).
-  - **Pre-Launch Checklist**: Kj asked to track two prelaunch TBD items
-    (SMS/Twilio text alerts for everyone, iOS + Android native apps
-    with a message-alert badge on both app tiles) on a "running
-    checklist pinned in the left pane" -- BuyersForce has never had a
-    left sidebar (top nav only), so this shipped instead as a new
-    top-nav admin page ("Pre-Launch" link, `admin_prelaunch_checklist`
-    + `prelaunch_checklist_items` table) where Kj can check items off
-    or add new ones; seeded once with those two items.
+  - **Pre-Launch Checklist, corrected** (2026-11-07, same day): Kj
+    actually meant Claude's OWN pinned-items sidebar (claude.ai's left
+    pane), not anything inside the BuyersForce app -- the first pass
+    built a BF admin page for this by mistake (misread "pinned in the
+    left pane" as a BF UI element, since BF has no left sidebar). That
+    admin page (route, nav link, template) was removed the same day;
+    the three TBD items (SMS/Twilio text alerts, iOS app, Android app)
+    now live in a pinned Claude artifact/doc instead, outside this
+    codebase -- see Claude's own pinned items, not BF, for the current
+    checklist. `prelaunch_checklist_items` is an orphaned table left in
+    the schema (harmless, unused) from the removed first pass -- fine
+    to drop in a future cleanup, not worth a risky migration just for
+    that.
   - Schema: `support_requests` gained the 7 columns above;
-    `thread_reads` gained `last_alert_sent_at`; new
-    `prelaunch_checklist_items` table.
+    `thread_reads` gained `last_alert_sent_at`.
+- **Engineering decision queue, v2** (2026-11-07, same day as the above):
+  Kj liked the AI-reply approve/modify/reject/defer flow as-is, but
+  wanted a SEPARATE decision about whether the underlying feature/bug a
+  ticket describes is worth actually building -- that's a different
+  question from "should Frankie's drafted reply go out", and the two
+  were tangled together in the first pass.
+  - New **Reject / Defer / Action** buttons on the LEFT side of each
+    ticket's pane on the Dashboard (`admin_support_engineering_decide`),
+    visually separate from the existing Frankie reply box (unchanged).
+    Reject archives it (out of the active queue, kept for reference);
+    Defer tables it into a future queue; Action queues it for Claude to
+    actually build, with Kj's note on what he wants.
+  - New **Engineering Queue** admin page (top nav), `support_requests
+    .engineering_status` state machine: `none` -> `rejected` |
+    `deferred` | `action_requested` -> `build_ready` -> (`approved_to_
+    ship` -> `shipped`) or back to `action_requested` via "Suggest
+    another way". Kj's two buttons on a `build_ready` item -- **Push to
+    BF** and **Suggest another way** -- live here
+    (`admin_support_engineering_push` / `_suggest`).
+  - **How the loop actually closes (important -- read before assuming
+    this is automatic):** BuyersForce the web app has no way to
+    autonomously summon Claude, and the live production database is
+    deliberately never queried directly from a chat session (no
+    DATABASE_URL is ever read into a conversation -- see the Credential
+    Materialization guard that blocks even *listing* Railway variables).
+    So: clicking **Action** just flags the ticket in the DB; Kj still
+    has to tell Claude in a chat ("build ticket #BF-123") to actually
+    start, same as every other change in this file. Once Claude's built
+    it on a feature branch, Claude marks it `build_ready` (with a
+    summary + branch name) the SAME way every other one-time data
+    change in this app ever happens -- a one-shot `_data_patches`-
+    guarded UPDATE added to `migrate.py` alongside the actual code
+    fix, which applies itself on the next deploy. When Kj clicks **Push
+    to BF**, that's `approved_to_ship` in the DB (an ordinary admin
+    action, no credentials involved); Claude still has to actually do
+    the `git push` to merge it to `main` (which it already can, via
+    `claude-ssh` -- no new access needed), and marks it `shipped` the
+    same one-shot-patch way. Net: no new infrastructure, no credentials
+    ever touched, but also not push-button-automatic -- Kj pinging
+    Claude is still the trigger at both the "go build it" and "I've
+    pushed/shipped it" ends.
 
 Known rough edges worth remembering, not yet fixed:
 - The cross-page compare tray (above) is client-side/localStorage only --

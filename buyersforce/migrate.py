@@ -98,6 +98,7 @@ def run_migrations():
             _add_support_requests_ai_triage_columns_2026_11_07(cur)
             _add_thread_reads_last_alert_sent_at_2026_11_07(cur)
             _add_prelaunch_checklist_table_2026_11_07(cur)
+            _add_support_requests_engineering_decision_columns_2026_11_07(cur)
     finally:
         con.close()
 
@@ -2202,6 +2203,40 @@ def _add_prelaunch_checklist_table_2026_11_07(cur):
     cur.execute(
         "INSERT INTO _data_patches (name, applied_at) VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
         (patch_name,),
+    )
+
+
+def _add_support_requests_engineering_decision_columns_2026_11_07(cur):
+    """The ENGINEERING decision Kj asked to separate out from the AI-reply
+    decision (`decision` column, added earlier the same day) -- see
+    schema.sql's comment on these columns for the full state machine
+    (none -> rejected|deferred|action_requested -> build_ready ->
+    approved_to_ship -> shipped, with "suggest another way" looping
+    build_ready back to action_requested). Kj's correction, same day: the
+    AI-reply approve/modify/reject/defer flow stays exactly as built;
+    THESE columns back a separate reject/defer/action control for whether
+    the underlying feature/bug itself is worth building.
+    """
+    cur.execute(
+        "ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS engineering_status "
+        "TEXT NOT NULL DEFAULT 'none'"
+    )
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS engineering_note TEXT NOT NULL DEFAULT ''")
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS engineering_summary TEXT")
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS engineering_branch TEXT")
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS engineering_requested_at TEXT")
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS engineering_ready_at TEXT")
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS engineering_decided_at TEXT")
+    cur.execute(
+        "ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS engineering_decided_by "
+        "INTEGER REFERENCES users(id)"
+    )
+    cur.execute("ALTER TABLE support_requests DROP CONSTRAINT IF EXISTS support_requests_engineering_status_check")
+    cur.execute(
+        "ALTER TABLE support_requests ADD CONSTRAINT support_requests_engineering_status_check "
+        "CHECK (engineering_status IN ("
+        "'none', 'rejected', 'deferred', 'action_requested', "
+        "'build_ready', 'approved_to_ship', 'shipped'))"
     )
 
 
