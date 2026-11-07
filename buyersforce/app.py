@@ -1493,6 +1493,20 @@ def _admin_dashboard_context():
     pending_signups_count = dbm.query(
         "SELECT COUNT(*) AS n FROM users WHERE account_status = 'pending'", one=True
     )["n"]
+    # Small count tiles for the Engineering Queue section (Kj's request,
+    # 2026-11-07) -- one per engineering_status bucket on
+    # admin_support_engineering_queue, so the Dashboard shows at a glance
+    # how many tickets sit in each stage without having to open that page.
+    engineering_counts_rows = dbm.query(
+        "SELECT engineering_status, COUNT(*) AS n FROM support_requests "
+        "WHERE engineering_status != 'none' GROUP BY engineering_status"
+    )
+    engineering_counts = {
+        "action_requested": 0, "build_ready": 0, "approved_to_ship": 0,
+        "shipped": 0, "deferred": 0, "rejected": 0,
+    }
+    for row in engineering_counts_rows:
+        engineering_counts[row["engineering_status"]] = row["n"]
     return dict(
         buyer_company_count=buyer_company_count, buyer_user_count=buyer_user_count,
         seller_company_count=seller_company_count, seller_user_count=seller_user_count,
@@ -1501,6 +1515,7 @@ def _admin_dashboard_context():
         pending_invites_count=pending_invites_count,
         pending_vendor_claims_count=pending_vendor_claims_count,
         pending_signups_count=pending_signups_count,
+        engineering_counts=engineering_counts,
     )
 
 

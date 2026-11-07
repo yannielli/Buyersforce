@@ -71,6 +71,34 @@
 <div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✅</div>Nothing to see here, all caught up!</div>
 {% endif %}
 
+<div class="section-title"><h2>Engineering Queue</h2></div>
+<div class="grid grid-3" style="gap:10px; margin-bottom:24px;">
+  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-action_requested" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--brand-tint); border-color:var(--brand);">
+    <div style="font-size:22px; font-weight:700; color:var(--brand-dark);">{{ engineering_counts.action_requested }}</div>
+    <div class="hint" style="color:var(--brand-dark);">Queued for Claude</div>
+  </a>
+  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-build_ready" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--warning-tint); border-color:var(--warning-ink);">
+    <div style="font-size:22px; font-weight:700; color:var(--warning-ink);">{{ engineering_counts.build_ready }}</div>
+    <div class="hint" style="color:var(--warning-ink);">Build ready — your review</div>
+  </a>
+  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-approved_to_ship" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--brand-tint); border-color:var(--brand);">
+    <div style="font-size:22px; font-weight:700; color:var(--brand-dark);">{{ engineering_counts.approved_to_ship }}</div>
+    <div class="hint" style="color:var(--brand-dark);">Approved to ship</div>
+  </a>
+  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-shipped" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--good-tint); border-color:var(--good-ink);">
+    <div style="font-size:22px; font-weight:700; color:var(--good-ink);">{{ engineering_counts.shipped }}</div>
+    <div class="hint" style="color:var(--good-ink);">Shipped</div>
+  </a>
+  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-deferred" class="card" style="margin-top:0; text-align:center; padding:12px 6px;">
+    <div style="font-size:22px; font-weight:700; color:var(--ink-primary);">{{ engineering_counts.deferred }}</div>
+    <div class="hint">Deferred</div>
+  </a>
+  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-rejected" class="card" style="margin-top:0; text-align:center; padding:12px 6px;">
+    <div style="font-size:22px; font-weight:700; color:var(--ink-primary);">{{ engineering_counts.rejected }}</div>
+    <div class="hint">Rejected (archive)</div>
+  </a>
+</div>
+
 <div class="section-title" id="support-requests"><h2>Support requests</h2></div>
 {% if open_support_requests %}
 <div class="card" style="margin-bottom:24px;">

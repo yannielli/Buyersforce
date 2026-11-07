@@ -287,6 +287,19 @@ land in one read, without Kj having to re-explain months of context.
     ever touched, but also not push-button-automatic -- Kj pinging
     Claude is still the trigger at both the "go build it" and "I've
     pushed/shipped it" ends.
+  - **Dashboard tiles** (2026-11-07, same day): a row of 6 small count
+    tiles on the Dashboard ("Queued for Claude", "Build ready", "Approved
+    to ship", "Shipped", "Deferred", "Rejected"), each linking straight to
+    its section on the Engineering Queue page -- so Kj sees at a glance
+    whether anything needs him without opening that page. Counts come from
+    `_admin_dashboard_context()`'s new `engineering_counts` (one `GROUP BY
+    engineering_status` query); colored semantically (warning tint for
+    "needs your review", brand tint for "in progress", good tint for
+    "shipped", plain/neutral for deferred/rejected) -- using the existing
+    `--good-tint`/`--warning-tint`/`--brand-tint` tokens the badge classes
+    already use, not `--brand-mcm-coral`/`--brand-mcm-mustard` (style.css's
+    own comment on that variable already calls those two out as
+    decoration-only accents, never button/badge/tile fills).
 
 Known rough edges worth remembering, not yet fixed:
 - The cross-page compare tray (above) is client-side/localStorage only --
