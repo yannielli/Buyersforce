@@ -890,6 +890,22 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .ai-launcher-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 36px rgba(13,95,92,0.42); }
 .ai-launcher-btn .ai-launcher-icon { font-size: 16px; }
 
+/* Shimmering star accent on Frankie's two teal CTA buttons -- Discover's
+   "Ask Frankie" launcher and Evaluate's "Build with Frankie" (Kj's ask:
+   both buttons should read as a matching, always-animated pair, not the
+   static sparkle-emoji "Build with Frankie" text label this replaces,
+   and not the small circular Frankie head icon in the Discover button,
+   which is a separate element and stays as-is). Reuses the same
+   "#m-sparkle" shape + .shimmer keyframe (scale/opacity pulse) already
+   used for the Googie decorative motifs on base.html's logo and
+   landing.html's hero/CTA sections -- each page that uses it here
+   defines its own tiny, zero-size <svg><defs> sprite locally, same
+   pattern as landing.html, so no shared markup needed in base.html. */
+.frankie-btn-sparkle { display: block; flex-shrink: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .frankie-btn-sparkle .shimmer { animation: none; opacity: 0.85; }
+}
+
 /* Frankie mascot, standing static on top of a teal Frankie button with
    zero gap, so she reads as sticking straight out of it rather than
    floating separately. Shared by Discover's floating launcher and the

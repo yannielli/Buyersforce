@@ -127,6 +127,29 @@ land in one read, without Kj having to re-explain months of context.
   overrides, on a tall simulated page, confirming computed `position` and
   bounding box both before (buried in flow) and after (pinned
   bottom-right) the fix.
+- **Shimmering star sparkle on both Frankie teal CTA buttons** (2026-11-07):
+  Kj's ask -- Discover's "Ask Frankie" launcher and Evaluate's "Build with
+  Frankie" should both show the same little animated star sparkle,
+  continuously shimmering, not just on hover. Evaluate's button previously
+  had a static "<sparkle emoji>" text character; Discover's had none (just
+  the small circular Frankie head icon, which is a separate element and
+  stays). Rather than invent a new icon, reused the app's existing
+  "Googie" decorative sparkle motif -- the `#m-sparkle` SVG path + the
+  `.shimmer` keyframe (scale/opacity pulse) already used on base.html's
+  animated logo and landing.html's hero/CTA sections -- so the sparkle on
+  these two buttons matches BuyersForce's established visual language
+  instead of introducing a one-off. Each template defines its own tiny
+  zero-size `<svg><defs>` sprite locally (same pattern landing.html
+  already uses, since the defs live page-local, not in base.html), then
+  `<use href="#m-sparkle" class="shimmer" fill="#fff">` inline right
+  before the button label (after the avatar icon on Discover). New
+  `.frankie-btn-sparkle` class in style.css just handles sizing/flex
+  behavior; `.shimmer` does the animation. Added a
+  `prefers-reduced-motion` override (same precedent as `.thinking-
+  shimmer`) so the sparkle holds still instead of pulsing for users who
+  asked for less motion. Verified light + dark mode zoomed screenshots,
+  and sampled computed opacity/transform across several points in time to
+  confirm the animation is actually running (not just class-named).
 - **Infra**: Claude pushes directly to `main` via the `claude-ssh` deploy-key
   remote (since 2026-10-15); every push auto-deploys on Railway. Database is
   Railway's managed Postgres -- never SQLite or Railway volumes (data-wiping
