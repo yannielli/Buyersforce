@@ -225,6 +225,26 @@ SUPPORT_CATEGORIES = [
 ]
 SUPPORT_CATEGORY_LABELS = dict(SUPPORT_CATEGORIES)
 
+# Shared label + color per engineering_status, used wherever a ticket's
+# disposition needs to show as a colored badge: Engineering Queue's own
+# section list (support_engineering.html) and, as of Kj's 2026-11-07
+# request, the status badge on each ticket row in Support Queue's "All
+# tickets" (support_body() in support_queue.html) -- once a ticket's
+# been dispositioned, the badge shows what was done (Queued for Claude,
+# Deferred, etc.) instead of just "Open". 'none' has no entry on
+# purpose: that case falls back to the ticket's own status (open / in
+# progress / resolved) instead.
+ENGINEERING_STATUS_META = {
+    "action_requested": {"label": "Queued for Claude", "color": "var(--critical)"},
+    "build_ready": {"label": "Build ready", "color": "var(--brand-mcm-coral)"},
+    "approved_to_ship": {"label": "Approved to ship", "color": "var(--brand-mcm-mustard)"},
+    "shipped": {"label": "Shipped", "color": "var(--good)"},
+    "admin_completed": {"label": "Completed by admin", "color": "var(--good)"},
+    "deferred": {"label": "Deferred", "color": "var(--brand)"},
+    "rejected": {"label": "Rejected", "color": "var(--ink-muted)"},
+}
+app.jinja_env.globals["ENGINEERING_STATUS_META"] = ENGINEERING_STATUS_META
+
 # A reserved, never-shown thread subject that marks a thread as one
 # dedicated support ticket's own conversation (see
 # create_support_ticket_thread below). Tagging it this way -- rather than
@@ -1546,7 +1566,8 @@ def _admin_dashboard_context():
     # page itself only ever lists tickets someone's actually made a call
     # on).
     engineering_counts["pending"] = dbm.query(
-        "SELECT COUNT(*) AS n FROM support_requests WHERE engineering_status = 'none'", one=True
+        "SELECT COUNT(*) AS n FROM support_requests "
+        "WHERE engineering_status = 'none' AND status != 'resolved'", one=True
     )["n"]
     return dict(
         buyer_company_count=buyer_company_count, buyer_user_count=buyer_user_count,
@@ -3661,6 +3682,31 @@ def admin_support_engineering_suggest(request_id):
         (note, now_str, g.user["id"], request_id),
     )
     flash("Sent back to Claude with your notes.", "success")
+    return redirect(url_for("admin_support_engineering_queue"))
+
+
+@app.route("/app/admin/support/<int:request_id>/engineering/notify", methods=("POST",))
+@admin_required
+def admin_support_engineering_notify(request_id):
+    """Kj's 2026-11-07 request: close the feedback loop on a Shipped
+    ticket with one click instead of writing the "it's live" reply by
+    hand -- same standard message routine as admin_support_decide's
+    approve/modify branch (INSERT INTO messages + notify_new_message),
+    so the requester sees it exactly like any other admin reply."""
+    req = dbm.query("SELECT * FROM support_requests WHERE id=?", (request_id,), one=True)
+    if not req or req["engineering_status"] != "shipped":
+        abort(404)
+    body = (
+        f"Update on your ticket #BF-{req['reference_number']}: this is now live on BuyersForce. "
+        "Thanks again for flagging it!"
+    )
+    dbm.execute(
+        "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
+        (req["thread_id"], g.user["id"], body),
+    )
+    notify_new_message(req["thread_id"], g.user["id"], body)
+    mark_thread_read(g.user["id"], req["thread_id"])
+    flash("Let them know it's live.", "success")
     return redirect(url_for("admin_support_engineering_queue"))
 
 

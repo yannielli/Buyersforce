@@ -17,10 +17,16 @@
     {% if show_category %}
     <span class="cat-badge cat-{{ t.latest_ticket.category }}" style="margin-left:4px;">{{ category_labels[t.latest_ticket.category] if category_labels else t.latest_ticket.category }}</span>
     {% endif %}
+    {% set eng_meta = ENGINEERING_STATUS_META.get(t.latest_ticket.engineering_status) %}
+    {% if eng_meta %}
+    {# Kj's 2026-11-07 request: once a ticket's been dispositioned
+       (Queued for Claude, Deferred, etc.), show that instead of a
+       generic "Open" badge -- the redundant "N open ticket(s)" badge
+       that used to sit next to it is gone too, same reasoning. #}
+    <span class="badge" style="margin-left:4px; background:{{ eng_meta.color }}; border-color:{{ eng_meta.color }}; color:#fff;">{{ eng_meta.label }}</span>
+    {% else %}
     <span class="badge {{ 'badge-good' if t.latest_ticket.status == 'resolved' else ('badge-progress' if t.latest_ticket.status == 'in_progress' else 'badge-warning') }}" style="margin-left:4px;">{{ t.latest_ticket.status.replace('_', ' ')|capitalize }}</span>
     {% endif %}
-    {% if t.open_ticket_count %}
-    <span class="badge badge-warning" style="margin-left:4px;">{{ t.open_ticket_count }} open ticket{{ 's' if t.open_ticket_count != 1 }}</span>
     {% endif %}
     {% if t.has_attachment %}<span class="hint" style="margin-left:4px;">📎</span>{% endif %}
     <div class="snippet">{{ t.last_body or "No messages yet" }}</div>

@@ -66,6 +66,18 @@
   </summary>
   <span class="eng-ticket-actions">
     {% if r.engineering_status == 'action_requested' %}
+    {% set brief %}BuyersForce ticket #BF-{{ r.reference_number }} -- {{ support_category_labels[r.category] }}
+From: {{ r.requester_name }} ({{ r.requester_company }})
+Submitted: {{ r.created_at|fmt_time }}
+
+{{ r.notes }}
+{% if r.engineering_note %}
+Kj's note: {{ r.engineering_note }}
+{% endif %}{% if r.attachment_filename %}
+Attachment: {{ r.attachment_filename }} (download it from the Engineering Queue page)
+{% endif %}
+Please review and build this, then mark it build_ready on the Engineering Queue (with a short summary + branch name) once it's done.{% endset %}
+    <button type="button" class="btn btn-primary btn-sm" onclick="copyEngBrief(this)" data-brief="{{ brief|trim }}">📋 Copy brief for Claude</button>
     <form method="post" action="{{ url_for('admin_support_engineering_cancel', request_id=r.id) }}">
       <input type="hidden" name="next" value="{{ url_for('admin_support_engineering_queue') }}">
       <button class="btn btn-ghost btn-sm" type="submit">Cancel request</button>
@@ -81,6 +93,16 @@
         <button class="btn btn-ghost btn-sm" type="submit" style="margin-top:4px;">Send back</button>
       </form>
     </details>
+    <form method="post" action="{{ url_for('admin_support_engineering_decide', request_id=r.id) }}" onsubmit="return confirm('Cancel this build? It moves to Rejected (archive).');">
+      <input type="hidden" name="next" value="{{ url_for('admin_support_engineering_queue') }}">
+      <button class="btn btn-ghost btn-sm" type="submit" name="action" value="reject">Cancel build</button>
+    </form>
+    {% elif r.engineering_status == 'approved_to_ship' %}
+    <span class="hint" style="text-align:right; max-width:170px; display:inline-block;">Waiting on Claude to deploy -- moves to Shipped once it's pushed.</span>
+    {% elif r.engineering_status == 'shipped' %}
+    <form method="post" action="{{ url_for('admin_support_engineering_notify', request_id=r.id) }}">
+      <button class="btn btn-primary btn-sm" type="submit">Notify {{ r.requester_name }}</button>
+    </form>
     {% elif r.engineering_status == 'deferred' %}
     <form method="post" action="{{ url_for('admin_support_engineering_decide', request_id=r.id) }}">
       <input type="hidden" name="next" value="{{ url_for('admin_support_engineering_queue') }}">
@@ -168,4 +190,26 @@
 <div class="card empty-state" style="margin-bottom:24px; border-left:4px solid {{ color }};"><div class="icon">&#9989;</div>Nothing here right now.</div>
 {% endif %}
 {% endfor %}
+
+<script>
+  // "Copy brief for Claude" (Kj's 2026-11-07 request): the Engineering
+  // Queue has no live wiring into a Claude coding session -- see
+  // CLAUDE.md's "How the loop actually closes" -- so pinging Claude in
+  // a chat is still the actual trigger. This just makes that handoff a
+  // paste instead of a re-type: the button's data-brief already holds
+  // the ticket's full context, assembled server-side in ticket_card().
+  function copyEngBrief(btn) {
+    const text = btn.getAttribute('data-brief');
+    const done = () => {
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = original; }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => alert('Could not copy -- select the brief manually.'));
+    } else {
+      alert('Clipboard access isn\'t available here -- select the brief manually.');
+    }
+  }
+</script>
 {% endblock %}

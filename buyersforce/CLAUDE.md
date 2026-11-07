@@ -509,3 +509,57 @@ Known rough edges worth remembering, not yet fixed:
      `<details>` and a `<details>` can't legally nest inside a
      `<summary>`.
 
+- **Dashboard pending-ticket count + Support Queue status badges + Engineering
+  Queue workflow buttons** (2026-11-07, same day, 3 small bug/quirk reports
+  from Kj after using the day's earlier changes):
+  1) Dashboard's "New tickets" tile (`engineering_counts.pending`) counted
+     every `support_requests` row at `engineering_status='none'`, full stop
+     -- but a ticket Kj had already closed via the ticket panel's "Mark
+     resolved" button (`status='resolved'`) never gets an engineering
+     disposition at all unless he separately Action/Defer/Rejects it, so it
+     kept inflating this tile forever even though Support Queue's own "All
+     tickets" view (which excludes `status='resolved'` via `split_resolved`)
+     had already stopped showing it. Fix: added `AND status != 'resolved'`
+     to that one query, so the tile matches what Support Queue itself
+     considers still-open.
+  2) Support Queue's ticket rows (`support_body()`) showed a generic
+     "Open"/"In progress"/"Resolved" badge plus a redundant "N open
+     ticket(s)" badge next to it, even once Kj had already dispositioned
+     the ticket on the engineering side (Queued for Claude, Deferred, Build
+     ready, etc.) -- that disposition was invisible without expanding the
+     row. New `ENGINEERING_STATUS_META` dict (app.py, by `engineering_status`,
+     shared global so any template can use it) gives each non-`'none'`
+     status a label + the same color Engineering Queue's own section list
+     uses for it; `support_body()` shows that colored badge instead of the
+     generic one once a disposition exists, falling back to the old ticket-
+     status badge for `'none'`. The "N open ticket(s)" badge is gone --
+     Kj's call, since it was just adding noise next to the (now more
+     informative) status badge.
+  3) Engineering Queue workflow buttons Kj asked for, stage by stage:
+     - **Queued for Claude**: Kj asked whether a button here can trigger an
+       actual Claude coding session directly. No -- and this is deliberate,
+       not a gap: see "How the loop actually closes" above (no DATABASE_URL
+       or deploy credentials are ever wired into a chat session, and
+       BuyersForce the web app has no way to summon Claude on its own). What
+       changed instead: a new **Copy brief for Claude** button assembles the
+       ticket's full context (category, requester, notes, Kj's note,
+       attachment filename, a one-line instruction to mark it `build_ready`
+       when done) into one clipboard copy (`copyEngBrief()`, plain
+       `navigator.clipboard`), so pinging Claude in a chat is a paste
+       instead of a re-type. Cancel request is unchanged.
+     - **Build ready**: Push to BF and Suggest another way are unchanged;
+       added **Cancel build**, a plain `action=reject` post to the existing
+       `admin_support_engineering_decide` route (which already allows
+       `reject` from any status -- only the separate "back to `none`"
+       `_cancel` route was blocked here) with a confirm() since it archives
+       the ticket.
+     - **Approved to ship**: no button -- just a one-line status note
+       ("Waiting on Claude to deploy -- moves to Shipped once it's
+       pushed."), per Kj's "more of a status window" framing.
+     - **Shipped**: new **Notify {name}** button / route
+       (`admin_support_engineering_notify`) posts a canned "this is now
+       live" message into the ticket's thread via the same INSERT INTO
+       messages + `notify_new_message` pattern `admin_support_decide`'s
+       approve/modify branch already uses, so the requester sees it exactly
+       like any other admin reply and the feedback loop closes without Kj
+       writing it by hand each time.
