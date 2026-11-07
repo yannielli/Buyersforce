@@ -912,6 +912,19 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
    since the full mascot already stands directly above this same button
    (.frankie-mascot-btn), making the little round head redundant. */
 .frankie-btn-sparkle { display: block; flex-shrink: 0; }
+/* The three sparkles sit in one small, fixed-size, absolutely-positioned
+   cluster (not spread along the button like separate inline icons) so
+   they read as a single "sparkle" mark to the left of the label -- Kj's
+   ask, after an earlier version spread one before the text and two
+   after it. Pixel offsets are chosen to overlap the three stars into a
+   tight triangular cluster (big star lower-left, medium upper-right,
+   small lower-right) rather than precisely math'd; it's a decorative
+   accent, not a layout that needs to be pixel-exact. */
+.frankie-btn-sparkles { position: relative; display: inline-block; width: 20px; height: 18px; flex-shrink: 0; }
+.frankie-btn-sparkles .frankie-btn-sparkle { position: absolute; }
+.frankie-btn-sparkle-lg { left: 0; top: 3px; }
+.frankie-btn-sparkle-md { left: 10px; top: -2px; }
+.frankie-btn-sparkle-sm { left: 12px; top: 10px; }
 @media (prefers-reduced-motion: reduce) {
   .frankie-btn-sparkle .shimmer { animation: none; opacity: 0.85; }
 }

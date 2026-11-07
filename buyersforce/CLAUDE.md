@@ -171,6 +171,19 @@ land in one read, without Kj having to re-explain months of context.
   small round Frankie head) from the `#aiAssistantToggle` button, and the
   now-dead `.ai-launcher-icon` CSS rule along with it -- confirmed no
   other template referenced that class before deleting the rule.
+  (Same day, second follow-up) The three sparkles were spread across the
+  button -- one before the label, two after -- which wasn't what Kj had
+  in mind. He wanted all three clustered together as one mark, to the
+  left of the label, like a classic multi-star "sparkle" icon. Changed
+  `.frankie-btn-sparkle` from a plain flex child to three children of a
+  new `.frankie-btn-sparkles` wrapper span: the wrapper is a small fixed-
+  size (20x18px) `position: relative` box, and the three stars inside it
+  are `position: absolute` at hand-picked, overlapping offsets (big star
+  lower-left, medium upper-right, small lower-right) so they read as one
+  tight triangular cluster rather than a row. The wrapper itself is the
+  single flex child that sits before the label text, so button spacing
+  to the label is unaffected. Verified with zoomed light/dark
+  screenshots on both buttons.
 - **Infra**: Claude pushes directly to `main` via the `claude-ssh` deploy-key
   remote (since 2026-10-15); every push auto-deploys on Railway. Database is
   Railway's managed Postgres -- never SQLite or Railway volumes (data-wiping
