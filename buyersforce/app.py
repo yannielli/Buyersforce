@@ -435,6 +435,25 @@ def load_logged_in_user():
     # works, unchanged) and impersonator_id remembers who to snap back to.
     g.impersonating = session.get("impersonator_id") is not None
     g.unread_count = unread_count_for(g.user) if g.user and g.user["role"] in ("buyer", "seller", "admin") else 0
+    # Nav badges for the two admin-only queue pages (Kj's request,
+    # 2026-11-07), same spirit as g.unread_count above: a cheap count of
+    # "new, not yet looked at" items, computed on every request so the
+    # badge is right no matter which page admin is actually on.
+    # Support Queue: tickets still at their just-submitted default status
+    # ('open') -- Frankie or Kj moving one to in_progress/resolved is what
+    # clears it. Engineering Queue: tickets Kj hasn't made ANY
+    # Action/Defer/Reject call on yet (engineering_status='none') -- same
+    # definition as the Dashboard's "Pending" tile.
+    if g.user and g.user["role"] == "admin":
+        g.support_queue_count = dbm.query(
+            "SELECT COUNT(*) AS n FROM support_requests WHERE status = 'open'", one=True
+        )["n"]
+        g.engineering_queue_count = dbm.query(
+            "SELECT COUNT(*) AS n FROM support_requests WHERE engineering_status = 'none'", one=True
+        )["n"]
+    else:
+        g.support_queue_count = 0
+        g.engineering_queue_count = 0
 
 
 @app.before_request
@@ -1476,14 +1495,11 @@ def _admin_dashboard_context():
     claimed_vendor_count = dbm.query(
         "SELECT COUNT(*) AS n FROM vendors WHERE status = 'active' AND seller_user_id IS NOT NULL", one=True
     )["n"]
-    open_support_requests = dbm.query(
-        "SELECT sr.*, u.name requester_name, u.company requester_company, u.role requester_role "
-        "FROM support_requests sr JOIN users u ON u.id = sr.user_id "
-        "WHERE sr.status != 'resolved' ORDER BY sr.created_at DESC"
-    )
     # Just counts here -- the full lists (and the ability to act on any one
     # of them) live on Access Control; these are "you have N things to
-    # action" pointers, same spirit as the support-requests section above.
+    # action" pointers, same spirit as the Engineering Queue tiles below
+    # (open support tickets themselves moved to their own Support Queue
+    # page, Kj's request 2026-11-07 -- see admin_support_queue).
     pending_invites_count = dbm.query(
         "SELECT COUNT(*) AS n FROM invites WHERE used_at IS NULL", one=True
     )["n"]
@@ -1520,7 +1536,6 @@ def _admin_dashboard_context():
         buyer_company_count=buyer_company_count, buyer_user_count=buyer_user_count,
         seller_company_count=seller_company_count, seller_user_count=seller_user_count,
         total_vendor_count=total_vendor_count, claimed_vendor_count=claimed_vendor_count,
-        open_support_requests=open_support_requests, support_category_labels=SUPPORT_CATEGORY_LABELS,
         pending_invites_count=pending_invites_count,
         pending_vendor_claims_count=pending_vendor_claims_count,
         pending_signups_count=pending_signups_count,
@@ -3221,7 +3236,7 @@ def support_new():
                     (triage["resolution"], triage["suggested_status"], now_str, support_request_id),
                 )
                 if admin.get("email"):
-                    dashboard_url = url_for("admin_dashboard", _external=True) + "#support-requests"
+                    dashboard_url = url_for("admin_support_queue", _external=True) + "#open-tickets"
                     emailer.send_support_ticket_alert(
                         admin["email"], g.user, reference_number, label,
                         triage.get("headline"), triage["resolution"],
@@ -3306,7 +3321,7 @@ def admin_support_status(request_id):
         abort(400)
     dbm.execute("UPDATE support_requests SET status=? WHERE id=?", (status, request_id))
     flash("Support request updated.", "success")
-    return redirect(request.form.get("next") or url_for("admin_dashboard"))
+    return redirect(request.form.get("next") or url_for("admin_support_queue"))
 
 
 @app.route("/app/admin/support/<int:request_id>/decide", methods=("POST",))
@@ -3342,12 +3357,12 @@ def admin_support_decide(request_id):
             resolution_text = request.form.get("resolution_text", "").strip()
             if not resolution_text:
                 flash("Add the edited reply before approving it.", "error")
-                return redirect(request.form.get("next") or url_for("admin_dashboard"))
+                return redirect(request.form.get("next") or url_for("admin_support_queue"))
         else:
             resolution_text = (req["ai_suggested_resolution"] or "").strip()
             if not resolution_text:
                 flash("There's no drafted resolution to approve for this ticket.", "error")
-                return redirect(request.form.get("next") or url_for("admin_dashboard"))
+                return redirect(request.form.get("next") or url_for("admin_support_queue"))
 
         new_status = request.form.get("status", "").strip()
         if new_status not in ("open", "in_progress", "resolved"):
@@ -3380,7 +3395,97 @@ def admin_support_decide(request_id):
         )
         flash("Deferred -- Frankie's suggestion is still there whenever you're ready to revisit it.", "success")
 
-    return redirect(request.form.get("next") or url_for("admin_dashboard"))
+    return redirect(request.form.get("next") or url_for("admin_support_queue"))
+
+
+# ---------------------------------------------------------------------------
+# Support Queue -- Kj's request (2026-11-07): support tickets and vendor
+# suggestions no longer clutter the Dashboard or Messages. They get their
+# own left-nav item (positioned just left of Engineering Queue) with two
+# things stacked on it: the actionable "needs a decision" list that used
+# to live on the Dashboard (Frankie's suggested-reply approval plus the
+# Action/Defer/Reject engineering call), and the full ticket inbox that
+# used to live on Messages (boxed by category, with its own Resolved/
+# Saved buckets and Active/Archived toggle) -- unchanged in shape, just
+# relocated. Everything else already on the Dashboard or Messages (the
+# Engineering Queue tiles, Direct messages, Team) stays exactly where it
+# was.
+# ---------------------------------------------------------------------------
+
+def _admin_support_queue_context():
+    open_support_requests = dbm.query(
+        "SELECT sr.*, u.name requester_name, u.company requester_company, u.role requester_role "
+        "FROM support_requests sr JOIN users u ON u.id = sr.user_id "
+        "WHERE sr.status != 'resolved' ORDER BY sr.created_at DESC"
+    )
+
+    # The rest of this mirrors admin_messages()'s old "Support tickets"
+    # section exactly (support_rows/support_boxes/resolved/saved/view) --
+    # see that function's git history (2026-11-07) for the original.
+    view = current_view()
+    rows = dbm.query(
+        "SELECT t.*, "
+        "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
+        "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
+        "FROM threads t " + thread_reads_join_sql() + " "
+        "WHERE t.type='direct' AND (t.participant_a_id=? OR t.participant_b_id=?) "
+        "ORDER BY last_at DESC",
+        (g.user["id"], g.user["id"], g.user["id"], g.user["id"]),
+    )
+    vendor_suggestion_thread_ids = {
+        r["thread_id"] for r in
+        dbm.query("SELECT DISTINCT thread_id FROM vendor_requests WHERE thread_id IS NOT NULL")
+    }
+    support_rows = []
+    for t in rows:
+        tickets = dbm.query(
+            "SELECT * FROM support_requests WHERE thread_id=? ORDER BY created_at DESC", (t["id"],)
+        )
+        if not (tickets or t["id"] in vendor_suggestion_thread_ids):
+            continue  # not support-shaped -- stays on the Messages page instead
+        info = thread_display_info(t, g.user)
+        row = {**dict(t), **info}
+        row["tickets"] = tickets
+        row["latest_ticket"] = tickets[0] if tickets else None
+        row["open_ticket_count"] = sum(1 for tk in tickets if tk["status"] != "resolved")
+        row["has_attachment"] = any(tk["attachment_data_url"] for tk in tickets)
+        support_rows.append(row)
+    support_active, support_archived = split_by_archived(support_rows)
+    support_shown = sort_support_rows(support_archived if view == "archived" else support_active)
+    if view == "archived":
+        saved_support = []
+        resolved_threads = []
+        boxed_threads = support_shown
+    else:
+        support_shown, saved_support = split_saved(support_shown)
+        boxed_threads, resolved_threads = split_resolved(support_shown)
+
+    category_label = dict(SUPPORT_CATEGORY_LABELS, _vendor_suggestion="Vendor suggestions")
+    by_category = {}
+    for row in boxed_threads:
+        key = row["latest_ticket"]["category"] if row["latest_ticket"] else "_vendor_suggestion"
+        by_category.setdefault(key, []).append(row)
+    support_boxes = [
+        {"key": key, "label": category_label.get(key, key), "threads": threads}
+        for key, threads in sorted(
+            by_category.items(),
+            key=lambda kv: max((t.get("last_at") or "" for t in kv[1]), default=""),
+            reverse=True,
+        )
+    ]
+
+    return dict(
+        open_support_requests=open_support_requests, support_category_labels=SUPPORT_CATEGORY_LABELS,
+        support_boxes=support_boxes, resolved_threads=resolved_threads, saved_support=saved_support,
+        category_labels=SUPPORT_CATEGORY_LABELS, view=view,
+    )
+
+
+@app.route("/app/admin/support/queue")
+@admin_required
+def admin_support_queue():
+    return render_template("admin/support_queue.html", **_admin_support_queue_context())
 
 
 # ---------------------------------------------------------------------------
@@ -3445,7 +3550,7 @@ def admin_support_engineering_decide(request_id):
         }[action],
         "success",
     )
-    return redirect(request.form.get("next") or url_for("admin_dashboard"))
+    return redirect(request.form.get("next") or url_for("admin_support_queue"))
 
 
 @app.route("/app/admin/support/<int:request_id>/engineering/cancel", methods=("POST",))
@@ -3680,9 +3785,7 @@ def admin_vendor_request_decide(request_id):
 @admin_required
 def admin_messages():
     """Admin's inbox, split into the same kind of sections buyers/sellers
-    get (see _direct_threads_for) plus one admin-specific wrinkle: Support
-    tickets are further boxed by category so a glance at the page shows
-    how much of each kind is waiting, newest-first within each box.
+    get (see _direct_threads_for).
 
     Direct messages: a genuine 1:1 with admin that's neither a support
     ticket nor a vendor suggestion. Nothing creates one of these today
@@ -3691,10 +3794,13 @@ def admin_messages():
     BuyersForce" or BuyersForce-teammate-to-teammate feature exists.
     Team: 'teammate' threads tagged for BuyersForce -- same placeholder
     reasoning, for when there's more than one BuyersForce employee.
-    Support tickets: boxed by the 4 categories, plus a 5th "Vendor
-    suggestions" box for admin-contact threads that carry no ticket at
-    all (the vendor-suggestion flow doesn't create a support_requests
-    row, only a vendor_requests one)."""
+
+    Support tickets and vendor suggestions used to be boxed by category
+    right here on this page -- Kj's request (2026-11-07): they get their
+    own Support Queue page/nav item instead, so threads carrying a
+    support_requests row or a vendor_requests row are excluded below and
+    never land in Direct messages either; see admin_support_queue /
+    _admin_support_queue_context for where they live now."""
     view = current_view()
     rows = dbm.query(
         "SELECT t.*, "
@@ -3710,27 +3816,16 @@ def admin_messages():
         r["thread_id"] for r in
         dbm.query("SELECT DISTINCT thread_id FROM vendor_requests WHERE thread_id IS NOT NULL")
     }
-    direct_rows, support_rows = [], []
+    direct_rows = []
     for t in rows:
-        info = thread_display_info(t, g.user)
-        row = {**dict(t), **info}
-        # Every support ticket (and vendor suggestion) from this person
-        # lands in this same thread -- pull them so the inbox row can show
-        # a reference number / category badge and flag an attachment,
-        # without having to open the thread first.
-        tickets = dbm.query(
-            "SELECT * FROM support_requests WHERE thread_id=? ORDER BY created_at DESC", (t["id"],)
+        has_ticket = dbm.query(
+            "SELECT 1 FROM support_requests WHERE thread_id=? LIMIT 1", (t["id"],), one=True
         )
-        row["tickets"] = tickets
-        row["latest_ticket"] = tickets[0] if tickets else None
-        row["open_ticket_count"] = sum(1 for tk in tickets if tk["status"] != "resolved")
-        row["has_attachment"] = any(tk["attachment_data_url"] for tk in tickets)
-        if tickets or t["id"] in vendor_suggestion_thread_ids:
-            support_rows.append(row)
-        else:
-            direct_rows.append(row)
+        if has_ticket or t["id"] in vendor_suggestion_thread_ids:
+            continue  # shown on the Support Queue page instead
+        info = thread_display_info(t, g.user)
+        direct_rows.append({**dict(t), **info})
     direct_active, direct_archived = split_by_archived(direct_rows)
-    support_active, support_archived = split_by_archived(support_rows)
     team_rows = dbm.query(
         "SELECT t.*, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
@@ -3745,58 +3840,16 @@ def admin_messages():
     team_threads = team_archived if view == "archived" else team_active
     direct_threads = direct_archived if view == "archived" else direct_active
 
-    support_shown = sort_support_rows(support_archived if view == "archived" else support_active)
-    # Saved is its own bucket PER section (direct / team / support), not
-    # one combined bucket for the whole page, so it stays next to the
-    # kind of conversation it came from. It's pulled out ahead of the
-    # Resolved split just below -- a saved+resolved ticket shows only in
-    # Saved. Archived view is untouched, same as Resolved.
     if view == "archived":
-        saved_direct = saved_team = saved_support = resolved_threads = []
+        saved_direct = saved_team = []
     else:
         direct_threads, saved_direct = split_saved(direct_threads)
         team_threads, saved_team = split_saved(team_threads)
-        support_shown, saved_support = split_saved(support_shown)
-
-    category_label = dict(SUPPORT_CATEGORY_LABELS, _vendor_suggestion="Vendor suggestions")
-    # Resolved tickets move out of the category boxes into their own
-    # collapsed "Resolved" bucket, so the boxes above only show tickets
-    # that still need attention. A resolved ticket stays in that bucket
-    # indefinitely (no 30-day expiry, unlike Archive) until this admin
-    # explicitly deletes it from there, which just archives the thread --
-    # same reversible mechanism as "Archive conversation" on the thread
-    # page, so it's recoverable from the Archived tab for 30 days.
-    # The Archived tab itself is untouched by this split: a resolved
-    # ticket that's already archived still shows boxed by category there.
-    if view == "archived":
-        boxed_threads = support_shown
-    else:
-        boxed_threads, resolved_threads = split_resolved(support_shown)
-    by_category = {}
-    for row in boxed_threads:
-        key = row["latest_ticket"]["category"] if row["latest_ticket"] else "_vendor_suggestion"
-        by_category.setdefault(key, []).append(row)
-    # The boxes themselves are ordered by whichever category has the most
-    # recent activity, latest first -- a fixed category order would bury
-    # a brand-new ticket under older ones just because its category
-    # happens to sort later in the list. Each box's own threads are
-    # already newest-first-within-status (sort_support_rows above).
-    support_boxes = [
-        {"key": key, "label": category_label.get(key, key), "threads": threads}
-        for key, threads in sorted(
-            by_category.items(),
-            key=lambda kv: max((t.get("last_at") or "" for t in kv[1]), default=""),
-            reverse=True,
-        )
-    ]
 
     return render_template(
         "admin/messages.html",
-        direct_threads=direct_threads,
-        team_threads=team_threads, support_boxes=support_boxes,
-        resolved_threads=resolved_threads, saved_direct=saved_direct,
-        saved_team=saved_team, saved_support=saved_support,
-        category_labels=SUPPORT_CATEGORY_LABELS, view=view,
+        direct_threads=direct_threads, team_threads=team_threads,
+        saved_direct=saved_direct, saved_team=saved_team, view=view,
     )
 
 

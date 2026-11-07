@@ -25,41 +25,14 @@
   <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
 {% endmacro %}
 
-{% macro support_body(t, show_category=false) %}
-  {% if t.other_user.photo_data_url %}
-  <img src="{{ t.other_user.photo_data_url }}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
-  {% else %}
-  <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:13px;flex-shrink:0;">{{ t.other_user.name[0] }}</span>
-  {% endif %}
-  <div style="flex:1; min-width:0;">
-    <strong style="font-size:14px;">{{ t.other_user.name }}</strong>
-    <span class="badge badge-neutral" style="margin-left:4px;">{{ t.other_user.role|capitalize }}</span>
-    <span class="hint">· {{ t.other_user.company }}</span>
-    {% if t.latest_ticket %}
-    <span class="ref-badge" style="margin-left:4px;">#BF-{{ t.latest_ticket.reference_number }}</span>
-    {% if show_category %}
-    <span class="cat-badge cat-{{ t.latest_ticket.category }}" style="margin-left:4px;">{{ category_labels[t.latest_ticket.category] if category_labels else t.latest_ticket.category }}</span>
-    {% endif %}
-    <span class="badge {{ 'badge-good' if t.latest_ticket.status == 'resolved' else ('badge-progress' if t.latest_ticket.status == 'in_progress' else 'badge-warning') }}" style="margin-left:4px;">{{ t.latest_ticket.status.replace('_', ' ')|capitalize }}</span>
-    {% endif %}
-    {% if t.open_ticket_count %}
-    <span class="badge badge-warning" style="margin-left:4px;">{{ t.open_ticket_count }} open ticket{{ 's' if t.open_ticket_count != 1 }}</span>
-    {% endif %}
-    {% if t.has_attachment %}<span class="hint" style="margin-left:4px;">📎</span>{% endif %}
-    <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
-  </div>
-  <span class="hint" style="white-space:nowrap;">{{ t.last_at|fmt_time if t.last_at }}</span>
-{% endmacro %}
-
-{% macro support_body_flat(t) %}{{ support_body(t, show_category=true) }}{% endmacro %}
-
 {% block content %}
 <div class="page-header">
   <div>
     <span class="eyebrow">Communications</span>
     <h1>Messages {% if g.unread_count %}<span class="badge badge-brand" style="vertical-align:middle;">{{ g.unread_count }} unread</span>{% endif %}</h1>
-    <p class="lede">Support tickets, vendor suggestions, and anything else sent to BuyersForce,
-      split the same way buyers and sellers see their own Messages page.</p>
+    <p class="lede">Plain messages to BuyersForce and team threads, split the same way buyers and
+      sellers see their own Messages page. Support tickets and vendor suggestions live on
+      <a href="{{ url_for('admin_support_queue') }}">Support Queue</a> instead.</p>
   </div>
   <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">← Back to dashboard</a>
 </div>
@@ -90,30 +63,4 @@
 </div>
 {% if view != 'archived' %}{{ tr.saved_subsection(saved_team, team_body, 'admin_thread', request.full_path) }}{% endif %}
 
-<div class="section-title" style="margin-top:28px;"><h2>Support tickets</h2></div>
-<p class="hint" style="margin-top:-6px; margin-bottom:14px;">Boxed by category, most recent activity first -- within each box, open requests first, then in progress. Resolved tickets move to the Resolved bucket below.</p>
-{% if support_boxes %}
-  {% for box in support_boxes %}
-  <div class="category-box">
-    <div class="category-box-head">
-      {% if box.key != '_vendor_suggestion' %}<span class="cat-badge cat-{{ box.key }}">{{ box.label }}</span>{% else %}<span class="badge badge-neutral">{{ box.label }}</span>{% endif %}
-      <span class="hint">{{ box.threads|length }} conversation{{ 's' if box.threads|length != 1 }}</span>
-    </div>
-    <div class="category-box-body">
-      {% for t in box.threads %}
-      {% call tr.thread_row(t, 'admin_thread', request.full_path, align_top=true) %}{{ support_body(t) }}{% endcall %}
-      {% endfor %}
-    </div>
-  </div>
-  {% endfor %}
-{% else %}
-  <div class="card empty-state"><div class="icon">💬</div>
-    {% if view == 'active' %}Nothing here yet — support tickets and vendor suggestions from buyers and sellers will show up here.{% else %}Nothing archived.{% endif %}
-  </div>
-{% endif %}
-
-{% if view != 'archived' %}
-{{ tr.resolved_subsection(resolved_threads, support_body_flat, 'admin_thread', request.full_path) }}
-{{ tr.saved_subsection(saved_support, support_body_flat, 'admin_thread', request.full_path) }}
-{% endif %}
 {% endblock %}

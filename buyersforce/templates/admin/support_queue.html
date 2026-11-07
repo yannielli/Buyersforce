@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% import "_thread_row.html" as tr %}
+{% block title %}Support Queue{% endblock %}
+
+{% macro support_body(t, show_category=false) %}
+  {% if t.other_user.photo_data_url %}
+  <img src="{{ t.other_user.photo_data_url }}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+  {% else %}
+  <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:13px;flex-shrink:0;">{{ t.other_user.name[0] }}</span>
+  {% endif %}
+  <div style="flex:1; min-width:0;">
+    <strong style="font-size:14px;">{{ t.other_user.name }}</strong>
+    <span class="badge badge-neutral" style="margin-left:4px;">{{ t.other_user.role|capitalize }}</span>
+    <span class="hint">· {{ t.other_user.company }}</span>
+    {% if t.latest_ticket %}
+    <span class="ref-badge" style="margin-left:4px;">#BF-{{ t.latest_ticket.reference_number }}</span>
+    {% if show_category %}
+    <span class="cat-badge cat-{{ t.latest_ticket.category }}" style="margin-left:4px;">{{ category_labels[t.latest_ticket.category] if category_labels else t.latest_ticket.category }}</span>
+    {% endif %}
+    <span class="badge {{ 'badge-good' if t.latest_ticket.status == 'resolved' else ('badge-progress' if t.latest_ticket.status == 'in_progress' else 'badge-warning') }}" style="margin-left:4px;">{{ t.latest_ticket.status.replace('_', ' ')|capitalize }}</span>
+    {% endif %}
+    {% if t.open_ticket_count %}
+    <span class="badge badge-warning" style="margin-left:4px;">{{ t.open_ticket_count }} open ticket{{ 's' if t.open_ticket_count != 1 }}</span>
+    {% endif %}
+    {% if t.has_attachment %}<span class="hint" style="margin-left:4px;">📎</span>{% endif %}
+    <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
+  </div>
+  <span class="hint" style="white-space:nowrap;">{{ t.last_at|fmt_time if t.last_at }}</span>
+{% endmacro %}
+
+{% macro support_body_flat(t) %}{{ support_body(t, show_category=true) }}{% endmacro %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Administrator</span>
+    <h1>Support Queue {% if g.support_queue_count %}<span class="badge badge-brand" style="vertical-align:middle;">{{ g.support_queue_count }} new</span>{% endif %}</h1>
+    <p class="lede">Every support ticket and vendor suggestion sent to BuyersForce, in one place --
+      the open ones needing a decision first, then the full conversation history boxed by category.
+      Separate from the engineering call on whether a ticket's underlying fix/feature gets built;
+      see <a href="{{ url_for('admin_support_engineering_queue') }}">Engineering Queue</a> for that.</p>
+  </div>
+  <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">← Back to dashboard</a>
+</div>
+
+<div class="section-title" id="open-tickets"><h2>Open tickets</h2></div>
+{% if open_support_requests %}
+<div class="card" style="margin-bottom:24px;">
+  {% for r in open_support_requests %}
+  <div class="mock-row" style="align-items:flex-start;">
+    <span style="min-width:120px; max-width:128px; width:128px; display:flex; flex-direction:column; gap:8px; flex-shrink:0;">
+      <strong style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-secondary);">Build this?</strong>
+      {% if r.engineering_status == 'none' or not r.engineering_status %}
+      <form method="post" action="{{ url_for('admin_support_engineering_decide', request_id=r.id) }}" style="width:100%;">
+        <input type="hidden" name="next" value="{{ url_for('admin_support_queue') }}#open-tickets">
+        <input type="text" name="engineering_note" placeholder="Note (optional)" style="width:100%; margin-bottom:6px; font-size:12px;">
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <button class="btn btn-sm" type="submit" name="action" value="action_admin" style="width:100%; white-space:normal; line-height:1.2; background:var(--good); border-color:var(--good); color:#fff;">Action: Admin</button>
+          <button class="btn btn-sm" type="submit" name="action" value="action_coding" style="width:100%; white-space:normal; line-height:1.2; background:var(--critical); border-color:var(--critical); color:#fff;">Action: Coding</button>
+          <button class="btn btn-sm" type="submit" name="action" value="defer" style="width:100%; white-space:normal; line-height:1.2; background:var(--brand); border-color:var(--brand); color:#fff;">Defer</button>
+          <button class="btn btn-sm" type="submit" name="action" value="reject" style="width:100%; white-space:normal; line-height:1.2; background:var(--ink-muted); border-color:var(--ink-muted); color:#fff;">Reject</button>
+        </div>
+      </form>
+      {% else %}
+      <span class="badge {{ {'rejected': 'badge-neutral', 'deferred': 'badge-warning', 'admin_completed': 'badge-good', 'action_requested': 'badge-good', 'build_ready': 'badge-good', 'approved_to_ship': 'badge-good', 'shipped': 'badge-good'}.get(r.engineering_status, 'badge-neutral') }}">
+        {{ {'rejected': 'Rejected', 'deferred': 'Deferred', 'admin_completed': 'Completed by admin', 'action_requested': 'Queued for Claude', 'build_ready': 'Build ready', 'approved_to_ship': 'Approved to ship', 'shipped': 'Shipped'}.get(r.engineering_status, r.engineering_status) }}
+      </span>
+      {% if r.engineering_note %}<div class="hint" style="font-size:11.5px;">&ldquo;{{ r.engineering_note }}&rdquo;</div>{% endif %}
+      <a class="hint" href="{{ url_for('admin_support_engineering_queue') }}">Manage in Engineering Queue &rarr;</a>
+      {% endif %}
+    </span>
+    <span>
+      <strong style="font-size:14px;">{{ r.requester_name }}</strong>
+      {% if r.reference_number %}<span class="ref-badge" style="margin-left:4px;">#BF-{{ r.reference_number }}</span>{% endif %}
+      <span class="badge badge-neutral" style="margin-left:6px;">{{ r.requester_role|capitalize }}</span>
+      <span class="cat-badge cat-{{ r.category }}" style="margin-left:4px;">{{ support_category_labels[r.category] }}</span>
+      <span class="badge {{ 'badge-good' if r.status == 'in_progress' else 'badge-warning' }}" style="margin-left:4px;">{{ r.status.replace('_', ' ')|capitalize }}</span>
+      <div class="hint">{{ r.requester_company }} · {{ r.created_at|fmt_time }}</div>
+      <div class="snippet">{{ r.notes }}</div>
+      {% if r.attachment_data_url %}
+      <div style="margin-top:8px;">
+        {% if r.attachment_content_type and r.attachment_content_type.startswith('image/') %}
+        <a href="{{ url_for('support_download_attachment', request_id=r.id) }}" target="_blank">
+          <img src="{{ url_for('support_download_attachment', request_id=r.id) }}" alt="Attached screenshot"
+            style="max-width:180px; max-height:120px; border-radius:8px; border:1px solid var(--border); display:block;">
+        </a>
+        {% else %}
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('support_download_attachment', request_id=r.id) }}">
+          📎 {{ r.attachment_filename }}
+        </a>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% if r.ai_suggested_resolution %}
+      <div class="card" style="margin-top:10px; margin-bottom:0; background:var(--brand-tint); border-color:var(--brand); padding:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+          <strong style="font-size:12.5px; color:var(--brand-dark);">🤖 Frankie's suggested resolution</strong>
+          <span class="badge badge-neutral">Suggested: {{ r.ai_suggested_status.replace('_', ' ')|capitalize }}</span>
+        </div>
+        {% if r.decision == 'pending_review' %}
+        <form method="post" action="{{ url_for('admin_support_decide', request_id=r.id) }}" style="margin-top:8px;">
+          <input type="hidden" name="next" value="{{ url_for('admin_support_queue') }}#open-tickets">
+          <div class="field"><textarea name="resolution_text" rows="4" style="width:100%;">{{ r.ai_suggested_resolution }}</textarea></div>
+          <div class="field" style="display:inline-block; margin-right:10px;">
+            <label>Status to set</label>
+            <select name="status">
+              <option value="open" {{ 'selected' if r.ai_suggested_status == 'open' }}>Open</option>
+              <option value="in_progress" {{ 'selected' if r.ai_suggested_status == 'in_progress' }}>In progress</option>
+              <option value="resolved" {{ 'selected' if r.ai_suggested_status == 'resolved' }}>Resolved</option>
+            </select>
+          </div>
+          <div class="field" style="display:inline-block;">
+            <label>Internal note (optional, not sent to requester)</label>
+            <input type="text" name="decision_note" placeholder="Optional">
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
+            <button class="btn btn-primary btn-sm" type="submit" name="action" value="approve">Approve as drafted</button>
+            <button class="btn btn-secondary btn-sm" type="submit" name="action" value="modify">Save edits &amp; approve</button>
+            <button class="btn btn-ghost btn-sm" type="submit" name="action" value="reject">Reject</button>
+            <button class="btn btn-ghost btn-sm" type="submit" name="action" value="defer">Defer</button>
+          </div>
+        </form>
+        {% else %}
+        <div class="hint" style="margin-top:6px;">
+          {{ {'approved': 'Approved as drafted', 'modified_approved': 'Approved with edits', 'rejected': 'Rejected', 'deferred': 'Deferred'}[r.decision] }}
+          {% if r.decided_at %} · {{ r.decided_at|fmt_time }}{% endif %}
+          {% if r.decision_note %} — &ldquo;{{ r.decision_note }}&rdquo;{% endif %}
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </span>
+    <span style="display:flex; gap:6px; align-items:flex-start;">
+      <a class="btn btn-primary btn-sm" href="{{ url_for('admin_thread', thread_id=r.thread_id) }}">Reply</a>
+      <form method="post" action="{{ url_for('admin_support_status', request_id=r.id) }}">
+        <input type="hidden" name="next" value="{{ url_for('admin_support_queue') }}#open-tickets">
+        <input type="hidden" name="status" value="resolved">
+        <button class="btn btn-ghost btn-sm" type="submit">Mark resolved</button>
+      </form>
+    </span>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✅</div>Nothing to see here, all caught up!</div>
+{% endif %}
+
+<div class="section-title" style="margin-top:28px;"><h2>All conversations</h2></div>
+{% include "_archive_toggle.html" %}
+<p class="hint" style="margin-top:-12px; margin-bottom:14px;">Boxed by category, most recent activity first -- within each box, open requests first, then in progress. Resolved tickets move to the Resolved bucket below.</p>
+{% if support_boxes %}
+  {% for box in support_boxes %}
+  <div class="category-box">
+    <div class="category-box-head">
+      {% if box.key != '_vendor_suggestion' %}<span class="cat-badge cat-{{ box.key }}">{{ box.label }}</span>{% else %}<span class="badge badge-neutral">{{ box.label }}</span>{% endif %}
+      <span class="hint">{{ box.threads|length }} conversation{{ 's' if box.threads|length != 1 }}</span>
+    </div>
+    <div class="category-box-body">
+      {% for t in box.threads %}
+      {% call tr.thread_row(t, 'admin_thread', request.full_path, align_top=true) %}{{ support_body(t) }}{% endcall %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="card empty-state"><div class="icon">💬</div>
+    {% if view == 'active' %}Nothing here yet — support tickets and vendor suggestions from buyers and sellers will show up here.{% else %}Nothing archived.{% endif %}
+  </div>
+{% endif %}
+
+{% if view != 'archived' %}
+{{ tr.resolved_subsection(resolved_threads, support_body_flat, 'admin_thread', request.full_path) }}
+{{ tr.saved_subsection(saved_support, support_body_flat, 'admin_thread', request.full_path) }}
+{% endif %}
+{% endblock %}

@@ -357,3 +357,29 @@ Known rough edges worth remembering, not yet fixed:
   `teammate`/`partner` thread never alerts anyone externally, since more
   than one person could reasonably be "the" recipient there and guessing
   wrong isn't safe. Revisit if Kj asks for those covered too.
+
+- **Support Queue, split out of Dashboard/Messages** (2026-11-07, Kj's
+  request): support tickets and vendor suggestions used to be spread
+  across two places -- the "Build this?" decision list on the Dashboard
+  and the "Support tickets" boxed-by-category section on Messages. Both
+  moved intact onto one new page, `admin_support_queue` (nav item
+  "Support Queue", positioned left of Engineering Queue): the actionable
+  list (Frankie's suggested-reply approval + the engineering Action/
+  Defer/Reject call) first, then the full ticket inbox (category boxes,
+  Resolved/Saved buckets, Active/Archived toggle) below it, unchanged in
+  shape from how Messages always rendered it. Direct messages and Team
+  threads stay on Messages; the Engineering Queue tiles stay on the
+  Dashboard -- only the ticket list itself moved. Judgment call worth
+  flagging: vendor suggestions moved along with support tickets rather
+  than staying on Messages, since the two have always shared one UI
+  section ("Support tickets" boxed by category, with a dedicated
+  "Vendor suggestions" box) -- splitting them apart would've left a
+  "Support tickets" heading on Messages containing nothing but vendor
+  suggestions. Revisit if Kj wants that split differently.
+  Both Support Queue and Engineering Queue also picked up a nav badge,
+  same spirit as Messages' unread-count badge: `g.support_queue_count`
+  (tickets still at status='open', i.e. not yet replied/resolved) and
+  `g.engineering_queue_count` (tickets still at engineering_status=
+  'none', i.e. no Action/Defer/Reject call made yet -- same definition
+  as the Dashboard's "Pending" tile), both computed in
+  `load_logged_in_user()` alongside `g.unread_count`, admin-only.
