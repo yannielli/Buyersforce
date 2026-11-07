@@ -71,21 +71,20 @@
 <div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✅</div>Nothing to see here, all caught up!</div>
 {% endif %}
 
-<div class="section-title"><h2>Engineering Queue</h2></div>
+<div class="section-title"><h2>Support Queue</h2></div>
 
-<div class="grid" style="grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; margin-bottom:10px;">
+<div class="grid" style="grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; margin-bottom:24px;">
   <a href="{{ url_for('admin_support_queue') }}#open-tickets" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--progress); border-color:var(--progress);">
     <div style="font-size:22px; font-weight:700; color:#fff;">{{ engineering_counts.pending }}</div>
-    <div class="hint" style="color:rgba(255,255,255,0.85);">Pending — not yet dispositioned</div>
+    <div class="hint" style="color:rgba(255,255,255,0.85);">New tickets</div>
   </a>
-</div>
-
-<div class="grid" style="grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; margin-bottom:10px;">
   <a href="{{ url_for('admin_support_engineering_queue') }}#eng-admin_completed" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--good); border-color:var(--good);">
     <div style="font-size:22px; font-weight:700; color:#fff;">{{ engineering_counts.admin_completed }}</div>
     <div class="hint" style="color:rgba(255,255,255,0.85);">Completed by admin</div>
   </a>
 </div>
+
+<div class="section-title" style="margin-top:28px;"><h2>Engineering Queue</h2></div>
 
 <div class="grid" style="grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; margin-bottom:10px;">
   <a href="{{ url_for('admin_support_engineering_queue') }}#eng-action_requested" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--critical); border-color:var(--critical);">

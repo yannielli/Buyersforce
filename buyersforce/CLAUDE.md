@@ -383,3 +383,17 @@ Known rough edges worth remembering, not yet fixed:
   'none', i.e. no Action/Defer/Reject call made yet -- same definition
   as the Dashboard's "Pending" tile), both computed in
   `load_logged_in_user()` alongside `g.unread_count`, admin-only.
+  Follow-up (same day): the Dashboard's 8 count tiles got split into
+  two section headers -- "Support Queue" (New tickets + Completed by
+  admin, 2 tiles) above "Engineering Queue" (Queued for Claude/Build
+  ready/Approved to ship/Shipped/Deferred/Rejected, 6 tiles) -- so the
+  Engineering Queue tiles are exclusively about the code-build
+  pipeline (Kj: "the Engineering Queue counters only reflect and link
+  over to the Engineering Queue page as it should"), while New
+  tickets (renamed from "Pending") and Completed by admin, neither of
+  which involves Claude writing code, sit under their own Support
+  Queue header instead. New tickets links to the Support Queue page
+  (where undispositioned tickets actually live now); Completed by
+  admin still links to its existing anchor on the Engineering Queue
+  page, since that's still where the per-ticket Reopen control lives
+  -- only its Dashboard grouping changed, not where it's managed.
