@@ -71,24 +71,31 @@
 </div>
 {% endmacro %}
 
+{# Each section's accent color matches that queue's count tile on the Dashboard
+   (admin/home.html), so the two pages read as one consistent system -- but kept
+   subtle here (a small dot + thin left-border accent on the card) rather than
+   the Dashboard's bold solid fills, per Kj's request not to make every queue box
+   on this page shout. #}
 {% set sections = [
-  ('action_requested', "Queued for Claude to build (Action: Coding)"),
-  ('build_ready', 'Build ready -- your review'),
-  ('approved_to_ship', 'Approved -- waiting on Claude to deploy'),
-  ('shipped', 'Shipped'),
-  ('admin_completed', 'Completed by admin (Action: Admin, no code)'),
-  ('deferred', 'Future queue (deferred)'),
-  ('rejected', 'Archive (rejected)'),
+  ('action_requested', "Queued for Claude to build (Action: Coding)", 'var(--critical)'),
+  ('build_ready', 'Build ready -- your review', 'var(--brand-mcm-coral)'),
+  ('approved_to_ship', 'Approved -- waiting on Claude to deploy', 'var(--brand-mcm-mustard)'),
+  ('shipped', 'Shipped', 'var(--good)'),
+  ('admin_completed', 'Completed by admin (Action: Admin, no code)', 'var(--good)'),
+  ('deferred', 'Future queue (deferred)', 'var(--brand)'),
+  ('rejected', 'Archive (rejected)', 'var(--ink-muted)'),
 ] %}
 
-{% for key, title in sections %}
-<div class="section-title" id="eng-{{ key }}"><h2>{{ title }}</h2></div>
+{% for key, title, color in sections %}
+<div class="section-title" id="eng-{{ key }}">
+  <h2><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:{{ color }}; margin-right:8px; vertical-align:middle;"></span>{{ title }}</h2>
+</div>
 {% if buckets[key] %}
-<div class="card" style="margin-bottom:24px;">
+<div class="card" style="margin-bottom:24px; border-left:4px solid {{ color }};">
   {% for r in buckets[key] %}{{ ticket_card(r) }}{% endfor %}
 </div>
 {% else %}
-<div class="card empty-state" style="margin-bottom:24px;"><div class="icon">&#9989;</div>Nothing here right now.</div>
+<div class="card empty-state" style="margin-bottom:24px; border-left:4px solid {{ color }};"><div class="icon">&#9989;</div>Nothing here right now.</div>
 {% endif %}
 {% endfor %}
 {% endblock %}
