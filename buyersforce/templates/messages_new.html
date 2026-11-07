@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}New message{% endblock %}
 {% block content %}
-<a href="{{ url_for('buyer_messages' if g.user.role == 'buyer' else 'seller_messages') }}"
+<a href="{{ url_for('admin_messages' if g.user.role == 'admin' else ('buyer_messages' if g.user.role == 'buyer' else 'seller_messages')) }}"
    class="btn btn-ghost btn-sm" style="margin-bottom:16px;">← Back to messages</a>
 
 <div class="card" style="max-width:640px; margin:0 auto;">
@@ -45,7 +45,7 @@
   {% else %}
     <form method="get" style="margin-bottom:4px;">
       <div class="field">
-        <label>Search your contacts, or anyone at BuyersForce</label>
+        {% if g.user.role == 'admin' %}<label>Search any buyer or seller on BuyersForce</label>{% else %}<label>Search your contacts, or anyone at BuyersForce</label>{% endif %}
         <input type="text" name="q" value="{{ q }}" placeholder="Name, company, or email" autofocus>
       </div>
       <button class="btn btn-secondary btn-sm" type="submit">Search</button>

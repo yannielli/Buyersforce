@@ -34,7 +34,10 @@
       sellers see their own Messages page. Support tickets and vendor suggestions live on
       <a href="{{ url_for('admin_support_queue') }}">Support Queue</a> instead.</p>
   </div>
-  <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">← Back to dashboard</a>
+  <div style="display:flex; gap:8px; align-items:flex-start;">
+    <a href="{{ url_for('messages_new') }}" class="btn btn-primary btn-sm">+ New message</a>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">← Back to dashboard</a>
+  </div>
 </div>
 
 {% include "_archive_toggle.html" %}

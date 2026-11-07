@@ -2427,12 +2427,19 @@ def _can_message(user, candidate):
     any other buyer, at any company -- peer buyers often want a second
     opinion on a vendor or a referral, and that's worth more than the
     company boundary here. Sellers still can't reach competing sellers
-    at another company. Admin accounts are never reachable this way
-    (their role is neither 'buyer' nor 'seller', so every check below
-    simply fails for them). A seller can never reach a buyer who has
-    blocked them (or their whole company) via Account > Blocked Vendors."""
+    at another company. Admin accounts are never reachable THIS way from
+    a buyer or seller's own compose (their role is neither 'buyer' nor
+    'seller', so every check below simply fails for them) -- support
+    tickets and vendor suggestions are how they reach admin instead. The
+    reverse direction is wide open, though (Kj's 2026-11-07 request):
+    admin can message anyone, since Messages is admin's own full-featured
+    inbox, not the marketplace's buyer/seller matching rules. A seller
+    can never reach a buyer who has blocked them (or their whole
+    company) via Account > Blocked Vendors."""
     if candidate["id"] == user["id"]:
         return False
+    if user["role"] == "admin":
+        return True
     opposite = "seller" if user["role"] == "buyer" else "buyer"
     if candidate["role"] == opposite:
         if user["role"] == "seller" and is_message_blocked(candidate["id"], user):
@@ -2476,7 +2483,17 @@ def search_recipients(user, q):
             seen_user_ids.add(c["contact_user_id"])
 
     if len(needle) >= 2:
-        if user["role"] == "buyer":
+        if user["role"] == "admin":
+            # Admin's Messages is a full-featured inbox, not bound by the
+            # marketplace's buyer/seller matching rules -- anyone at all
+            # (including another admin/teammate, once there is one).
+            directory_rows = dbm.query(
+                "SELECT * FROM users WHERE id != ? "
+                "AND (LOWER(name) LIKE ? OR LOWER(company) LIKE ? OR LOWER(email) LIKE ?) "
+                "ORDER BY name LIMIT 25",
+                (user["id"], f"%{needle}%", f"%{needle}%", f"%{needle}%"),
+            )
+        elif user["role"] == "buyer":
             # Any other buyer (any company) or any seller -- mirrors the
             # widened _can_message rule above.
             directory_rows = dbm.query(
@@ -3091,7 +3108,7 @@ def notify_new_message(thread_id, sender_user_id, body):
 @app.route("/app/messages/new")
 @login_required
 def messages_new():
-    if g.user["role"] not in ("buyer", "seller"):
+    if g.user["role"] not in ("buyer", "seller", "admin"):
         abort(404)
     q = request.args.get("q", "").strip()
     to_id = request.args.get("to", type=int)
@@ -3127,7 +3144,7 @@ def messages_new():
 @app.route("/app/messages/start", methods=("POST",))
 @login_required
 def messages_start():
-    if g.user["role"] not in ("buyer", "seller"):
+    if g.user["role"] not in ("buyer", "seller", "admin"):
         abort(404)
     body = request.form.get("body", "").strip()
     to_id = request.form.get("to_id", type=int)
@@ -3147,7 +3164,14 @@ def messages_start():
     if candidate:
         if not _can_message(g.user, candidate):
             abort(400)
-        thread = thread_with_user(g.user, candidate)
+        # Admin's own Messages isn't part of the buyer<->vendor matching
+        # thread_with_user otherwise routes through (admin has no vendor
+        # listing, so that path would abort(400) messaging a buyer) --
+        # always a plain direct thread instead.
+        if g.user["role"] == "admin":
+            thread = get_or_create_direct_thread(g.user["id"], candidate["id"])
+        else:
+            thread = thread_with_user(g.user, candidate)
         ensure_contact(g.user["id"], contact_user_id=candidate["id"])
         ensure_contact(candidate["id"], contact_user_id=g.user["id"])
         dbm.execute(

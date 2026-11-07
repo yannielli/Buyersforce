@@ -563,3 +563,42 @@ Known rough edges worth remembering, not yet fixed:
        approve/modify branch already uses, so the requester sees it exactly
        like any other admin reply and the feedback loop closes without Kj
        writing it by hand each time.
+
+- **Admin Messages: compose is real now** (2026-11-07, Kj's report after
+  the Engineering Queue work above: "lacks the ability to compose a
+  message to anyone" + "missing the message action buttons"). Root
+  cause of both: `admin_messages()`'s own docstring already said Direct
+  messages was "a placeholder... nothing creates one of these today" --
+  the shared `/app/messages/new` + `/app/messages/start` compose flow
+  (`messages_new.html`, used by buyer/seller already) explicitly
+  404'd for any role other than buyer/seller, so admin could never
+  start a thread, which meant Direct messages stayed permanently empty
+  -- and the per-row action icons (mark read/flag/save/archive) were
+  never missing, there was just never a row to show them on. Fix, all
+  in the existing shared machinery rather than anything admin-only:
+  - `_can_message`: added `if user["role"] == "admin": return True`
+    (except self) -- admin's Messages is a full inbox, not bound by the
+    marketplace's buyer/seller matching rules.
+  - `search_recipients`: new admin branch searches every user by
+    name/company/email (no role/company restriction), instead of
+    falling into the seller branch by accident (which would have
+    limited admin to "buyers, or sellers at admin's own company" --
+    i.e. no sellers at all, since admin's company isn't a real seller
+    company).
+  - `messages_new` / `messages_start`: role gate now allows
+    `"admin"` too.
+  - `messages_start`: admin always gets a plain
+    `get_or_create_direct_thread`, never `thread_with_user`'s
+    buyer<->vendor routing -- that path assumes whichever side isn't
+    the buyer has a seller's vendor listing, which admin doesn't, and
+    would `abort(400)` if admin messaged a buyer.
+  - `messages_new.html`'s back-link and search label now branch on
+    admin too (previously hardcoded buyer-or-seller).
+  - New "+ New message" button on `admin/messages.html`'s page header,
+    linking to the now-admin-capable `messages_new`.
+  Net effect: admin can message any buyer or seller (or, once a second
+  BuyersForce teammate account exists, another admin) straight from
+  Messages, and every thread that creates shows up in Direct messages
+  with the same 4 action icons every other thread row already has --
+  nothing new needed there, since `_thread_row.html`'s `thread_row()`
+  macro already renders them for any row, admin's included.
