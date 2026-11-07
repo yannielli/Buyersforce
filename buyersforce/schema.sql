@@ -432,8 +432,15 @@ CREATE TABLE support_requests (
     --   'rejected'         -- Kj decided it's not worth doing; archived,
     --                         out of the active queue, kept for reference
     --   'deferred'         -- worth doing, but tabled into a future queue
-    --   'action_requested' -- Kj wants this built now; waiting on Claude
-    --                         to actually write the change
+    --   'admin_completed'  -- Kj just handled it himself (e.g. a password
+    --                         reset, a user account tweak) -- no code
+    --                         change needed, so this never touches
+    --                         Claude's build queue at all; terminal, like
+    --                         'shipped' but for non-code resolutions
+    --                         (Kj's correction, 2026-11-07: not every
+    --                         ticket is a coding request)
+    --   'action_requested' -- Kj wants CODE written for this; waiting on
+    --                         Claude to actually write the change
     --   'build_ready'      -- Claude's drafted the change (see
     --                         engineering_summary/engineering_branch) and
     --                         it's sitting in the Pending queue for Kj to
@@ -445,7 +452,7 @@ CREATE TABLE support_requests (
     -- clicks "Suggest another way" (engineering_note carries his redirect).
     engineering_status TEXT NOT NULL DEFAULT 'none' CHECK (
         engineering_status IN (
-            'none', 'rejected', 'deferred', 'action_requested',
+            'none', 'rejected', 'deferred', 'admin_completed', 'action_requested',
             'build_ready', 'approved_to_ship', 'shipped'
         )
     ),

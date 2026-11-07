@@ -1503,7 +1503,7 @@ def _admin_dashboard_context():
     )
     engineering_counts = {
         "action_requested": 0, "build_ready": 0, "approved_to_ship": 0,
-        "shipped": 0, "deferred": 0, "rejected": 0,
+        "shipped": 0, "deferred": 0, "rejected": 0, "admin_completed": 0,
     }
     for row in engineering_counts_rows:
         engineering_counts[row["engineering_status"]] = row["n"]
@@ -3388,23 +3388,34 @@ def admin_support_decide(request_id):
 @app.route("/app/admin/support/<int:request_id>/engineering/decide", methods=("POST",))
 @admin_required
 def admin_support_engineering_decide(request_id):
-    """Reject / Defer / Action -- the three buttons on the left side of
-    each ticket's pane on the admin dashboard. Works from ANY current
-    engineering_status, so this same route also covers "move a deferred
-    item into the active build queue" and "re-request after rejecting"
-    from the Engineering Queue page.
+    """Reject / Defer / Action: Coding / Action: Admin -- the four buttons
+    on the left side of each ticket's pane on the admin dashboard. Works
+    from ANY current engineering_status, so this same route also covers
+    "move a deferred item into the active build queue" and "re-request
+    after rejecting" from the Engineering Queue page.
+
+    The two Action variants (Kj's correction, 2026-11-07) split on
+    whether the ticket actually needs CODE: 'action_coding' queues it for
+    Claude to write a change (engineering_status='action_requested');
+    'action_admin' is everything Kj just handles himself -- a password
+    reset, a user-account tweak -- with no code involved, so it goes
+    straight to a terminal 'admin_completed' status and never touches
+    Claude's build queue at all.
     """
     req = dbm.query("SELECT * FROM support_requests WHERE id=?", (request_id,), one=True)
     if not req:
         abort(404)
     action = request.form.get("action", "")
-    if action not in ("reject", "defer", "action"):
+    if action not in ("reject", "defer", "action_coding", "action_admin"):
         abort(400)
     note = request.form.get("engineering_note", "").strip()
     now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    new_status = {"reject": "rejected", "defer": "deferred", "action": "action_requested"}[action]
+    new_status = {
+        "reject": "rejected", "defer": "deferred",
+        "action_coding": "action_requested", "action_admin": "admin_completed",
+    }[action]
 
-    if action == "action":
+    if action == "action_coding":
         dbm.execute(
             "UPDATE support_requests SET engineering_status=?, engineering_note=?, "
             "engineering_decided_at=?, engineering_decided_by=?, engineering_requested_at=? WHERE id=?",
@@ -3420,7 +3431,8 @@ def admin_support_engineering_decide(request_id):
         {
             "reject": "Archived -- won't be built.",
             "defer": "Moved to the future queue.",
-            "action": "Queued for Claude to build.",
+            "action_coding": "Queued for Claude to build.",
+            "action_admin": "Marked as handled by you -- no code needed.",
         }[action],
         "success",
     )
@@ -3508,7 +3520,7 @@ def admin_support_engineering_queue():
     )
     buckets = {
         "action_requested": [], "build_ready": [], "approved_to_ship": [],
-        "shipped": [], "deferred": [], "rejected": [],
+        "shipped": [], "admin_completed": [], "deferred": [], "rejected": [],
     }
     for r in rows:
         buckets.setdefault(r["engineering_status"], []).append(r)

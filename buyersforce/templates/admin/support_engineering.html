@@ -51,13 +51,17 @@
     {% elif r.engineering_status == 'deferred' %}
     <form method="post" action="{{ url_for('admin_support_engineering_decide', request_id=r.id) }}">
       <input type="hidden" name="next" value="{{ url_for('admin_support_engineering_queue') }}">
-      <button class="btn btn-primary btn-sm" type="submit" name="action" value="action">Move to active queue</button>
+      <button class="btn btn-primary btn-sm" type="submit" name="action" value="action_coding">Move to Claude's queue</button>
+    </form>
+    <form method="post" action="{{ url_for('admin_support_engineering_decide', request_id=r.id) }}">
+      <input type="hidden" name="next" value="{{ url_for('admin_support_engineering_queue') }}">
+      <button class="btn btn-secondary btn-sm" type="submit" name="action" value="action_admin">Mark handled by me instead</button>
     </form>
     <form method="post" action="{{ url_for('admin_support_engineering_decide', request_id=r.id) }}">
       <input type="hidden" name="next" value="{{ url_for('admin_support_engineering_queue') }}">
       <button class="btn btn-ghost btn-sm" type="submit" name="action" value="reject">Reject instead</button>
     </form>
-    {% elif r.engineering_status == 'rejected' %}
+    {% elif r.engineering_status in ('rejected', 'admin_completed') %}
     <form method="post" action="{{ url_for('admin_support_engineering_cancel', request_id=r.id) }}">
       <input type="hidden" name="next" value="{{ url_for('admin_support_engineering_queue') }}">
       <button class="btn btn-ghost btn-sm" type="submit">Reopen</button>
@@ -68,10 +72,11 @@
 {% endmacro %}
 
 {% set sections = [
-  ('action_requested', 'Queued for Claude to build'),
+  ('action_requested', "Queued for Claude to build (Action: Coding)"),
   ('build_ready', 'Build ready -- your review'),
   ('approved_to_ship', 'Approved -- waiting on Claude to deploy'),
   ('shipped', 'Shipped'),
+  ('admin_completed', 'Completed by admin (Action: Admin, no code)'),
   ('deferred', 'Future queue (deferred)'),
   ('rejected', 'Archive (rejected)'),
 ] %}

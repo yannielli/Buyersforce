@@ -300,6 +300,16 @@ land in one read, without Kj having to re-explain months of context.
     already use, not `--brand-mcm-coral`/`--brand-mcm-mustard` (style.css's
     own comment on that variable already calls those two out as
     decoration-only accents, never button/badge/tile fills).
+  - **"Action" split into Coding vs Admin** (2026-11-07, Kj's correction
+    once he saw the three buttons in practice): not every ticket needs
+    code -- a password reset or a user-account tweak, Kj just does it
+    himself. The single "Action" button became two: **Action: Coding**
+    (unchanged -- `engineering_status='action_requested'`, queued for
+    Claude) and **Action: Admin** (new terminal `engineering_status=
+    'admin_completed'`, set directly, never touches Claude's build queue
+    at all). Both live side by side next to Defer/Reject on the
+    Dashboard's per-ticket panel and get their own section + Dashboard
+    tile on the Engineering Queue.
 
 Known rough edges worth remembering, not yet fixed:
 - The cross-page compare tray (above) is client-side/localStorage only --

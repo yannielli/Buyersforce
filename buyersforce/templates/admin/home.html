@@ -97,6 +97,10 @@
     <div style="font-size:22px; font-weight:700; color:var(--ink-primary);">{{ engineering_counts.rejected }}</div>
     <div class="hint">Rejected (archive)</div>
   </a>
+  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-admin_completed" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--good-tint); border-color:var(--good-ink);">
+    <div style="font-size:22px; font-weight:700; color:var(--good-ink);">{{ engineering_counts.admin_completed }}</div>
+    <div class="hint" style="color:var(--good-ink);">Completed by admin</div>
+  </a>
 </div>
 
 <div class="section-title" id="support-requests"><h2>Support requests</h2></div>
@@ -111,14 +115,15 @@
         <input type="hidden" name="next" value="{{ url_for('admin_dashboard') }}#support-requests">
         <input type="text" name="engineering_note" placeholder="Note (optional)" style="width:100%; margin-bottom:6px; font-size:12.5px;">
         <div style="display:flex; flex-direction:column; gap:4px;">
-          <button class="btn btn-primary btn-sm" type="submit" name="action" value="action">Action</button>
+          <button class="btn btn-primary btn-sm" type="submit" name="action" value="action_coding">Action: Coding</button>
+          <button class="btn btn-secondary btn-sm" type="submit" name="action" value="action_admin">Action: Admin</button>
           <button class="btn btn-ghost btn-sm" type="submit" name="action" value="defer">Defer</button>
           <button class="btn btn-ghost btn-sm" type="submit" name="action" value="reject">Reject</button>
         </div>
       </form>
       {% else %}
-      <span class="badge {{ {'rejected': 'badge-neutral', 'deferred': 'badge-warning', 'action_requested': 'badge-good', 'build_ready': 'badge-good', 'approved_to_ship': 'badge-good', 'shipped': 'badge-good'}.get(r.engineering_status, 'badge-neutral') }}">
-        {{ {'rejected': 'Rejected', 'deferred': 'Deferred', 'action_requested': 'Queued for Claude', 'build_ready': 'Build ready', 'approved_to_ship': 'Approved to ship', 'shipped': 'Shipped'}.get(r.engineering_status, r.engineering_status) }}
+      <span class="badge {{ {'rejected': 'badge-neutral', 'deferred': 'badge-warning', 'admin_completed': 'badge-good', 'action_requested': 'badge-good', 'build_ready': 'badge-good', 'approved_to_ship': 'badge-good', 'shipped': 'badge-good'}.get(r.engineering_status, 'badge-neutral') }}">
+        {{ {'rejected': 'Rejected', 'deferred': 'Deferred', 'admin_completed': 'Completed by admin', 'action_requested': 'Queued for Claude', 'build_ready': 'Build ready', 'approved_to_ship': 'Approved to ship', 'shipped': 'Shipped'}.get(r.engineering_status, r.engineering_status) }}
       </span>
       {% if r.engineering_note %}<div class="hint" style="font-size:11.5px;">&ldquo;{{ r.engineering_note }}&rdquo;</div>{% endif %}
       <a class="hint" href="{{ url_for('admin_support_engineering_queue') }}">Manage in Engineering Queue &rarr;</a>

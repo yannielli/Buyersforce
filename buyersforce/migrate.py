@@ -99,6 +99,7 @@ def run_migrations():
             _add_thread_reads_last_alert_sent_at_2026_11_07(cur)
             _add_prelaunch_checklist_table_2026_11_07(cur)
             _add_support_requests_engineering_decision_columns_2026_11_07(cur)
+            _add_support_requests_admin_completed_status_2026_11_07(cur)
     finally:
         con.close()
 
@@ -2236,6 +2237,25 @@ def _add_support_requests_engineering_decision_columns_2026_11_07(cur):
         "ALTER TABLE support_requests ADD CONSTRAINT support_requests_engineering_status_check "
         "CHECK (engineering_status IN ("
         "'none', 'rejected', 'deferred', 'action_requested', "
+        "'build_ready', 'approved_to_ship', 'shipped'))"
+    )
+
+
+def _add_support_requests_admin_completed_status_2026_11_07(cur):
+    """Widens the engineering_status CHECK to allow 'admin_completed' --
+    Kj's correction, same day as the columns above: not every ticket
+    needs code. A password reset, a user-account tweak, anything Kj just
+    does himself -- those get a separate terminal status that never
+    touches Claude's build queue at all, instead of being forced through
+    'action_requested' as if they needed a code change. On the Dashboard
+    this is the "Action: Admin" button, right next to "Action: Coding"
+    (which is the original 'action_requested').
+    """
+    cur.execute("ALTER TABLE support_requests DROP CONSTRAINT IF EXISTS support_requests_engineering_status_check")
+    cur.execute(
+        "ALTER TABLE support_requests ADD CONSTRAINT support_requests_engineering_status_check "
+        "CHECK (engineering_status IN ("
+        "'none', 'rejected', 'deferred', 'admin_completed', 'action_requested', "
         "'build_ready', 'approved_to_ship', 'shipped'))"
     )
 
