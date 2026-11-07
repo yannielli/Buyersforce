@@ -43,14 +43,14 @@
   once per ticket in a thread's t.tickets (almost always one; a thread
   can carry more if the same person filed more than one ticket).
 #}
-{% macro ticket_panel(r) %}
+{% macro ticket_panel(r, next_url) %}
 <div class="card" style="margin:0; padding:12px 14px; display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap;">
   {% if r.status != 'resolved' %}
   <span style="min-width:120px; max-width:128px; width:128px; display:flex; flex-direction:column; gap:8px; flex-shrink:0;">
     <strong style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-secondary);">Build this?</strong>
     {% if r.engineering_status == 'none' or not r.engineering_status %}
     <form method="post" action="{{ url_for('admin_support_engineering_decide', request_id=r.id) }}" style="width:100%;">
-      <input type="hidden" name="next" value="{{ url_for('admin_support_queue') }}#all-tickets">
+      <input type="hidden" name="next" value="{{ next_url }}">
       <input type="text" name="engineering_note" placeholder="Note (optional)" style="width:100%; margin-bottom:6px; font-size:12px;">
       <div style="display:flex; flex-direction:column; gap:4px;">
         <button class="btn btn-sm" type="submit" name="action" value="action_admin" style="width:100%; white-space:normal; line-height:1.2; background:var(--good); border-color:var(--good); color:#fff;">Action: Admin</button>
@@ -102,7 +102,7 @@
       </div>
       {% if r.decision == 'pending_review' %}
       <form method="post" action="{{ url_for('admin_support_decide', request_id=r.id) }}" style="margin-top:8px;">
-        <input type="hidden" name="next" value="{{ url_for('admin_support_queue') }}#all-tickets">
+        <input type="hidden" name="next" value="{{ next_url }}">
         <div class="field"><textarea name="resolution_text" rows="4" style="width:100%;">{{ r.ai_suggested_resolution }}</textarea></div>
         <div class="field" style="display:inline-block; margin-right:10px;">
           <label>Status to set</label>
@@ -137,7 +137,7 @@
     <a class="btn btn-primary btn-sm" href="{{ url_for('admin_thread', thread_id=r.thread_id) }}">Reply</a>
     {% if r.status != 'resolved' %}
     <form method="post" action="{{ url_for('admin_support_status', request_id=r.id) }}">
-      <input type="hidden" name="next" value="{{ url_for('admin_support_queue') }}#all-tickets">
+      <input type="hidden" name="next" value="{{ next_url }}">
       <input type="hidden" name="status" value="resolved">
       <button class="btn btn-ghost btn-sm" type="submit">Mark resolved</button>
     </form>
@@ -192,7 +192,7 @@
   </summary>
   <div class="ticket-expand">
     {% if t.tickets %}
-      {% for r in t.tickets %}{{ ticket_panel(r) }}{% endfor %}
+      {% for r in t.tickets %}{{ ticket_panel(r, next_url) }}{% endfor %}
     {% else %}
       <p class="hint" style="margin:0;">Vendor suggestion thread -- no ticket to action here.
         <a href="{{ url_for('admin_thread', thread_id=t.id) }}">Open the conversation</a> to review it.</p>
@@ -270,11 +270,33 @@
   <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">← Back to dashboard</a>
 </div>
 
-<div class="section-title" id="all-tickets"><h2>All tickets</h2></div>
-{% include "_archive_toggle.html" %}
-<p class="hint" style="margin-top:-12px; margin-bottom:14px;">Boxed by category, most recent activity first -- within each box, open requests first, then in progress. Resolved tickets move to the Resolved bucket below.</p>
-{% if support_boxes %}
-  {% for box in support_boxes %}
+<div class="section-title" id="all-tickets"><h2>All Tickets</h2></div>
+{#
+  Category tabs (Kj's 2026-11-07 request): the stacked category boxes
+  used to all render at once, meaning finding e.g. a Technical support
+  ticket meant scrolling past every other category first. These tabs
+  are a single-select row -- "All Tickets" (every category, i.e. all
+  open tickets), one tab per support category, then Archived last --
+  built locally rather than via the shared _archive_toggle.html
+  partial (used on Messages/buyer/seller pages too) so this page's
+  wording and extra category tabs don't bleed into those.
+#}
+{% set current_category = request.args.get('category', 'all') %}
+<div class="folder-tabs" style="flex-wrap:wrap;">
+  <a href="{{ request.path }}" class="{{ 'active' if view != 'archived' and current_category == 'all' }}">All Tickets</a>
+  {% for cat_key, cat_label in support_categories %}
+  <a href="{{ request.path }}?category={{ cat_key }}" class="{{ 'active' if view != 'archived' and current_category == cat_key }}">{{ cat_label }} <span class="count">({{ category_counts.get(cat_key, 0) }})</span></a>
+  {% endfor %}
+  <a href="{{ request.path }}?view=archived" class="{{ 'active' if view == 'archived' }}">Archived</a>
+</div>
+{% if view == 'archived' %}
+<p class="hint" style="margin-top:-12px; margin-bottom:18px;">Archived conversations stay here for 30 days, then they're gone for good. Open one and restore it to bring it back.</p>
+{% else %}
+<p class="hint" style="margin-top:-12px; margin-bottom:14px;">Most recent activity first -- within each box, open requests first, then in progress. Resolved tickets move to the Resolved bucket below.</p>
+{% endif %}
+{% set visible_boxes = support_boxes if current_category == 'all' else (support_boxes | selectattr('key', 'equalto', current_category) | list) %}
+{% if visible_boxes %}
+  {% for box in visible_boxes %}
   <div class="category-box">
     <div class="category-box-head">
       {% if box.key != '_vendor_suggestion' %}<span class="cat-badge cat-{{ box.key }}">{{ box.label }}</span>{% else %}<span class="badge badge-neutral">{{ box.label }}</span>{% endif %}
@@ -289,7 +311,7 @@
   {% endfor %}
 {% else %}
   <div class="card empty-state"><div class="icon">💬</div>
-    {% if view == 'active' %}Nothing here yet — support tickets and vendor suggestions from buyers and sellers will show up here.{% else %}Nothing archived.{% endif %}
+    {% if view == 'archived' %}Nothing archived.{% elif current_category == 'all' %}Nothing here yet — support tickets and vendor suggestions from buyers and sellers will show up here.{% else %}Nothing in this category right now.{% endif %}
   </div>
 {% endif %}
 

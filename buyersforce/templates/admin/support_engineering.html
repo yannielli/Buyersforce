@@ -1,37 +1,70 @@
 {% extends "base.html" %}
 {% block title %}Engineering Queue{% endblock %}
 {% block content %}
+<style>
+  /* Per-ticket accordion (Kj's 2026-11-07 request): replaces the old
+     "View ticket" link-away with everything inline -- the ticket's
+     full description, attachment, and Frankie's suggested resolution
+     are all already on this same support_requests row (nothing is
+     actually copied/duplicated; it was just never rendered here), so
+     expanding a card shows all of it without a trip to Support Queue.
+     A sibling to <summary> rather than nested inside it, because the
+     "Suggest another way" action below is itself a <details> -- a
+     <details> can't legally nest inside a <summary>.
+  */
+  .eng-ticket {
+    border: 1px solid var(--gridline); border-radius: 10px; background: var(--surface-raised);
+    display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; padding: 12px 14px; margin-bottom: 10px;
+  }
+  .eng-ticket:last-child { margin-bottom: 0; }
+  .eng-ticket:hover { border-color: var(--brand); }
+  .eng-ticket[open] { border-color: var(--brand); }
+  .eng-ticket > summary {
+    flex: 1; min-width: 220px; cursor: pointer; list-style: none; display: flex; align-items: flex-start; gap: 8px;
+  }
+  .eng-ticket > summary::-webkit-details-marker { display: none; }
+  .eng-ticket-chevron { flex-shrink: 0; color: var(--ink-muted); transition: transform 0.15s ease; margin-top: 2px; }
+  .eng-ticket[open] .eng-ticket-chevron { transform: rotate(90deg); }
+  .eng-ticket-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; flex-shrink: 0; }
+  .eng-ticket-expand {
+    flex-basis: 100%; border-top: 1px dashed var(--gridline); padding-top: 12px; margin-top: 2px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+</style>
 <div class="page-header">
   <div>
     <span class="eyebrow">Administrator</span>
     <h1>Engineering Queue</h1>
     <p class="lede">Support tickets and feature requests Kj's made an engineering call on -- separate from the
       per-ticket reply you approve on the Dashboard. This is about whether the underlying fix or feature
-      actually gets built.</p>
+      actually gets built. Click a ticket to see its full details -- description, attachment, Frankie's
+      suggested resolution -- right here.</p>
   </div>
 </div>
 
 {% macro ticket_card(r) %}
-<div class="mock-row" style="align-items:flex-start;">
-  <span>
-    <strong style="font-size:14px;">{{ r.requester_name }}</strong>
-    {% if r.reference_number %}<span class="ref-badge" style="margin-left:4px;">#BF-{{ r.reference_number }}</span>{% endif %}
-    <span class="cat-badge cat-{{ r.category }}" style="margin-left:4px;">{{ support_category_labels[r.category] }}</span>
-    <div class="hint">{{ r.requester_company }} &middot; {{ r.created_at|fmt_time }}</div>
-    <div class="snippet">{{ r.notes }}</div>
-    {% if r.engineering_note %}
-    <div class="hint" style="margin-top:6px;">Kj's note: &ldquo;{{ r.engineering_note }}&rdquo;</div>
-    {% endif %}
-    {% if r.engineering_summary %}
-    <div class="card" style="margin-top:8px; margin-bottom:0; background:var(--brand-tint); border-color:var(--brand); padding:10px 12px;">
-      <strong style="font-size:12px; color:var(--brand-dark);">What Claude built</strong>
-      <div style="font-size:13px; margin-top:4px;">{{ r.engineering_summary }}</div>
-      {% if r.engineering_branch %}<div class="hint" style="margin-top:4px;">Branch: <code>{{ r.engineering_branch }}</code></div>{% endif %}
-    </div>
-    {% endif %}
-  </span>
-  <span style="display:flex; flex-direction:column; gap:6px; min-width:160px; align-items:flex-end;">
-    <a class="btn btn-ghost btn-sm" href="{{ url_for('admin_thread', thread_id=r.thread_id) }}">View ticket</a>
+<details class="eng-ticket">
+  <summary>
+    <span class="eng-ticket-chevron" aria-hidden="true">▸</span>
+    <span style="flex:1; min-width:0;">
+      <strong style="font-size:14px;">{{ r.requester_name }}</strong>
+      {% if r.reference_number %}<span class="ref-badge" style="margin-left:4px;">#BF-{{ r.reference_number }}</span>{% endif %}
+      <span class="cat-badge cat-{{ r.category }}" style="margin-left:4px;">{{ support_category_labels[r.category] }}</span>
+      <div class="hint">{{ r.requester_company }} &middot; {{ r.created_at|fmt_time }}</div>
+      <div class="snippet">{{ r.notes }}</div>
+      {% if r.engineering_note %}
+      <div class="hint" style="margin-top:6px;">Kj's note: &ldquo;{{ r.engineering_note }}&rdquo;</div>
+      {% endif %}
+      {% if r.engineering_summary %}
+      <div class="card" style="margin-top:8px; margin-bottom:0; background:var(--brand-tint); border-color:var(--brand); padding:10px 12px;">
+        <strong style="font-size:12px; color:var(--brand-dark);">What Claude built</strong>
+        <div style="font-size:13px; margin-top:4px;">{{ r.engineering_summary }}</div>
+        {% if r.engineering_branch %}<div class="hint" style="margin-top:4px;">Branch: <code>{{ r.engineering_branch }}</code></div>{% endif %}
+      </div>
+      {% endif %}
+    </span>
+  </summary>
+  <span class="eng-ticket-actions">
     {% if r.engineering_status == 'action_requested' %}
     <form method="post" action="{{ url_for('admin_support_engineering_cancel', request_id=r.id) }}">
       <input type="hidden" name="next" value="{{ url_for('admin_support_engineering_queue') }}">
@@ -68,7 +101,44 @@
     </form>
     {% endif %}
   </span>
-</div>
+  <div class="eng-ticket-expand">
+    <div>
+      <strong style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-secondary);">Full ticket</strong>
+      <div class="hint" style="margin-top:2px;">{{ r.requester_name }} ({{ r.requester_role|capitalize }}) &middot; {{ r.requester_company }} &middot; submitted {{ r.created_at|fmt_time }}</div>
+      <div style="margin-top:6px; white-space:normal;">{{ r.notes }}</div>
+    </div>
+    {% if r.attachment_data_url %}
+    <div>
+      {% if r.attachment_content_type and r.attachment_content_type.startswith('image/') %}
+      <a href="{{ url_for('support_download_attachment', request_id=r.id) }}" target="_blank">
+        <img src="{{ url_for('support_download_attachment', request_id=r.id) }}" alt="Attached screenshot"
+          style="max-width:220px; max-height:160px; border-radius:8px; border:1px solid var(--border); display:block;">
+      </a>
+      {% else %}
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('support_download_attachment', request_id=r.id) }}">📎 {{ r.attachment_filename }}</a>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if r.ai_suggested_resolution %}
+    <div class="card" style="margin:0; background:var(--brand-tint); border-color:var(--brand); padding:12px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+        <strong style="font-size:12.5px; color:var(--brand-dark);">🤖 Frankie's suggested resolution</strong>
+        <span class="badge badge-neutral">Suggested: {{ r.ai_suggested_status.replace('_', ' ')|capitalize }}</span>
+      </div>
+      <div style="font-size:13px; margin-top:6px; white-space:normal;">{{ r.ai_suggested_resolution }}</div>
+      {% if r.decision %}
+      <div class="hint" style="margin-top:6px;">
+        {{ {'approved': 'Approved as drafted', 'modified_approved': 'Approved with edits', 'rejected': 'Rejected', 'deferred': 'Deferred', 'pending_review': "Still awaiting your review on Support Queue"}.get(r.decision, r.decision) }}
+        {% if r.decided_at %} &middot; {{ r.decided_at|fmt_time }}{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+    <div>
+      <a class="btn btn-primary btn-sm" href="{{ url_for('admin_thread', thread_id=r.thread_id) }}">Reply to {{ r.requester_name }}</a>
+    </div>
+  </div>
+</details>
 {% endmacro %}
 
 {# Each section's accent color matches that queue's count tile on the Dashboard

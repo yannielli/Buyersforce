@@ -457,3 +457,55 @@ Known rough edges worth remembering, not yet fixed:
      keyed by exact pipeline stage) are unchanged by any of this -- only
      the two nav badges' definitions moved.
 
+- **Support Queue category tabs; Engineering Queue ticket details inline**
+  (2026-11-07, Kj's follow-up): two more changes to cut scrolling and
+  reduce page-hopping.
+  1) "All Tickets"'s stacked category boxes (Technical support, Report
+     a bug or issue, Feature enhancement request, Something else, plus
+     vendor suggestions) all used to render at once -- finding one
+     category meant scrolling past every other one first. They're now
+     a single-select tab row: All Tickets (every category) first, one
+     tab per support category (each showing its open-ticket count) in
+     `SUPPORT_CATEGORIES` order, then Archived last. Built as its own
+     markup in support_queue.html rather than reusing the shared
+     `_archive_toggle.html` partial (also used on Messages/buyer/seller
+     pages), so the extra category tabs and "All Tickets" wording stay
+     local to this page. Filtering happens client-template-side (a
+     `category` query-string arg, Jinja `selectattr` over the already-
+     built `support_boxes`) -- no new query, since every category's
+     tickets were already being fetched and boxed, just all rendered
+     at once. `_admin_support_queue_context()` now also returns
+     `support_categories` (the ordered key/label list for the tab loop)
+     and `category_counts` (per-category counts, including empty
+     categories, for the "(0)" on an empty tab). Resolved/Saved stay
+     unfiltered beneath whichever tab is open -- Kj didn't ask for
+     those split by category too, and they're already collapsed
+     accordions so they don't add much scroll either way. `ticket_panel()`
+     now takes `next_url` (threaded through from `ticket_row()`) instead
+     of hardcoding `#all-tickets` on its own 3 forms' `next` field, so
+     taking a disposition action from inside a filtered tab redirects
+     back to that same tab instead of resetting to "All Tickets".
+  2) Engineering Queue's `ticket_card()` always had everything it
+     needed already on the same `support_requests` row (the route's
+     query already joins `users` for requester_name/company/role, and
+     `SELECT sr.*` already carries notes/attachment/ai_suggested_
+     resolution/decision) -- it just wasn't rendering most of it, so
+     "View ticket" existed purely to see the rest. Nothing is actually
+     copied or duplicated between the two queues; each ticket_card is
+     now its own `<details>` accordion (same look/feel as Support
+     Queue's `.thread-row-accordion`, new local classes `.eng-ticket*`
+     since the layouts differ enough not to share one CSS block) that
+     expands to show the full notes, the attachment (if any), and
+     Frankie's suggested resolution (if any) -- i.e. everything "View
+     ticket" used to require a trip to Support Queue for. The one thing
+     that still needs a real navigation is replying to the requester
+     (composing a message needs the thread view) -- that's now a
+     "Reply to {name}" link inside the expanded panel instead of a
+     "View ticket" link on the collapsed row. The existing per-status
+     action buttons (Cancel request / Push to BF / Suggest another way
+     / Move to Claude's queue / Mark handled by me / Reject / Reopen)
+     are unchanged, just moved to sit beside `<summary>` as a sibling
+     rather than inside it, since "Suggest another way" is itself a
+     `<details>` and a `<details>` can't legally nest inside a
+     `<summary>`.
+

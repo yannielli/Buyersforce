@@ -3507,11 +3507,18 @@ def _admin_support_queue_context():
             reverse=True,
         )
     ]
+    # Per-category counts for the "All Tickets" tab bar (Kj's 2026-11-07
+    # request: category tabs instead of stacked boxes, to cut scrolling)
+    # -- keyed off the same by_category grouping, so a category with zero
+    # open tickets still shows "0" on its tab instead of just not having
+    # a box to count from.
+    category_counts = {key: len(by_category.get(key, [])) for key, _ in SUPPORT_CATEGORIES}
 
     return dict(
         support_category_labels=SUPPORT_CATEGORY_LABELS,
         support_boxes=support_boxes, resolved_threads=resolved_threads, saved_support=saved_support,
         category_labels=SUPPORT_CATEGORY_LABELS, view=view,
+        support_categories=SUPPORT_CATEGORIES, category_counts=category_counts,
     )
 
 
