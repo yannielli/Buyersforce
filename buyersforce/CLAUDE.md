@@ -150,6 +150,27 @@ land in one read, without Kj having to re-explain months of context.
   asked for less motion. Verified light + dark mode zoomed screenshots,
   and sampled computed opacity/transform across several points in time to
   confirm the animation is actually running (not just class-named).
+  (Same day, follow-up) Kj liked the single white sparkle but wanted more:
+  2-3 differently-sized stars per button, in BF's own color scheme rather
+  than plain white, plus the small circular Frankie head icon removed
+  from Discover's button entirely (redundant now that the full mascot
+  already stands on top of the same button). Changes: (1) each button now
+  has three `#m-sparkle` `<use>`s at three sizes (13/10/7px) and three
+  colors -- white, `var(--brand-mcm-coral)`, `var(--brand-mcm-mustard)` --
+  the same three-color trio used on base.html's animated logo mark, so
+  this reads as BF's actual brand palette rather than an arbitrary pick.
+  Coral/mustard specifically because the palette's own comment
+  (`--brand-mcm-coral` definition) already calls those two out as
+  decoration-only accents, never button/badge fills on their own --
+  exactly the role they play here, layered on top of the real teal button
+  background rather than replacing it. Each gets a different
+  `animation-delay` (0s/0.5s/1s) so the three twinkle out of phase rather
+  than blinking in unison -- verified by sampling computed opacity on all
+  three at several points in time and confirming they're never equal.
+  (2) Removed discover.html's `<img class="ai-launcher-icon ...">` (the
+  small round Frankie head) from the `#aiAssistantToggle` button, and the
+  now-dead `.ai-launcher-icon` CSS rule along with it -- confirmed no
+  other template referenced that class before deleting the rule.
 - **Infra**: Claude pushes directly to `main` via the `claude-ssh` deploy-key
   remote (since 2026-10-15); every push auto-deploys on Railway. Database is
   Railway's managed Postgres -- never SQLite or Railway volumes (data-wiping

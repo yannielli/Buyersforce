@@ -888,19 +888,29 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
   cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 .ai-launcher-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 36px rgba(13,95,92,0.42); }
-.ai-launcher-btn .ai-launcher-icon { font-size: 16px; }
 
-/* Shimmering star accent on Frankie's two teal CTA buttons -- Discover's
+/* Shimmering star accents on Frankie's two teal CTA buttons -- Discover's
    "Ask Frankie" launcher and Evaluate's "Build with Frankie" (Kj's ask:
-   both buttons should read as a matching, always-animated pair, not the
-   static sparkle-emoji "Build with Frankie" text label this replaces,
-   and not the small circular Frankie head icon in the Discover button,
-   which is a separate element and stays as-is). Reuses the same
+   both buttons should read as a matching, always-animated pair). Three
+   per button, at three different sizes, each in a different BuyersForce
+   brand color -- white, --brand-mcm-coral, --brand-mcm-mustard -- the
+   same trio used on base.html's animated logo mark, so these read as the
+   BF "Googie" palette rather than one flat color. Coral/mustard are
+   reused here specifically because they're the two accent tones the
+   palette comment above (search --brand-mcm-coral) already calls out as
+   safe for decorative use but NOT for buttons/badges on their own --
+   exactly the role they play here, as decoration on top of the real
+   button background rather than the button's own color. Reuses the same
    "#m-sparkle" shape + .shimmer keyframe (scale/opacity pulse) already
    used for the Googie decorative motifs on base.html's logo and
    landing.html's hero/CTA sections -- each page that uses it here
    defines its own tiny, zero-size <svg><defs> sprite locally, same
-   pattern as landing.html, so no shared markup needed in base.html. */
+   pattern as landing.html, so no shared markup needed in base.html.
+   Staggered animation-delay (0s/0.5s/1s) so the three twinkle out of
+   sync rather than pulsing in unison. Discover's button previously also
+   carried a small circular Frankie head icon here -- removed per Kj,
+   since the full mascot already stands directly above this same button
+   (.frankie-mascot-btn), making the little round head redundant. */
 .frankie-btn-sparkle { display: block; flex-shrink: 0; }
 @media (prefers-reduced-motion: reduce) {
   .frankie-btn-sparkle .shimmer { animation: none; opacity: 0.85; }
