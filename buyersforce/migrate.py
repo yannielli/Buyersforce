@@ -95,6 +95,9 @@ def run_migrations():
             _add_thread_reads_deleted_at_2026_10_24(cur)
             _add_messages_attachment_columns_2026_10_24(cur)
             _add_thread_reads_flags_2026_10_25(cur)
+            _add_support_requests_ai_triage_columns_2026_11_07(cur)
+            _add_thread_reads_last_alert_sent_at_2026_11_07(cur)
+            _add_prelaunch_checklist_table_2026_11_07(cur)
     finally:
         con.close()
 
@@ -2108,6 +2111,98 @@ def _add_thread_reads_flags_2026_10_25(cur):
     cur.execute("ALTER TABLE thread_reads ADD COLUMN IF NOT EXISTS manually_unread BOOLEAN NOT NULL DEFAULT false")
     cur.execute("ALTER TABLE thread_reads ADD COLUMN IF NOT EXISTS is_flagged BOOLEAN NOT NULL DEFAULT false")
     cur.execute("ALTER TABLE thread_reads ADD COLUMN IF NOT EXISTS is_saved BOOLEAN NOT NULL DEFAULT false")
+
+
+def _add_support_requests_ai_triage_columns_2026_11_07(cur):
+    # Frankie's AI triage + the human-in-the-loop decision on it (Kj's
+    # "AI support ticket agent" ask). See schema.sql's comment on
+    # support_requests for what each column means for new installs.
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS ai_suggested_resolution TEXT")
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS ai_suggested_status TEXT")
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS ai_suggested_at TEXT")
+    cur.execute(
+        "ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS decision TEXT NOT NULL DEFAULT 'pending_review'"
+    )
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS decision_note TEXT NOT NULL DEFAULT ''")
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS decided_at TEXT")
+    cur.execute("ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS decided_by INTEGER REFERENCES users(id)")
+    cur.execute("ALTER TABLE support_requests DROP CONSTRAINT IF EXISTS support_requests_ai_suggested_status_check")
+    cur.execute(
+        "ALTER TABLE support_requests ADD CONSTRAINT support_requests_ai_suggested_status_check "
+        "CHECK (ai_suggested_status IN ('open', 'in_progress', 'resolved'))"
+    )
+    cur.execute("ALTER TABLE support_requests DROP CONSTRAINT IF EXISTS support_requests_decision_check")
+    cur.execute(
+        "ALTER TABLE support_requests ADD CONSTRAINT support_requests_decision_check "
+        "CHECK (decision IN ('pending_review', 'approved', 'modified_approved', 'rejected', 'deferred'))"
+    )
+
+
+def _add_thread_reads_last_alert_sent_at_2026_11_07(cur):
+    # Throttles the new "you have a new message" external alert email
+    # (notify_new_message in app.py) per (recipient, thread) so an active
+    # back-and-forth doesn't flood an inbox. See schema.sql's comment on
+    # this column for new installs.
+    cur.execute("ALTER TABLE thread_reads ADD COLUMN IF NOT EXISTS last_alert_sent_at TEXT")
+
+
+_PRELAUNCH_CHECKLIST_SEED_2026_11_07 = [
+    # (sort_order, label, detail) -- the three TBD items Kj flagged
+    # (2026-11-07) while scoping the AI support ticket agent's alert
+    # mechanism, to make sure they don't get lost once email-via-Resend
+    # covers the immediate need.
+    (10, "SMS/Twilio text alerts",
+     "A text-alert option alongside the new email alerts: one for Kj as "
+     "admin on every new support ticket or message, plus an opt-in for "
+     "any user to get a text when they get a BuyersForce message. Needs "
+     "a Twilio account and a phone-verification flow -- not built yet; "
+     "email (Resend) covers every alert for now."),
+    (20, "iOS app",
+     "A native iOS app for BuyersForce, including a message-alert badge "
+     "on the app tile."),
+    (30, "Android app",
+     "A native Android app for BuyersForce, including a message-alert "
+     "badge on the app tile."),
+]
+
+
+def _add_prelaunch_checklist_table_2026_11_07(cur):
+    """Kj's running "Pre-Launch Checklist" -- see schema.sql's comment on
+    prelaunch_checklist_items for what this is. Seeded exactly once (via
+    the _data_patches guard) with the three TBD items above; after that,
+    Kj adds/checks off items from the admin page itself, so this seed
+    never re-runs and can't resurrect something he's since handled.
+    """
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS prelaunch_checklist_items (
+            id SERIAL PRIMARY KEY,
+            label TEXT NOT NULL,
+            detail TEXT NOT NULL DEFAULT '',
+            is_done BOOLEAN NOT NULL DEFAULT false,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+            done_at TEXT,
+            done_by INTEGER REFERENCES users(id)
+        )
+        """
+    )
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS _data_patches (name TEXT PRIMARY KEY, applied_at TEXT)"
+    )
+    patch_name = "seed_prelaunch_checklist_2026_11_07"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+    for sort_order, label, detail in _PRELAUNCH_CHECKLIST_SEED_2026_11_07:
+        cur.execute(
+            "INSERT INTO prelaunch_checklist_items (label, detail, sort_order) VALUES (%s, %s, %s)",
+            (label, detail, sort_order),
+        )
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
 
 
 if __name__ == "__main__":

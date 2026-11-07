@@ -188,9 +188,68 @@ land in one read, without Kj having to re-explain months of context.
   remote (since 2026-10-15); every push auto-deploys on Railway. Database is
   Railway's managed Postgres -- never SQLite or Railway volumes (data-wiping
   bug, unresolved, don't revisit).
+- **AI support ticket agent + external message alerts** (2026-11-07): Kj's
+  two-part ask -- (1) have Frankie triage every support ticket and draft a
+  resolution for Kj to decide on, with an external alert directing him
+  back; (2) alert anyone (admin or member) by email when they get a new
+  BuyersForce message, not just support tickets.
+  - **Ticket triage**: the moment a buyer/seller submits a ticket
+    (`support_new`), `ai_assistant.run_support_triage()` drafts a
+    verbatim-postable reply plus a recommended ticket status
+    (open/in_progress/resolved), stored on the new
+    `support_requests.ai_suggested_resolution` /
+    `ai_suggested_status` / `ai_suggested_at` columns. Kj gets a
+    Frankie-branded email (`emailer.send_support_ticket_alert`, from
+    "Frankie (BuyersForce AI Assistant)", not a generic system notice)
+    linking straight to the admin dashboard's Support requests section.
+    A triage/email failure is caught and logged -- it never blocks the
+    requester's own ticket submission.
+  - **Kj's decision**: new `admin_support_decide` route and dashboard UI
+    (an editable textarea pre-filled with Frankie's draft, right under
+    each ticket) implement the four outcomes Kj asked for -- **Approve
+    as drafted** and **Save edits & approve** both auto-post the
+    resolution into the ticket's thread as the actual reply and move
+    the ticket to the recommended (or admin-picked) status;
+    **Reject** and **Defer** post nothing and leave status untouched.
+    Recorded on `support_requests.decision` (`pending_review` /
+    `approved` / `modified_approved` / `rejected` / `deferred`) +
+    `decision_note` / `decided_at` / `decided_by`, mirroring the
+    existing `vendor_requests` admin-decision pattern.
+  - **Message alerts**: new `notify_new_message(thread_id,
+    sender_user_id, body)` in app.py, called after every message
+    insert in the file (the shared `_insert_thread_message` helper plus
+    every other raw INSERT site). Throttled per (recipient, thread) via
+    a new `thread_reads.last_alert_sent_at` column (members) /
+    the existing `threads.pending_email_sent_at` (non-members) so an
+    active back-and-forth doesn't flood an inbox -- first message of a
+    thread, or the first one after a 20-minute quiet gap, always
+    alerts. **Deliberately scoped to `direct` threads only**
+    (`_resolve_message_recipient` returns `None` for `vendor`/
+    `teammate`/`partner` threads, which can have more than one
+    legitimate recipient -- left for a future pass if Kj wants it).
+    Support ticket threads are excluded on purpose (the Frankie-branded
+    ticket alert above supersedes it); `eval_project_share`'s
+    external-recipient branch is excluded too (it already gets a
+    richer `send_evaluation_share` email with the attachment).
+  - **Pre-Launch Checklist**: Kj asked to track two prelaunch TBD items
+    (SMS/Twilio text alerts for everyone, iOS + Android native apps
+    with a message-alert badge on both app tiles) on a "running
+    checklist pinned in the left pane" -- BuyersForce has never had a
+    left sidebar (top nav only), so this shipped instead as a new
+    top-nav admin page ("Pre-Launch" link, `admin_prelaunch_checklist`
+    + `prelaunch_checklist_items` table) where Kj can check items off
+    or add new ones; seeded once with those two items.
+  - Schema: `support_requests` gained the 7 columns above;
+    `thread_reads` gained `last_alert_sent_at`; new
+    `prelaunch_checklist_items` table.
 
 Known rough edges worth remembering, not yet fixed:
 - The cross-page compare tray (above) is client-side/localStorage only --
   it doesn't sync across devices or browsers, and a cleared browser profile
   loses it. Fine for now; revisit only if Kj asks for it to be shared/
   synced.
+- Message alerts (above) only cover `direct` threads (plus support
+  tickets and eval shares via their own dedicated alerts) -- a `vendor`/
+  `teammate`/`partner` thread never alerts anyone externally, since more
+  than one person could reasonably be "the" recipient there and guessing
+  wrong isn't safe. Revisit if Kj asks for those covered too.

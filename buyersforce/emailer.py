@@ -24,11 +24,19 @@ RESEND_API_URL = "https://api.resend.com/emails"
 DEFAULT_FROM = "BuyersForce <onboarding@resend.dev>"
 
 
-def send_email(to_email, subject, text, reply_to=None, html=None, attachments=None):
+def send_email(to_email, subject, text, reply_to=None, html=None, attachments=None, from_override=None):
     """Best-effort send. Returns True only on a confirmed successful
     send; False (logged) for anything else, including "not configured
     yet" -- callers should treat False as "message saved, but nobody
     was actually emailed" rather than raising.
+
+    from_override, when given, replaces the display name on the "from"
+    header for just this one send (e.g. "Frankie (BuyersForce AI
+    Assistant) <...>" for an alert she's the one sending) while keeping
+    the SAME underlying mailbox every other BuyersForce email uses --
+    Resend only accepts a verified address/domain, so this is never a
+    way to send from somewhere else, just a friendlier display name.
+    See _frankie_from_addr below.
 
     reply_to, when given, is where a reply should land. BuyersForce's
     sending address (EMAIL_FROM) is send-only -- there's no inbox behind
@@ -53,7 +61,7 @@ def send_email(to_email, subject, text, reply_to=None, html=None, attachments=No
         print(f"[emailer] RESEND_API_KEY not set -- not emailing {to_email}: {subject!r}")
         return False
 
-    from_addr = os.environ.get("EMAIL_FROM", DEFAULT_FROM)
+    from_addr = from_override or os.environ.get("EMAIL_FROM", DEFAULT_FROM)
     payload = {
         "from": from_addr,
         "to": [to_email],
@@ -216,4 +224,101 @@ def send_role_change_decision(to_email, approved, new_role=None, login_url=None)
             "type as-is for now -- reach out if you'd like to discuss."
         )
         html = f"<p>{html_lib.escape(text)}</p>"
+    return send_email(to_email, subject, text, html=html)
+
+
+def _frankie_from_addr():
+    """The display name used on the handful of alerts Frankie (BuyersForce's
+    AI assistant) sends herself -- the AI support-ticket agent's "new
+    ticket, here's my suggested resolution" alert to Kj (see
+    send_support_ticket_alert below). Keeps the exact SAME underlying
+    mailbox every other BuyersForce email already sends from (DEFAULT_FROM,
+    or EMAIL_FROM once a custom domain is verified with Resend) --
+    Resend rejects a "from" address that isn't verified, so this only
+    ever changes the friendly display name in front of it, never the
+    actual address.
+    """
+    base = os.environ.get("EMAIL_FROM", DEFAULT_FROM)
+    if "<" in base and ">" in base:
+        addr = base[base.index("<") + 1: base.index(">")]
+    else:
+        addr = base.strip()
+    return f"Frankie (BuyersForce AI Assistant) <{addr}>"
+
+
+def send_support_ticket_alert(
+    to_email, requester, reference_number, category_label, headline, resolution,
+    suggested_status, dashboard_url,
+):
+    """Sent to Kj the moment a new support ticket is submitted and Frankie
+    has drafted a suggested resolution for it (run_support_triage in
+    ai_assistant.py, called from support_new in app.py) -- the external
+    alert for Kj's "AI support ticket agent" ask. Branded as coming from
+    Frankie herself (_frankie_from_addr), since she's the one who
+    triaged it -- not a generic system notice. Always links straight to
+    the admin dashboard, where the actual approve/modify/reject/defer
+    decision happens; this email is a heads-up, never itself the place
+    the decision gets made (no "reply to approve" affordance -- that
+    would mean trusting an email reply body as an admin action, which
+    this never does).
+
+    requester is a users row (dict-like); headline and resolution are
+    the two text fields of run_support_triage's result; suggested_status
+    is one of 'open'/'in_progress'/'resolved'.
+    """
+    status_label = {"open": "Open", "in_progress": "In progress", "resolved": "Resolved"}.get(
+        suggested_status, suggested_status
+    )
+    subject = f"New ticket #BF-{reference_number}: {headline or category_label}"
+    text = (
+        f"{requester['name']} ({requester['company']}) submitted a {category_label.lower()} "
+        f"ticket (#BF-{reference_number}).\n\n"
+        f"I've drafted a suggested reply:\n\n"
+        f"\"{resolution}\"\n\n"
+        f"My recommended status if you approve it as-is: {status_label}.\n\n"
+        f"Review, edit, or decide on it here: {dashboard_url}\n\n"
+        f"-- Frankie"
+    )
+    html = (
+        f"<p>{html_lib.escape(requester['name'])} ({html_lib.escape(requester['company'])}) submitted a "
+        f"{html_lib.escape(category_label.lower())} ticket (<strong>#BF-{reference_number}</strong>).</p>"
+        f"<p>I've drafted a suggested reply:</p>"
+        f"<blockquote style=\"margin:0 0 16px; padding:8px 12px; border-left:3px solid #17948f; "
+        f"color:#111;\">{html_lib.escape(resolution)}</blockquote>"
+        f"<p>My recommended status if you approve it as-is: <strong>{html_lib.escape(status_label)}</strong>.</p>"
+        f"<p><a href=\"{html_lib.escape(dashboard_url)}\" style=\"color:#17948f; font-weight:600;\">Review it on "
+        f"your BuyersForce dashboard &rarr;</a></p>"
+        f"<p style=\"color:#888; font-size:13px; font-style:italic;\">-- Frankie</p>"
+    )
+    return send_email(to_email, subject, text, html=html, from_override=_frankie_from_addr())
+
+
+def send_member_message_alert(to_email, sender, body, thread_url):
+    """A fellow BuyersForce member's "you have a new message" email --
+    mirrors send_message_notification above (which is for someone who
+    isn't a member yet), generalized to members too (Kj's "notify me or
+    any user of a message" ask -- see notify_new_message in app.py,
+    which throttles how often this actually fires per thread so an
+    active back-and-forth doesn't flood anyone's inbox). Unlike the
+    non-member version, there's no signup pitch and no reply-to-this-
+    email affordance -- the recipient already has a real account, so
+    the only call to action is to go look at it in BuyersForce itself.
+    Deliberately NOT Frankie-branded (plain BuyersForce, like every
+    other non-AI system email) -- Frankie's own voice is reserved for
+    the support-ticket alert above, which she actually triaged.
+    """
+    subject = f"{sender['name']} sent you a message on BuyersForce"
+    text = (
+        f"{sender['name']} ({sender['company']}) sent you a message on BuyersForce:\n\n"
+        f"\"{body}\"\n\n"
+        f"Reply here: {thread_url}"
+    )
+    html = (
+        f"<p>{html_lib.escape(sender['name'])} ({html_lib.escape(sender['company'])}) sent you a message on "
+        f"BuyersForce:</p>"
+        f"<blockquote style=\"margin:0 0 16px; padding:8px 12px; border-left:3px solid #ccc; "
+        f"color:#111;\">{html_lib.escape(body)}</blockquote>"
+        f"<p><a href=\"{html_lib.escape(thread_url)}\" style=\"color:teal; font-weight:600;\">Reply on "
+        f"BuyersForce &rarr;</a></p>"
+    )
     return send_email(to_email, subject, text, html=html)

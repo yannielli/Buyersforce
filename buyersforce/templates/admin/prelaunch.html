@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Pre-Launch Checklist{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="eyebrow">Administrator</span>
+    <h1>Pre-Launch Checklist</h1>
+    <p class="lede">A running list of things to handle before BuyersForce launches publicly. Check items off as
+      they're done, or add new ones as they come up.</p>
+  </div>
+</div>
+
+<div class="section-title"><h2>Open items</h2></div>
+{% set open_items = items|selectattr('is_done', 'equalto', false)|list %}
+{% if open_items %}
+<div class="card" style="margin-bottom:24px;">
+  {% for item in open_items %}
+  <div class="mock-row">
+    <span>
+      <strong style="font-size:14px;">{{ item.label }}</strong>
+      {% if item.detail %}<div class="hint" style="margin-top:4px; max-width:640px;">{{ item.detail }}</div>{% endif %}
+    </span>
+    <form method="post" action="{{ url_for('admin_prelaunch_toggle', item_id=item.id) }}">
+      <button class="btn btn-secondary btn-sm" type="submit">Mark done</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✅</div>Nothing to see here, all caught up!</div>
+{% endif %}
+
+<div class="section-title"><h2>Add an item</h2></div>
+<div class="card" style="margin-bottom:24px;">
+  <form method="post" action="{{ url_for('admin_prelaunch_add') }}">
+    <div class="field"><label>Label</label><input type="text" name="label" placeholder="e.g. Set up Twilio account" required></div>
+    <div class="field"><label>Detail (optional)</label><input type="text" name="detail" placeholder="Any context worth keeping with it"></div>
+    <button class="btn btn-primary btn-sm" type="submit" style="margin-top:8px;">Add to checklist</button>
+  </form>
+</div>
+
+{% set done_items = items|selectattr('is_done', 'equalto', true)|list %}
+{% if done_items %}
+<div class="section-title"><h2>Done</h2></div>
+<div class="card" style="margin-bottom:24px;">
+  {% for item in done_items %}
+  <div class="mock-row">
+    <span>
+      <strong style="font-size:14px; color:var(--ink-secondary); text-decoration:line-through;">{{ item.label }}</strong>
+      <div class="hint" style="margin-top:4px;">
+        {% if item.done_by_name %}Marked done by {{ item.done_by_name }}{% else %}Marked done{% endif %}
+        {% if item.done_at %} · {{ item.done_at|fmt_time }}{% endif %}
+      </div>
+    </span>
+    <form method="post" action="{{ url_for('admin_prelaunch_toggle', item_id=item.id) }}">
+      <button class="btn btn-ghost btn-sm" type="submit">Reopen</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

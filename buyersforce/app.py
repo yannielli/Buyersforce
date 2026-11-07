@@ -1048,6 +1048,7 @@ def _insert_thread_message(thread_id, sender_id, body, file_storage):
         (thread_id, sender_id, body, attachment_filename, attachment_content_type,
          attachment_data_url, attachment_size_bytes),
     )
+    notify_new_message(thread_id, sender_id, body or "(sent an attachment, no additional message)")
     return None
 
 
@@ -2892,6 +2893,125 @@ def _thread_route_for(user):
     return "admin_thread"
 
 
+# How long a recipient's "you have a new message" alert email stays fresh
+# before another one goes out for the SAME (recipient, thread) pair --
+# long enough that a live back-and-forth conversation doesn't flood
+# anyone's inbox with one email per reply, short enough that someone who
+# steps away and comes back still gets alerted promptly. The very first
+# message of a brand-new thread always alerts immediately regardless --
+# there's no prior alert to compare against (Kj's ask: "first message of
+# a new thread, or after a quiet gap").
+MESSAGE_ALERT_QUIET_GAP = timedelta(minutes=20)
+
+
+def _resolve_message_recipient(thread, sender_user_id):
+    """Who to alert about a new message in `thread`, given who just sent
+    it -- either a users row (a fellow BuyersForce member) or a plain
+    {"external_name", "external_email"} dict (someone reached by email
+    who isn't a member). Returns None when there's no single other
+    party to safely alert this way: every thread type except 'direct'
+    (a 'vendor' or 'teammate' thread can have more than one person who'd
+    reasonably want a ping -- e.g. every teammate on a company's side --
+    and guessing the "right" one isn't safe to do here; left for a
+    future pass if that's ever wanted), or a 'direct' thread with no
+    distinguishable other side (shouldn't happen, but this never alerts
+    the sender themselves).
+
+    Mirrors the exact same participant-resolution thread_display_info
+    already uses for its "pending_email" / "direct" cases above, so this
+    reads the same "who's on the other side" logic the rest of the app
+    already trusts, rather than a second, possibly-diverging version of
+    it.
+    """
+    if thread["type"] != "direct":
+        return None
+    if thread["participant_b_id"]:
+        other_id = (
+            thread["participant_b_id"] if thread["participant_a_id"] == sender_user_id
+            else thread["participant_a_id"]
+        )
+        if other_id == sender_user_id:
+            return None
+        return dbm.query("SELECT * FROM users WHERE id=?", (other_id,), one=True)
+    if thread["external_email"]:
+        return {"external_name": thread["external_name"], "external_email": thread["external_email"]}
+    return None
+
+
+def notify_new_message(thread_id, sender_user_id, body):
+    """Fire-and-forget external ("outside BuyersForce") alert email to
+    the other party in a thread, right after a new message is inserted
+    into it -- Kj's "all messaging" ask. Throttled per (recipient,
+    thread) by MESSAGE_ALERT_QUIET_GAP so an active back-and-forth
+    doesn't flood an inbox; the first message of a brand-new thread, or
+    the first one after a quiet gap, always gets through.
+
+    Covers BOTH a fellow BuyersForce member (who never got any message
+    email at all before this) and a non-member reached by email (who,
+    before this, was only ever alerted once, on the thread's very first
+    message -- see get_or_create_external_thread/messages_start -- this
+    generalizes that into the same quiet-gap rule everyone else gets,
+    so a reply after they've gone quiet for a while now reaches them
+    too). Deliberately scoped to 'direct' threads only -- see
+    _resolve_message_recipient. Safe (and a cheap no-op) to call after
+    ANY message insert, anywhere in this file, regardless of that
+    thread's actual type.
+
+    Never raises: a notification failure must never break the message
+    send it's riding along with, so every error is caught and logged
+    instead.
+    """
+    try:
+        thread = dbm.query("SELECT * FROM threads WHERE id=?", (thread_id,), one=True)
+        if not thread:
+            return
+        recipient = _resolve_message_recipient(thread, sender_user_id)
+        if not recipient:
+            return
+        sender = dbm.query("SELECT * FROM users WHERE id=?", (sender_user_id,), one=True)
+        if not sender:
+            return
+
+        is_member = "id" in recipient
+        now = datetime.utcnow()
+        if is_member:
+            read_row = dbm.query(
+                "SELECT * FROM thread_reads WHERE user_id=? AND thread_id=?",
+                (recipient["id"], thread_id), one=True,
+            )
+            last_alert = read_row["last_alert_sent_at"] if read_row else None
+        else:
+            last_alert = thread["pending_email_sent_at"]
+
+        if last_alert:
+            last_alert_dt = datetime.strptime(last_alert, "%Y-%m-%d %H:%M:%S")
+            if now - last_alert_dt < MESSAGE_ALERT_QUIET_GAP:
+                return
+
+        if is_member:
+            thread_url = url_for(_thread_route_for(recipient), thread_id=thread_id, _external=True)
+            sent = emailer.send_member_message_alert(recipient["email"], sender, body, thread_url)
+        else:
+            signup_url = url_for("signup", _external=True)
+            sent = emailer.send_message_notification(recipient["external_email"], sender, body, signup_url)
+
+        if not sent:
+            return
+        now_str = now.strftime("%Y-%m-%d %H:%M:%S")
+        if is_member:
+            dbm.execute(
+                "INSERT INTO thread_reads (user_id, thread_id, last_read_message_id, last_alert_sent_at) "
+                "VALUES (?, ?, 0, ?) "
+                "ON CONFLICT (user_id, thread_id) DO UPDATE SET last_alert_sent_at = EXCLUDED.last_alert_sent_at "
+                "RETURNING user_id",
+                (recipient["id"], thread_id, now_str),
+            )
+        else:
+            dbm.execute("UPDATE threads SET pending_email_sent_at=? WHERE id=?", (now_str, thread_id))
+    except Exception as exc:
+        print(f"[notify_new_message] failed (non-fatal): {exc}", flush=True)
+
+
 @app.route("/app/messages/new")
 @login_required
 def messages_new():
@@ -2958,6 +3078,7 @@ def messages_start():
             "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
             (thread["id"], g.user["id"], body),
         )
+        notify_new_message(thread["id"], g.user["id"], body)
         log_activity(g.user["id"], f"messaged {candidate['name']}")
         return redirect(url_for(thread_endpoint, thread_id=thread["id"]))
 
@@ -3047,7 +3168,7 @@ def support_new():
             (thread["id"], g.user["id"],
              f"New {label.lower()} request (ref #BF-{reference_number}):\n\n{notes}{context_line}"),
         )
-        dbm.execute(
+        support_request_id = dbm.execute(
             "INSERT INTO support_requests "
             "(user_id, category, notes, thread_id, reference_number, "
             "attachment_filename, attachment_content_type, attachment_data_url, attachment_size_bytes) "
@@ -3056,6 +3177,35 @@ def support_new():
              attachment_filename, attachment_content_type, attachment_data_url, attachment_size_bytes),
         )
         log_activity(g.user["id"], f"submitted a support request ({label})")
+
+        # Frankie's AI support-ticket agent: triages the ticket the moment
+        # it's submitted, drafting a suggested resolution + status for Kj
+        # to approve, modify, reject, or defer from the admin dashboard --
+        # and alerts him by email (Frankie-branded, not a generic system
+        # notice) so he knows to go look. Wrapped so a triage/email hiccup
+        # never blocks the requester's own ticket submission above.
+        try:
+            attachment_note = "an attachment" if attachment_filename else None
+            triage = ai_assistant.run_support_triage(
+                category, label, notes, g.user["name"], attachment_note=attachment_note
+            )
+            if not triage.get("error"):
+                now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                dbm.execute(
+                    "UPDATE support_requests SET ai_suggested_resolution=?, "
+                    "ai_suggested_status=?, ai_suggested_at=? WHERE id=?",
+                    (triage["resolution"], triage["suggested_status"], now_str, support_request_id),
+                )
+                if admin.get("email"):
+                    dashboard_url = url_for("admin_dashboard", _external=True) + "#support-requests"
+                    emailer.send_support_ticket_alert(
+                        admin["email"], g.user, reference_number, label,
+                        triage.get("headline"), triage["resolution"],
+                        triage["suggested_status"], dashboard_url,
+                    )
+        except Exception:
+            app.logger.exception("Support triage failed for request %s", support_request_id)
+
         flash(
             f"Your request has been sent (reference #BF-{reference_number}) — "
             "reply here any time to keep the conversation going.",
@@ -3135,6 +3285,139 @@ def admin_support_status(request_id):
     return redirect(request.form.get("next") or url_for("admin_dashboard"))
 
 
+@app.route("/app/admin/support/<int:request_id>/decide", methods=("POST",))
+@admin_required
+def admin_support_decide(request_id):
+    """Kj's decision on Frankie's AI-drafted resolution for one support
+    ticket -- the human-in-the-loop step of the AI support ticket agent
+    (run_support_triage in ai_assistant.py drafted the suggestion when the
+    ticket came in; this is where Kj approves it as-is, edits it first,
+    rejects it, or defers for later). Mirrors admin_vendor_request_decide's
+    approve/deny shape, extended with the two extra outcomes Kj asked for.
+
+    approve / modify auto-post the (possibly edited) resolution into the
+    ticket's thread as the actual reply -- the requester sees it exactly
+    like any other admin reply, with no separate "AI reply" styling --
+    and move the ticket to Frankie's suggested status (or whatever status
+    the admin picked instead). reject / defer never auto-post anything;
+    the ticket's own status is left untouched either way, since neither
+    one is a resolution.
+    """
+    req = dbm.query("SELECT * FROM support_requests WHERE id=?", (request_id,), one=True)
+    if not req:
+        abort(404)
+    action = request.form.get("action", "")
+    if action not in ("approve", "modify", "reject", "defer"):
+        abort(400)
+
+    decision_note = request.form.get("decision_note", "").strip()
+    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+    if action in ("approve", "modify"):
+        if action == "modify":
+            resolution_text = request.form.get("resolution_text", "").strip()
+            if not resolution_text:
+                flash("Add the edited reply before approving it.", "error")
+                return redirect(request.form.get("next") or url_for("admin_dashboard"))
+        else:
+            resolution_text = (req["ai_suggested_resolution"] or "").strip()
+            if not resolution_text:
+                flash("There's no drafted resolution to approve for this ticket.", "error")
+                return redirect(request.form.get("next") or url_for("admin_dashboard"))
+
+        new_status = request.form.get("status", "").strip()
+        if new_status not in ("open", "in_progress", "resolved"):
+            new_status = req["ai_suggested_status"] or req["status"]
+
+        dbm.execute(
+            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
+            (req["thread_id"], g.user["id"], resolution_text),
+        )
+        notify_new_message(req["thread_id"], g.user["id"], resolution_text)
+        dbm.execute(
+            "UPDATE support_requests SET decision=?, decision_note=?, decided_at=?, "
+            "decided_by=?, status=? WHERE id=?",
+            ("approved" if action == "approve" else "modified_approved", decision_note,
+             now_str, g.user["id"], new_status, request_id),
+        )
+        flash("Resolution posted to the requester.", "success")
+    elif action == "reject":
+        dbm.execute(
+            "UPDATE support_requests SET decision='rejected', decision_note=?, "
+            "decided_at=?, decided_by=? WHERE id=?",
+            (decision_note, now_str, g.user["id"], request_id),
+        )
+        flash("Frankie's suggestion was rejected -- the ticket stays open for you to handle directly.", "success")
+    else:  # defer
+        dbm.execute(
+            "UPDATE support_requests SET decision='deferred', decision_note=?, "
+            "decided_at=?, decided_by=? WHERE id=?",
+            (decision_note, now_str, g.user["id"], request_id),
+        )
+        flash("Deferred -- Frankie's suggestion is still there whenever you're ready to revisit it.", "success")
+
+    return redirect(request.form.get("next") or url_for("admin_dashboard"))
+
+
+# ---------------------------------------------------------------------------
+# Pre-Launch Checklist -- Kj's running list of things that still need doing
+# before BuyersForce launches publicly. Started (2026-11-07) with three TBD
+# items he flagged while scoping the AI support ticket agent's alert
+# mechanism (SMS/Twilio text alerts, iOS app, Android app -- see
+# migrate.py's seed), and open-ended so he can add more from here as they
+# come up. Admin-only, like everything else under /app/admin.
+# ---------------------------------------------------------------------------
+
+@app.route("/app/admin/prelaunch")
+@admin_required
+def admin_prelaunch_checklist():
+    items = dbm.query(
+        "SELECT pci.*, u.name done_by_name FROM prelaunch_checklist_items pci "
+        "LEFT JOIN users u ON u.id = pci.done_by "
+        "ORDER BY pci.is_done ASC, pci.sort_order ASC, pci.id ASC"
+    )
+    return render_template("admin/prelaunch.html", items=items)
+
+
+@app.route("/app/admin/prelaunch/add", methods=("POST",))
+@admin_required
+def admin_prelaunch_add():
+    label = request.form.get("label", "").strip()
+    detail = request.form.get("detail", "").strip()
+    if not label:
+        flash("Add a short label for the checklist item.", "error")
+        return redirect(url_for("admin_prelaunch_checklist"))
+    max_sort = dbm.query(
+        "SELECT COALESCE(MAX(sort_order), 0) AS n FROM prelaunch_checklist_items", one=True
+    )["n"]
+    dbm.execute(
+        "INSERT INTO prelaunch_checklist_items (label, detail, sort_order) VALUES (?, ?, ?)",
+        (label, detail, max_sort + 10),
+    )
+    flash("Added to the pre-launch checklist.", "success")
+    return redirect(url_for("admin_prelaunch_checklist"))
+
+
+@app.route("/app/admin/prelaunch/<int:item_id>/toggle", methods=("POST",))
+@admin_required
+def admin_prelaunch_toggle(item_id):
+    item = dbm.query("SELECT * FROM prelaunch_checklist_items WHERE id=?", (item_id,), one=True)
+    if not item:
+        abort(404)
+    if item["is_done"]:
+        dbm.execute(
+            "UPDATE prelaunch_checklist_items SET is_done=false, done_at=NULL, done_by=NULL WHERE id=?",
+            (item_id,),
+        )
+    else:
+        now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        dbm.execute(
+            "UPDATE prelaunch_checklist_items SET is_done=true, done_at=?, done_by=? WHERE id=?",
+            (now_str, g.user["id"], item_id),
+        )
+    return redirect(url_for("admin_prelaunch_checklist"))
+
+
 @app.route("/app/admin/vendor-requests/<int:request_id>/decide", methods=("POST",))
 @admin_required
 def admin_vendor_request_decide(request_id):
@@ -3189,6 +3472,7 @@ def admin_vendor_request_decide(request_id):
                 "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
                 (req["thread_id"], g.user["id"], note),
             )
+            notify_new_message(req["thread_id"], g.user["id"], note)
         elif req["kind"] == "seller_signup" and req["contact_email"]:
             note = (
                 f"Sorry, we received your request to add {req['company_name']} to BuyersForce, "
@@ -3247,11 +3531,12 @@ def admin_vendor_request_decide(request_id):
     )
 
     if req["kind"] in ("buyer_referral", "seller_referral") and req["thread_id"]:
+        approve_note = f"Congratulations! We took your advice and added {company_name} to BuyersForce."
         dbm.execute(
             "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-            (req["thread_id"], g.user["id"],
-             f"Congratulations! We took your advice and added {company_name} to BuyersForce."),
+            (req["thread_id"], g.user["id"], approve_note),
         )
+        notify_new_message(req["thread_id"], g.user["id"], approve_note)
     elif req["kind"] == "seller_signup" and contact_email:
         invite_id, token = _create_invite(contact_email, "seller", company_name, contact_name, g.user["id"])
         emailer.send_email(
@@ -3884,10 +4169,12 @@ def suggest_vendor():
             )
         if notes:
             summary_lines.append(f"Notes: {notes}")
+        suggestion_body = "\n".join(summary_lines)
         dbm.execute(
             "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-            (thread["id"], g.user["id"], "\n".join(summary_lines)),
+            (thread["id"], g.user["id"], suggestion_body),
         )
+        notify_new_message(thread["id"], g.user["id"], suggestion_body)
 
         dbm.execute(
             "INSERT INTO vendor_requests (kind, requested_by_user_id, company_name, website, "
@@ -4221,10 +4508,12 @@ def buyer_discover_chat():
         summary_lines = [f"New vendor suggestion (via Frankie, BuyersForce's AI Directory Assistant): {company_name} ({website})"]
         if notes:
             summary_lines.append(notes)
+        suggestion_body = "\n".join(summary_lines)
         dbm.execute(
             "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-            (thread["id"], g.user["id"], "\n".join(summary_lines)),
+            (thread["id"], g.user["id"], suggestion_body),
         )
+        notify_new_message(thread["id"], g.user["id"], suggestion_body)
         dbm.execute(
             "INSERT INTO vendor_requests (kind, requested_by_user_id, company_name, website, notes, thread_id) "
             "VALUES ('buyer_referral', ?, ?, ?, ?, ?)",
@@ -4503,6 +4792,7 @@ def buyer_message_vendor(vendor_id):
             "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
             (thread["id"], g.user["id"], body),
         )
+        notify_new_message(thread["id"], g.user["id"], body)
         vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
         log_activity(g.user["id"], f"messaged {vendor['company_name']}")
     return redirect(url_for("buyer_thread", thread_id=thread["id"]))
@@ -4654,6 +4944,7 @@ def buyer_new_team_thread():
             "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
             (thread_id, g.user["id"], body),
         )
+        notify_new_message(thread_id, g.user["id"], body)
     return redirect(url_for("buyer_thread", thread_id=thread_id))
 
 
@@ -6932,10 +7223,17 @@ def buyer_project_share(project_id):
     body_lines = [f'Shared the "{project_name}" evaluation as a {export_format.upper()} snapshot.']
     if note:
         body_lines.append(note)
+    share_body = "\n\n".join(body_lines)
     message_id = dbm.execute(
         "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-        (thread["id"], g.user["id"], "\n\n".join(body_lines)),
+        (thread["id"], g.user["id"], share_body),
     )
+    if candidate:
+        # Only the member case -- the external (non-member) recipient
+        # below gets emailer.send_evaluation_share instead, a few lines
+        # down, which already carries the actual file attachment.
+        # Sending both would double-email them for one share.
+        notify_new_message(thread["id"], g.user["id"], share_body)
 
     import base64
     data_url = f"data:{mimetype};base64,{base64.b64encode(data).decode('ascii')}"
@@ -7913,10 +8211,12 @@ def seller_suggest_vendor():
             )
         if notes:
             summary_lines.append(f"Notes: {notes}")
+        suggestion_body = "\n".join(summary_lines)
         dbm.execute(
             "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-            (thread["id"], g.user["id"], "\n".join(summary_lines)),
+            (thread["id"], g.user["id"], suggestion_body),
         )
+        notify_new_message(thread["id"], g.user["id"], suggestion_body)
 
         dbm.execute(
             "INSERT INTO vendor_requests (kind, requested_by_user_id, company_name, website, "
@@ -8035,6 +8335,7 @@ def seller_new_team_thread():
             "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
             (thread_id, g.user["id"], body),
         )
+        notify_new_message(thread_id, g.user["id"], body)
     return redirect(url_for("seller_thread", thread_id=thread_id))
 
 

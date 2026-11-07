@@ -71,7 +71,7 @@
 <div class="card empty-state" style="margin-bottom:24px;"><div class="icon">✅</div>Nothing to see here, all caught up!</div>
 {% endif %}
 
-<div class="section-title"><h2>Support requests</h2></div>
+<div class="section-title" id="support-requests"><h2>Support requests</h2></div>
 {% if open_support_requests %}
 <div class="card" style="margin-bottom:24px;">
   {% for r in open_support_requests %}
@@ -95,6 +95,44 @@
         <a class="btn btn-ghost btn-sm" href="{{ url_for('support_download_attachment', request_id=r.id) }}">
           📎 {{ r.attachment_filename }}
         </a>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% if r.ai_suggested_resolution %}
+      <div class="card" style="margin-top:10px; margin-bottom:0; background:var(--brand-tint); border-color:var(--brand); padding:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+          <strong style="font-size:12.5px; color:var(--brand-dark);">🤖 Frankie's suggested resolution</strong>
+          <span class="badge badge-neutral">Suggested: {{ r.ai_suggested_status.replace('_', ' ')|capitalize }}</span>
+        </div>
+        {% if r.decision == 'pending_review' %}
+        <form method="post" action="{{ url_for('admin_support_decide', request_id=r.id) }}" style="margin-top:8px;">
+          <input type="hidden" name="next" value="{{ url_for('admin_dashboard') }}#support-requests">
+          <div class="field"><textarea name="resolution_text" rows="4" style="width:100%;">{{ r.ai_suggested_resolution }}</textarea></div>
+          <div class="field" style="display:inline-block; margin-right:10px;">
+            <label>Status to set</label>
+            <select name="status">
+              <option value="open" {{ 'selected' if r.ai_suggested_status == 'open' }}>Open</option>
+              <option value="in_progress" {{ 'selected' if r.ai_suggested_status == 'in_progress' }}>In progress</option>
+              <option value="resolved" {{ 'selected' if r.ai_suggested_status == 'resolved' }}>Resolved</option>
+            </select>
+          </div>
+          <div class="field" style="display:inline-block;">
+            <label>Internal note (optional, not sent to requester)</label>
+            <input type="text" name="decision_note" placeholder="Optional">
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
+            <button class="btn btn-primary btn-sm" type="submit" name="action" value="approve">Approve as drafted</button>
+            <button class="btn btn-secondary btn-sm" type="submit" name="action" value="modify">Save edits &amp; approve</button>
+            <button class="btn btn-ghost btn-sm" type="submit" name="action" value="reject">Reject</button>
+            <button class="btn btn-ghost btn-sm" type="submit" name="action" value="defer">Defer</button>
+          </div>
+        </form>
+        {% else %}
+        <div class="hint" style="margin-top:6px;">
+          {{ {'approved': 'Approved as drafted', 'modified_approved': 'Approved with edits', 'rejected': 'Rejected', 'deferred': 'Deferred'}[r.decision] }}
+          {% if r.decided_at %} · {{ r.decided_at|fmt_time }}{% endif %}
+          {% if r.decision_note %} — &ldquo;{{ r.decision_note }}&rdquo;{% endif %}
+        </div>
         {% endif %}
       </div>
       {% endif %}

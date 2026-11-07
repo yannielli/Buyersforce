@@ -15,11 +15,15 @@ the app makes on a buyer's behalf. Two call shapes live here:
     caller's own tool handlers returned, keyed by tool name.
   - One-shot, tool-free (or single-server-tool) structured lookups that
     resolve in a single messages.create() call: run_vendor_lookup (the
-    "Suggest a vendor" form's autofill) and run_suggest_criteria (the
+    "Suggest a vendor" form's autofill), run_suggest_criteria (the
     guided wizard's quick, single-click "suggest criteria" button --
     separate from its conversational criteria-chat assistant above,
     kept around as a faster one-click path for a buyer who just wants a
-    quick starting list without chatting).
+    quick starting list without chatting), and run_support_triage
+    (Kj's AI support-ticket agent -- drafts a suggested resolution the
+    moment a ticket is submitted, for Kj to approve/edit/reject/defer
+    on the admin dashboard; see support_new / admin_support_decide in
+    app.py).
 
 This module owns the Anthropic API plumbing only: building the tool
 schemas, running the tool-use loop, and handing back a plain-dict result
@@ -444,6 +448,91 @@ def run_suggest_criteria(context, existing_labels, max_suggestions=6):
         if len(cleaned) >= max_suggestions:
             break
     return {"criteria": cleaned}
+
+
+def run_support_triage(category, category_label, notes, requester_name, attachment_note=None):
+    """One-shot helper for Kj's AI support-ticket agent (support_new in
+    app.py) -- runs automatically the moment a buyer or seller submits a
+    support request, drafting a suggested resolution for Kj to review
+    (approve, edit, reject, or defer) before anything reaches the
+    requester. Like run_suggest_criteria, this needs no tools: Frankie
+    is reasoning about the ticket's own text, not looking anything up.
+
+    category is the raw support_requests.category value
+    ('tech_support'/'bug_report'/'feature_request'/'other');
+    category_label is its human-readable form (SUPPORT_CATEGORY_LABELS
+    in app.py). attachment_note, when given, is a short plain-text
+    description that an attachment was included (e.g. "a screenshot") --
+    Frankie can't see the actual file, only that one exists, so it's
+    mentioned as context rather than analyzed.
+
+    The resolution text is written to be posted VERBATIM as the actual
+    reply in the ticket's thread if Kj approves it as-is -- addressed to
+    the requester by name, in Frankie's own voice, not an internal note
+    to Kj about what to do.
+
+    Returns a plain dict:
+        {"resolution": "...", "suggested_status": "open"|"in_progress"|"resolved",
+         "headline": "..."}
+    on success, or {"error": "..."} (including "no_api_key") on
+    failure -- never raises. A failure here just leaves the ticket
+    without a suggestion; Kj still sees and can answer it normally
+    either way, same "AI assist is optional" philosophy as every other
+    one-shot helper in this module.
+    """
+    client = get_client()
+    if client is None:
+        return {"error": "no_api_key"}
+
+    attachment_line = f" The requester attached {attachment_note}, which you cannot see." if attachment_note else ""
+    system_prompt = (
+        "You are Frankie, BuyersForce's AI assistant, triaging a support ticket on Kj's "
+        "behalf (Kj is BuyersForce's admin) before he reviews it. You'll be given the "
+        f"ticket's category ({category_label}) and the requester's own notes.{attachment_line} "
+        "Draft the ACTUAL REPLY Frankie would send back to the requester if Kj approves it "
+        "exactly as written -- addressed to them by name, warm and concise, in plain prose "
+        "(no bullet lists, no headers). Then recommend what the ticket's status should "
+        "become if this reply is sent: "
+        "'resolved' when your reply fully answers a how-to/technical-support question or "
+        "clears up a misunderstanding and nothing further is needed from BuyersForce; "
+        "'in_progress' for a genuine bug -- acknowledge it, give any workaround you can "
+        "think of, and say BuyersForce is looking into a fix (you cannot actually verify or "
+        "ship a fix yourself, so never claim one is already done); "
+        "'open' for a feature request or anything else that's being logged for future "
+        "consideration rather than resolved today. Use your best judgment category-by-"
+        "category -- a 'bug report' that's actually just a question can still be "
+        "'resolved', and vice versa. Respond with ONLY a single JSON object, no markdown "
+        "fences, no words before or after it, in exactly this shape: "
+        '{"resolution": "...", "suggested_status": "open" or "in_progress" or "resolved", '
+        '"headline": "a short one-line summary of the issue, for an email subject line"}.'
+    )
+
+    user_content = f"Requester: {requester_name}\nCategory: {category_label}\n\n{notes}"
+
+    try:
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=700,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_content}],
+        )
+    except anthropic.APIError as exc:
+        print(f"[ai_assistant] support triage API error: {type(exc).__name__}: {exc}", flush=True)
+        return {"error": str(exc)}
+
+    data = _parse_json_object(_reply_text(response.content))
+    if data is None:
+        return {"error": "unparseable"}
+
+    resolution = (data.get("resolution") or "").strip()
+    if not resolution:
+        return {"error": "empty_resolution"}
+    suggested_status = data.get("suggested_status")
+    if suggested_status not in ("open", "in_progress", "resolved"):
+        suggested_status = "open"
+    headline = (data.get("headline") or "").strip()[:140]
+
+    return {"resolution": resolution, "suggested_status": suggested_status, "headline": headline}
 
 
 def run_chat_turn(system_prompt, tools, tool_handlers, history, user_message):

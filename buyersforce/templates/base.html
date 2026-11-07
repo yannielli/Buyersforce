@@ -69,6 +69,7 @@
             <a href="{{ url_for('admin_vendors_page') }}" class="{{ 'active' if request.endpoint in ['admin_vendors_page','admin_vendor_new','admin_vendor_edit'] }}">Vendors</a>
             <a href="{{ url_for('admin_buyers_page') }}" class="{{ 'active' if request.endpoint == 'admin_buyers_page' }}">Buyers</a>
             <a href="{{ url_for('admin_sellers_page') }}" class="{{ 'active' if request.endpoint == 'admin_sellers_page' }}">Sellers</a>
+            <a href="{{ url_for('admin_prelaunch_checklist') }}" class="{{ 'active' if request.endpoint == 'admin_prelaunch_checklist' }}">Pre-Launch</a>
           {% endif %}
         </nav>
         <div class="user-menu">

@@ -397,6 +397,31 @@ CREATE TABLE support_requests (
     attachment_content_type TEXT,
     attachment_data_url TEXT,
     attachment_size_bytes INTEGER,
+    -- Frankie's AI triage (Kj's "AI support ticket agent" ask, 2026-11-07):
+    -- run automatically right when the ticket is submitted (see
+    -- run_support_triage in ai_assistant.py, called from support_new in
+    -- app.py), ai_suggested_resolution is the drafted reply Frankie would
+    -- send back, ai_suggested_status is Frankie's recommendation for what
+    -- the ticket's own `status` above should become if that's approved.
+    -- These three are NULL until triage has actually run (e.g. no
+    -- ANTHROPIC_API_KEY configured, or the call failed) -- the admin
+    -- dashboard falls back to its plain manual-reply UI in that case.
+    ai_suggested_resolution TEXT,
+    ai_suggested_status TEXT CHECK (ai_suggested_status IN ('open', 'in_progress', 'resolved')),
+    ai_suggested_at TEXT,
+    -- The human-in-the-loop decision on Frankie's suggestion -- separate
+    -- from `status` above (the ticket's own lifecycle), since a ticket
+    -- can sit at decision='pending_review' while status is still 'open'.
+    -- 'approved'/'modified_approved' both mean the (possibly Kj-edited)
+    -- resolution got auto-posted as the actual reply, see
+    -- admin_support_decide in app.py; 'rejected' means Kj is handling it
+    -- manually instead; 'deferred' means "come back to this later" --
+    -- none of the three touch the ticket's own status.
+    decision TEXT NOT NULL DEFAULT 'pending_review'
+        CHECK (decision IN ('pending_review', 'approved', 'modified_approved', 'rejected', 'deferred')),
+    decision_note TEXT NOT NULL DEFAULT '',
+    decided_at TEXT,
+    decided_by INTEGER REFERENCES users(id),
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
 );
 
@@ -463,6 +488,13 @@ CREATE TABLE thread_reads (
     -- pulls it out of its normal section so the main list stays
     -- clean. Also per-viewer only.
     is_saved BOOLEAN NOT NULL DEFAULT false,
+    -- When this user was last sent an external ("you have a new message")
+    -- alert email for this thread -- see notify_new_message in app.py.
+    -- Throttles alerting during an active back-and-forth (no new email
+    -- until MESSAGE_ALERT_QUIET_GAP has passed) without ever blocking the
+    -- in-app unread badge itself, which is computed separately from
+    -- last_read_message_id above.
+    last_alert_sent_at TEXT,
     PRIMARY KEY (user_id, thread_id)
 );
 
@@ -778,4 +810,22 @@ CREATE TABLE activity_log (
     verb TEXT NOT NULL,
     detail TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+);
+
+-- Kj's running "Pre-Launch Checklist" (2026-11-07): an admin-only list of
+-- things that still need doing before BuyersForce launches publicly.
+-- Seeded (via migrate.py's one-time data patch) with the three items Kj
+-- flagged while scoping the AI support ticket agent -- SMS/Twilio text
+-- alerts, iOS app, Android app -- and open-ended so he can add more as
+-- they come up. See admin_prelaunch_checklist in app.py /
+-- admin/prelaunch.html.
+CREATE TABLE prelaunch_checklist_items (
+    id SERIAL PRIMARY KEY,
+    label TEXT NOT NULL,
+    detail TEXT NOT NULL DEFAULT '',
+    is_done BOOLEAN NOT NULL DEFAULT false,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+    done_at TEXT,
+    done_by INTEGER REFERENCES users(id)
 );
