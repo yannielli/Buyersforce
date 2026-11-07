@@ -72,34 +72,48 @@
 {% endif %}
 
 <div class="section-title"><h2>Engineering Queue</h2></div>
-<div class="grid grid-3" style="gap:10px; margin-bottom:24px;">
-  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-action_requested" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--brand-tint); border-color:var(--brand);">
-    <div style="font-size:22px; font-weight:700; color:var(--brand-dark);">{{ engineering_counts.action_requested }}</div>
-    <div class="hint" style="color:var(--brand-dark);">Queued for Claude</div>
+
+<div class="grid" style="grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; margin-bottom:10px;">
+  <a href="{{ url_for('admin_dashboard') }}#support-requests" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--progress); border-color:var(--progress);">
+    <div style="font-size:22px; font-weight:700; color:#fff;">{{ engineering_counts.pending }}</div>
+    <div class="hint" style="color:rgba(255,255,255,0.85);">Pending — not yet dispositioned</div>
   </a>
-  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-build_ready" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--warning-tint); border-color:var(--warning-ink);">
-    <div style="font-size:22px; font-weight:700; color:var(--warning-ink);">{{ engineering_counts.build_ready }}</div>
-    <div class="hint" style="color:var(--warning-ink);">Build ready — your review</div>
+</div>
+
+<div class="grid" style="grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; margin-bottom:10px;">
+  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-admin_completed" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--good); border-color:var(--good);">
+    <div style="font-size:22px; font-weight:700; color:#fff;">{{ engineering_counts.admin_completed }}</div>
+    <div class="hint" style="color:rgba(255,255,255,0.85);">Completed by admin</div>
   </a>
-  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-approved_to_ship" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--brand-tint); border-color:var(--brand);">
-    <div style="font-size:22px; font-weight:700; color:var(--brand-dark);">{{ engineering_counts.approved_to_ship }}</div>
-    <div class="hint" style="color:var(--brand-dark);">Approved to ship</div>
+</div>
+
+<div class="grid" style="grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; margin-bottom:10px;">
+  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-action_requested" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--critical); border-color:var(--critical);">
+    <div style="font-size:22px; font-weight:700; color:#fff;">{{ engineering_counts.action_requested }}</div>
+    <div class="hint" style="color:rgba(255,255,255,0.85);">Queued for Claude</div>
   </a>
-  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-shipped" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--good-tint); border-color:var(--good-ink);">
-    <div style="font-size:22px; font-weight:700; color:var(--good-ink);">{{ engineering_counts.shipped }}</div>
-    <div class="hint" style="color:var(--good-ink);">Shipped</div>
+  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-build_ready" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--brand-mcm-coral); border-color:var(--brand-mcm-coral);">
+    <div style="font-size:22px; font-weight:700; color:#fff;">{{ engineering_counts.build_ready }}</div>
+    <div class="hint" style="color:rgba(255,255,255,0.85);">Build ready — your review</div>
   </a>
-  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-deferred" class="card" style="margin-top:0; text-align:center; padding:12px 6px;">
-    <div style="font-size:22px; font-weight:700; color:var(--ink-primary);">{{ engineering_counts.deferred }}</div>
-    <div class="hint">Deferred</div>
+  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-approved_to_ship" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--brand-mcm-mustard); border-color:var(--brand-mcm-mustard);">
+    <div style="font-size:22px; font-weight:700; color:#fff;">{{ engineering_counts.approved_to_ship }}</div>
+    <div class="hint" style="color:rgba(255,255,255,0.85);">Approved to ship</div>
   </a>
-  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-rejected" class="card" style="margin-top:0; text-align:center; padding:12px 6px;">
-    <div style="font-size:22px; font-weight:700; color:var(--ink-primary);">{{ engineering_counts.rejected }}</div>
-    <div class="hint">Rejected (archive)</div>
+  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-shipped" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--good); border-color:var(--good);">
+    <div style="font-size:22px; font-weight:700; color:#fff;">{{ engineering_counts.shipped }}</div>
+    <div class="hint" style="color:rgba(255,255,255,0.85);">Shipped</div>
   </a>
-  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-admin_completed" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--good-tint); border-color:var(--good-ink);">
-    <div style="font-size:22px; font-weight:700; color:var(--good-ink);">{{ engineering_counts.admin_completed }}</div>
-    <div class="hint" style="color:var(--good-ink);">Completed by admin</div>
+</div>
+
+<div class="grid" style="grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; margin-bottom:24px;">
+  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-deferred" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--brand); border-color:var(--brand);">
+    <div style="font-size:22px; font-weight:700; color:#fff;">{{ engineering_counts.deferred }}</div>
+    <div class="hint" style="color:rgba(255,255,255,0.85);">Deferred</div>
+  </a>
+  <a href="{{ url_for('admin_support_engineering_queue') }}#eng-rejected" class="card" style="margin-top:0; text-align:center; padding:12px 6px; background:var(--ink-muted); border-color:var(--ink-muted);">
+    <div style="font-size:22px; font-weight:700; color:#fff;">{{ engineering_counts.rejected }}</div>
+    <div class="hint" style="color:rgba(255,255,255,0.85);">Rejected (archive)</div>
   </a>
 </div>
 
@@ -108,17 +122,17 @@
 <div class="card" style="margin-bottom:24px;">
   {% for r in open_support_requests %}
   <div class="mock-row" style="align-items:flex-start;">
-    <span style="min-width:150px; max-width:160px; display:flex; flex-direction:column; gap:8px; flex-shrink:0;">
+    <span style="min-width:120px; max-width:128px; width:128px; display:flex; flex-direction:column; gap:8px; flex-shrink:0;">
       <strong style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-secondary);">Build this?</strong>
       {% if r.engineering_status == 'none' or not r.engineering_status %}
-      <form method="post" action="{{ url_for('admin_support_engineering_decide', request_id=r.id) }}">
+      <form method="post" action="{{ url_for('admin_support_engineering_decide', request_id=r.id) }}" style="width:100%;">
         <input type="hidden" name="next" value="{{ url_for('admin_dashboard') }}#support-requests">
-        <input type="text" name="engineering_note" placeholder="Note (optional)" style="width:100%; margin-bottom:6px; font-size:12.5px;">
+        <input type="text" name="engineering_note" placeholder="Note (optional)" style="width:100%; margin-bottom:6px; font-size:12px;">
         <div style="display:flex; flex-direction:column; gap:4px;">
-          <button class="btn btn-primary btn-sm" type="submit" name="action" value="action_coding">Action: Coding</button>
-          <button class="btn btn-secondary btn-sm" type="submit" name="action" value="action_admin">Action: Admin</button>
-          <button class="btn btn-ghost btn-sm" type="submit" name="action" value="defer">Defer</button>
-          <button class="btn btn-ghost btn-sm" type="submit" name="action" value="reject">Reject</button>
+          <button class="btn btn-sm" type="submit" name="action" value="action_admin" style="width:100%; white-space:normal; line-height:1.2; background:var(--good); border-color:var(--good); color:#fff;">Action: Admin</button>
+          <button class="btn btn-sm" type="submit" name="action" value="action_coding" style="width:100%; white-space:normal; line-height:1.2; background:var(--critical); border-color:var(--critical); color:#fff;">Action: Coding</button>
+          <button class="btn btn-sm" type="submit" name="action" value="defer" style="width:100%; white-space:normal; line-height:1.2; background:var(--brand); border-color:var(--brand); color:#fff;">Defer</button>
+          <button class="btn btn-sm" type="submit" name="action" value="reject" style="width:100%; white-space:normal; line-height:1.2; background:var(--ink-muted); border-color:var(--ink-muted); color:#fff;">Reject</button>
         </div>
       </form>
       {% else %}

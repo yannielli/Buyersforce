@@ -1507,6 +1507,15 @@ def _admin_dashboard_context():
     }
     for row in engineering_counts_rows:
         engineering_counts[row["engineering_status"]] = row["n"]
+    # The 8th tile (Kj's request, 2026-11-07): tickets still sitting at
+    # the 'none' default -- brand new, not yet dispositioned with
+    # Action/Defer/Reject at all. Kept separate from the GROUP BY above
+    # since 'none' is deliberately excluded there (the Engineering Queue
+    # page itself only ever lists tickets someone's actually made a call
+    # on).
+    engineering_counts["pending"] = dbm.query(
+        "SELECT COUNT(*) AS n FROM support_requests WHERE engineering_status = 'none'", one=True
+    )["n"]
     return dict(
         buyer_company_count=buyer_company_count, buyer_user_count=buyer_user_count,
         seller_company_count=seller_company_count, seller_user_count=seller_user_count,

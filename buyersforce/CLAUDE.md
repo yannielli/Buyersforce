@@ -310,6 +310,42 @@ land in one read, without Kj having to re-explain months of context.
     at all). Both live side by side next to Defer/Reject on the
     Dashboard's per-ticket panel and get their own section + Dashboard
     tile on the Engineering Queue.
+  - **Dashboard tiles v2 + button styling fixes** (2026-11-07, same day,
+    Kj's follow-up after seeing v1 in practice): grew from 6 tiles to 8,
+    laid out in 4 explicit rows exactly as Kj specified, and switched
+    from tint/outline styling to solid fills with white text (matching
+    the existing top-of-dashboard stat tiles' look) so the Engineering
+    Queue reads as a bold color-coded strip instead of a muted one:
+    - Row 1: **Pending** (brand-new tickets still at the `'none'`
+      default -- not yet dispositioned at all) in bright blue
+      (`--progress`). New `engineering_counts.pending` query in
+      `_admin_dashboard_context()` (`COUNT(*) WHERE engineering_status =
+      'none'`) -- kept separate from the existing `GROUP BY
+      engineering_status` query since `'none'` rows are deliberately
+      excluded there. Links to the Dashboard's own Support Requests
+      section (`#support-requests`), not the Engineering Queue page,
+      since undispositioned tickets never appear on that page.
+    - Row 2: **Completed by admin** in green (`--good`).
+    - Row 3: **Queued for Claude** in red (`--critical`), **Build ready
+      -- your review** in orange (`--brand-mcm-coral`), **Approved to
+      ship** in yellow (`--brand-mcm-mustard`), **Shipped** in green
+      (`--good`).
+    - Row 4: **Deferred** in teal (`--brand`), **Rejected (archive)** in
+      flat gray (`--ink-muted`).
+    Also fixed two bugs Kj reported in the per-ticket "Build this?"
+    panel on the Support Requests list: the column was overlapping
+    ticket info/images because `.btn`'s `white-space: nowrap` plus the
+    column's `flex-shrink:0` forced it wider than its intended
+    ~150-160px -- narrowed the column to a fixed 128px and added
+    `white-space:normal; width:100%` to every button and the note input
+    so text wraps instead of pushing the layout wider. And Defer/Reject
+    had no visible "button box" because they used `.btn-ghost` (no
+    fill/border) -- replaced with the same solid-fill inline-style
+    pattern as the other two buttons. Reordered and recolored all four
+    buttons to match their Dashboard tile counterparts: Note (optional,
+    unstyled) -> **Action: Admin** (green) -> **Action: Coding** (red)
+    -> **Defer** (teal) -> **Reject** (gray) -- so the color used for a
+    disposition is consistent everywhere it shows up.
 
 Known rough edges worth remembering, not yet fixed:
 - The cross-page compare tray (above) is client-side/localStorage only --
