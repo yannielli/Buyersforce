@@ -103,6 +103,7 @@ def run_migrations():
             _backfill_engineering_decisions_2026_11_07(cur)
             _add_users_legal_acceptance_columns_2026_11_08(cur)
             _revert_mistaken_prelaunch_items_2026_11_08(cur)
+            _empty_prelaunch_checklist_items_2026_11_08(cur)
     finally:
         con.close()
 
@@ -2332,6 +2333,23 @@ def _revert_mistaken_prelaunch_items_2026_11_08(cur):
         "DELETE FROM _data_patches WHERE name IN "
         "('add_prelaunch_items_2026_11_08', 'add_prelaunch_items_2026_11_08b')"
     )
+
+
+def _empty_prelaunch_checklist_items_2026_11_08(cur):
+    """Kj's follow-up correction, same day: the ENTIRE idea of tracking
+    pre-launch to-dos in this table was a mistake, not just the five
+    rows the function above reverts -- including the original three
+    from _add_prelaunch_checklist_table_2026_11_07 (SMS/Twilio, iOS
+    app, Android app). Kj: "Those items are NOT something we need in
+    the BF platform at this time!... only exist as bullets in the BF
+    Pre-Launch Checklist running doc in the pinned docs." Clears the
+    table down to empty rather than dropping it (a DROP TABLE is a
+    bigger, harder-to-walk-back move than he explicitly asked for --
+    ask him before taking that step). The table stays in schema.sql/
+    here, empty and unused, until he says whether to drop it outright.
+    Plain DELETE, safe to run on every boot; a no-op once applied.
+    """
+    cur.execute("DELETE FROM prelaunch_checklist_items")
 
 
 def _add_users_legal_acceptance_columns_2026_11_08(cur):

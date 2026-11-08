@@ -876,9 +876,15 @@ Known rough edges worth remembering, not yet fixed:
   (`_revert_mistaken_prelaunch_items_2026_11_08`, replacing the two
   migrations that inserted them). **For any future session: a request
   to add to "the Pre-Launch Checklist" means that pinned Claude Docs
-  artifact, never this table.** This table (`prelaunch_checklist_items`,
-  seeded 2026-11-07 with three items: SMS/Twilio, iOS app, Android app)
-  was left as-is -- those three rows predate this confusion and Kj
-  didn't ask for them to be touched -- but there is still no admin page
-  that reads this table at all, so it's unclear whether it has any
-  ongoing purpose; ask Kj before adding anything else to it.
+  artifact, never this table.** Kj's immediate follow-up: the original three
+  rows (seeded 2026-11-07: SMS/Twilio, iOS app, Android app) were ALSO
+  a mistake, not just the five this session added -- "Those items are
+  NOT something we need in the BF platform at this time!... only exist
+  as bullets in the BF Pre-Launch Checklist running doc in the pinned
+  docs." `_empty_prelaunch_checklist_items_2026_11_08` clears the table
+  to empty (not a DROP TABLE -- that's a bigger move than he asked for;
+  ask him before taking it). **`prelaunch_checklist_items` has no
+  legitimate use in this app at all -- don't insert into it for any
+  reason, including a future "add to the checklist" ask. Everything
+  checklist-related belongs ONLY in the pinned Claude Docs artifact
+  above, never in this codebase or database.**
