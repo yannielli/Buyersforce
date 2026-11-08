@@ -3207,12 +3207,14 @@ def messages_start():
     if g.user["role"] not in ("buyer", "seller", "admin"):
         abort(404)
     body = request.form.get("body", "").strip()
+    file_storage = request.files.get("attachment")
+    has_attachment = bool(file_storage and file_storage.filename)
     to_id = request.form.get("to_id", type=int)
     to_email = request.form.get("to_email", "").strip().lower()
     thread_endpoint = _thread_route_for(g.user)
 
-    if not body:
-        flash("Write a message before sending.", "error")
+    if not body and not has_attachment:
+        flash("Write a message or attach a file before sending.", "error")
         return redirect(url_for("messages_new", to=to_id or None, email=to_email or None))
 
     candidate = None
@@ -3234,11 +3236,10 @@ def messages_start():
             thread = thread_with_user(g.user, candidate)
         ensure_contact(g.user["id"], contact_user_id=candidate["id"])
         ensure_contact(candidate["id"], contact_user_id=g.user["id"])
-        dbm.execute(
-            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-            (thread["id"], g.user["id"], body),
-        )
-        notify_new_message(thread["id"], g.user["id"], body)
+        error = _insert_thread_message(thread["id"], g.user["id"], body, file_storage)
+        if error:
+            flash(error, "error")
+            return redirect(url_for("messages_new", to=to_id or None, email=to_email or None))
         log_activity(g.user["id"], f"messaged {candidate['name']}")
         return redirect(url_for(thread_endpoint, thread_id=thread["id"]))
 
@@ -3248,12 +3249,22 @@ def messages_start():
             return redirect(url_for("messages_new"))
         thread = get_or_create_external_thread(g.user["id"], to_email)
         ensure_contact(g.user["id"], external_email=to_email)
+        (attachment_filename, attachment_content_type, attachment_data_url,
+         attachment_size_bytes, attachment_error) = _read_uploaded_support_attachment(file_storage)
+        if attachment_error:
+            flash(attachment_error, "error")
+            return redirect(url_for("messages_new", email=to_email))
         dbm.execute(
-            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-            (thread["id"], g.user["id"], body),
+            "INSERT INTO messages (thread_id, sender_user_id, body, attachment_filename, "
+            "attachment_content_type, attachment_data_url, attachment_size_bytes) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (thread["id"], g.user["id"], body, attachment_filename, attachment_content_type,
+             attachment_data_url, attachment_size_bytes),
         )
         signup_url = url_for("signup", _external=True)
-        sent = emailer.send_message_notification(to_email, g.user, body, signup_url)
+        sent = emailer.send_message_notification(
+            to_email, g.user, body or "(sent an attachment, no additional message)", signup_url
+        )
         if sent:
             now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             dbm.execute(
@@ -5297,12 +5308,9 @@ def buyer_new_team_thread():
         "('teammate', NULL, ?, ?)",
         (f"[{g.user['company']}] {subject}", g.user["id"]),
     )
-    if body:
-        dbm.execute(
-            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-            (thread_id, g.user["id"], body),
-        )
-        notify_new_message(thread_id, g.user["id"], body)
+    error = _insert_thread_message(thread_id, g.user["id"], body, request.files.get("attachment"))
+    if error:
+        flash(error, "error")
     return redirect(url_for("buyer_thread", thread_id=thread_id))
 
 
@@ -8688,12 +8696,9 @@ def seller_new_team_thread():
         "('teammate', NULL, ?, ?)",
         (f"[{g.user['company']}] {subject}", g.user["id"]),
     )
-    if body:
-        dbm.execute(
-            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-            (thread_id, g.user["id"], body),
-        )
-        notify_new_message(thread_id, g.user["id"], body)
+    error = _insert_thread_message(thread_id, g.user["id"], body, request.files.get("attachment"))
+    if error:
+        flash(error, "error")
     return redirect(url_for("seller_thread", thread_id=thread_id))
 
 

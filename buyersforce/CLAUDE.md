@@ -660,3 +660,41 @@ Known rough edges worth remembering, not yet fixed:
     sellers") -- Support Queue's ticket rows use their own separate,
     `<details>`-based local macros (not `_thread_row.html`), so they're
     left out of this round; say if that should get the same treatment.
+
+- **File attachments, everywhere a message can be composed** (2026-11-08,
+  Kj's follow-up: "add in the capability in Messaging for admins, buyers
+  and sellers in Messages to be able to attach files to any/all
+  messages... I see it exists already in my admin view, but need in the
+  buyer/seller messages too"). Replying inside an already-open thread
+  (`admin/seller/buyer/thread.html`) already had a file input on all
+  three roles -- that part was never actually broken. The real gap was
+  every message-COMPOSE entry point, which is shared code across all
+  three roles (so admin had the identical gap Kj just hadn't hit yet):
+  - `/app/messages/start` (the "New message" search-and-compose flow
+    behind `messages_new.html`, used by admin/buyer/seller alike) now
+    reads `request.files.get("attachment")` and reuses
+    `_insert_thread_message` for the normal (existing-BuyersForce-user)
+    case; the "email someone not on BuyersForce yet" branch gets the
+    same `_read_uploaded_support_attachment` encode/validate the support-
+    ticket flow already uses, stored on the message row the same way (the
+    attachment itself isn't emailed -- consistent with every other
+    message notification, which only ever quotes the text body).
+  - `buyer_new_team_thread` / `seller_new_team_thread` (the "+ New team
+    thread" compose box on buyer/seller Messages) get the same
+    `_insert_thread_message` treatment.
+  - A message can now be sent with an attachment and no body text at
+    all (previously a literal body was required even when a file said
+    everything), matching how the existing thread-reply form already
+    behaved.
+  - Template side: `messages_new.html`'s compose form and both team-
+    thread compose boxes gained `enctype="multipart/form-data"` plus the
+    same "Attach a file (optional, up to 10MB)" field the thread-reply
+    form already uses, so every compose surface now looks and behaves
+    identically.
+  Left out of this round, matching the Support Queue boundary Kj already
+  drew for bulk-select: the AI-ticket-decision reply box
+  (`admin_support_decide`) and the vendor-suggestion decision box
+  (`admin_vendor_request_decide`), plus the buyer's quick "message this
+  vendor" box on a vendor's profile page -- none of those are the
+  Messages page Kj was pointing at. Say if any of those should get the
+  same treatment.

@@ -101,9 +101,13 @@
     <div class="section-title"><h2>Team threads</h2></div>
     <details class="card" style="margin-bottom:14px;">
       <summary style="cursor:pointer; font-weight:600; font-size:14px;">+ New team thread</summary>
-      <form method="post" action="{{ url_for('seller_new_team_thread') }}" style="margin-top:12px;">
+      <form method="post" action="{{ url_for('seller_new_team_thread') }}" enctype="multipart/form-data" style="margin-top:12px;">
         <div class="field"><label>Subject</label><input type="text" name="subject" placeholder="e.g. Q3 renewal push" required></div>
         <div class="field"><label>Message</label><textarea name="body" placeholder="Kick off the discussion…"></textarea></div>
+        <div class="field" style="margin-top:8px;">
+          <label>Attach a file <span class="hint">(optional, up to 10MB)</span></label>
+          <input type="file" name="attachment">
+        </div>
         <button class="btn btn-primary" type="submit">Post</button>
       </form>
     </details>

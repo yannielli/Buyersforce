@@ -29,7 +29,7 @@
       <a href="{{ url_for('messages_new') }}" class="btn btn-ghost btn-sm" style="margin-left:auto;">Change</a>
     </div>
 
-    <form method="post" action="{{ url_for('messages_start') }}" style="margin-top:16px;">
+    <form method="post" action="{{ url_for('messages_start') }}" enctype="multipart/form-data" style="margin-top:16px;">
       {% if selected.kind == 'user' %}
         <input type="hidden" name="to_id" value="{{ selected.user.id }}">
       {% else %}
@@ -37,7 +37,11 @@
       {% endif %}
       <div class="field">
         <label>Message</label>
-        <textarea name="body" placeholder="Write your message…" required autofocus></textarea>
+        <textarea name="body" placeholder="Write your message…" autofocus></textarea>
+      </div>
+      <div class="field" style="margin-top:8px;">
+        <label>Attach a file <span class="hint">(optional, up to 10MB)</span></label>
+        <input type="file" name="attachment">
       </div>
       <button class="btn btn-primary" type="submit">Send</button>
     </form>
