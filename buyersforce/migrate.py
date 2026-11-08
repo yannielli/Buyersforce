@@ -103,6 +103,7 @@ def run_migrations():
             _backfill_engineering_decisions_2026_11_07(cur)
             _add_users_legal_acceptance_columns_2026_11_08(cur)
             _add_prelaunch_items_2026_11_08(cur)
+            _add_prelaunch_items_2026_11_08b(cur)
     finally:
         con.close()
 
@@ -2349,6 +2350,66 @@ def _add_prelaunch_items_2026_11_08(cur):
     if cur.fetchone():
         return
     for sort_order, label, detail in _PRELAUNCH_CHECKLIST_SEED_2026_11_08:
+        cur.execute(
+            "INSERT INTO prelaunch_checklist_items (label, detail, sort_order) VALUES (%s, %s, %s)",
+            (label, detail, sort_order),
+        )
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
+
+
+_PRELAUNCH_CHECKLIST_SEED_2026_11_08B = [
+    # (sort_order, label, detail) -- three more items, same day. The
+    # first two are Kj's OWN to-dos, not Claude's (he asked for a
+    # "Kevin's own tasks (outside claude config)" bucket, same
+    # label-prefix-as-category convention as the "Needs Coding" items
+    # above, since there's still no category column/admin page for
+    # this table -- see _PRELAUNCH_CHECKLIST_SEED_2026_11_08). The
+    # third is the matching Claude follow-up Kj explicitly asked to
+    # have filed now, so the attorney-review item above doesn't dead-
+    # end once he's done with it.
+    (60, "Kevin's own tasks: Get the EULA/Privacy Policy reviewed by a real lawyer",
+     "Run templates/legal_eula.html and legal_privacy.html past a "
+     "licensed attorney and adjust the verbiage accordingly. Consider "
+     "whether any third-party applications need to be named/disclosed "
+     "beyond the three currently listed in the Privacy Policy's "
+     "Service Providers section (Railway, Resend, Anthropic) -- Kj "
+     "specifically flagged GitHub, Gmail, and Microsoft 365 as ones to "
+     "think about (source-code hosting and Kj's own email, respectively "
+     "-- not necessarily processors of BuyersForce USER data the way "
+     "Railway/Resend/Anthropic are, but worth the attorney's read). "
+     "Once reviewed and fully drafted, see the matching 'Needs Coding' "
+     "item below -- that's where the finalized verbiage actually gets "
+     "coded in."),
+    (70, "Kevin's own tasks: Create legal@ and privacy@ email aliases",
+     "Set up legal@buyersforce.io and privacy@buyersforce.io as "
+     "aliases/forwards to kevin@buyersforce.io (Kj: self-administering "
+     "this via Gmail aliases). The EULA and Privacy Policy already "
+     "reference both addresses, so they should go live before launch."),
+    (80, "Needs Coding: Apply attorney-reviewed EULA/Privacy Policy verbiage",
+     "Once the attorney-review item above is done, update "
+     "templates/legal_eula.html and legal_privacy.html with the "
+     "finalized text, bump app.py's LEGAL_DOC_VERSION and "
+     "LEGAL_DOC_EFFECTIVE_DATE so new signups are stamped against the "
+     "new version, and add any additional third-party sub-processors "
+     "the attorney flags to the Privacy Policy's Service Providers "
+     "section."),
+]
+
+
+def _add_prelaunch_items_2026_11_08b(cur):
+    """Three more Pre-Launch Checklist items, same day as
+    _add_prelaunch_items_2026_11_08 -- see that function and
+    _add_prelaunch_checklist_table_2026_11_07 for the table itself.
+    Own _data_patches guard/name, same one-shot pattern.
+    """
+    patch_name = "add_prelaunch_items_2026_11_08b"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+    for sort_order, label, detail in _PRELAUNCH_CHECKLIST_SEED_2026_11_08B:
         cur.execute(
             "INSERT INTO prelaunch_checklist_items (label, detail, sort_order) VALUES (%s, %s, %s)",
             (label, detail, sort_order),

@@ -876,3 +876,23 @@ Known rough edges worth remembering, not yet fixed:
     shape to react to later (AI Lite/Pro, Business, POC Planner tiers)
     -- noted in the checklist detail as reference only, not anything
     BuyersForce is adopting.
+
+
+- **Three more Pre-Launch Checklist items** (2026-11-08, same day --
+  Kj's follow-up after the two above: a "Kevin's own tasks (outside
+  claude config)" bucket, same label-prefix convention since there's
+  still no category column/admin page). Same one-shot data-patch
+  mechanism (`_add_prelaunch_items_2026_11_08b`):
+  - *Get the EULA/Privacy Policy reviewed by a real lawyer* (Kevin's
+    own task) -- also notes the third-party apps Kj flagged to think
+    about (GitHub, Gmail, Microsoft 365) beyond the three actually
+    listed as Privacy Policy sub-processors today (Railway, Resend,
+    Anthropic).
+  - *Create legal@ and privacy@ email aliases* (Kevin's own task) --
+    "so I remember to do this"; he's self-administering via Gmail.
+  - *Apply attorney-reviewed EULA/Privacy Policy verbiage* (Needs
+    Coding) -- the matching follow-up Kj explicitly asked to have
+    filed now, so the attorney-review item has somewhere to land:
+    update the two templates, bump `LEGAL_DOC_VERSION`/
+    `LEGAL_DOC_EFFECTIVE_DATE`, and extend the Privacy Policy's
+    Service Providers list if the attorney flags anything new.
