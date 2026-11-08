@@ -93,7 +93,7 @@
                {{ 'required' if not form_data.no_linkedin }}
                {{ 'disabled' if form_data.no_linkedin }}
                value="{{ form_data.linkedin_url or '' }}" placeholder="https://linkedin.com/in/…">
-        <p class="hint" style="margin-top:4px;">Required so we can verify who you are before approving access.</p>
+        <p class="hint" style="margin-top:4px;">Required as secondary verification before approving access.</p>
         <label style="display:flex; align-items:center; gap:8px; margin-top:8px; cursor:pointer; font-weight:400;">
           <input type="checkbox" id="no_linkedin" name="no_linkedin"
                  {{ 'checked' if form_data.no_linkedin }}>
@@ -140,6 +140,9 @@
       </label>
 
       <button class="btn btn-primary btn-block btn-lg" type="submit">Request access</button>
+      <p class="hint" style="text-align:center; margin-top:10px;">You'll receive a work email
+        verification in a moment — please check your work inbox to complete your account
+        request.</p>
     </form>
     <p style="text-align:center; margin-top:16px; font-size:13.5px;">Already have an account?
       <a href="{{ url_for('login') }}" style="color:var(--brand); font-weight:600;">Log in</a></p>

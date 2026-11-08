@@ -1203,8 +1203,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
    fresh tab), so no dark-mode variant is needed -- data-theme="dark"
    only ever gets stamped for a signed-in g.user (see base.html). */
 .legal-doc { max-width: 720px; margin: 0 auto; }
-.legal-back { display: inline-block; font-size: 13.5px; color: var(--ink-muted); text-decoration: none; margin-bottom: 18px; }
-.legal-back:hover { color: var(--ink-secondary); }
 /* The page-level "Legal" eyebrow (Kj's reference example) plus a tab
    row so the two documents can be toggled between in place, instead
    of the earlier "Looking for our Privacy Policy instead?" sentence.

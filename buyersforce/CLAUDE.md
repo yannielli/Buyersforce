@@ -985,3 +985,28 @@ Known rough edges worth remembering, not yet fixed:
   gracefully, never reveals whether an email exists). `signup_pending.
   html` now mentions the verification email so a new applicant isn't
   surprised by it.
+
+
+- **Signup verbiage updated now that work-email verification is the
+  primary check; "Back to BuyersForce" link removed from the legal
+  pages** (2026-11-08, same day, Kj's follow-up). Three wording
+  changes on `signup.html`, now that email verification (above) does
+  most of the identity-confirmation work: the LinkedIn hint changed
+  from "Required so we can verify who you are before approving
+  access" to "Required as secondary verification before approving
+  access" -- LinkedIn is still mandatory unless "I don't have a
+  LinkedIn account" is checked, confirmed both client-side (the field
+  loses `required`, gets `disabled`, and clears in `signup.html`'s own
+  script) and server-side (`signup()`'s `elif not no_linkedin and not
+  linkedin_url` check) -- nothing changed there, just confirmed
+  working as Kj expected. Added a line under the Request Access
+  button: "You'll receive a work email verification in a moment --
+  please check your work inbox to complete your account request."
+  Separately, removed the "<- Back to BuyersForce" link from both
+  legal pages entirely (Kj: it didn't actually work right -- see the
+  history.back() fix two entries up -- "but since... it opens a new
+  browser page anyway... let's simply take out the link since it's
+  not necessary"). Deleted the now-unused `.legal-back` CSS rule
+  (`static/css/style.css`) and its `history.back()` click handler
+  (`static/js/app.js`, added in that same earlier fix) along with the
+  markup -- nothing else on the legal pages changed.
