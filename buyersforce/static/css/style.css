@@ -1195,22 +1195,45 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 
 /* ---------- legal documents (EULA / Privacy Policy) ---------- */
 /* Standalone, publicly reachable pages (templates/legal_eula.html,
-   legal_privacy.html) -- linked from signup.html, accept_invite.html,
-   and the site footer. Kept as a narrow, readable text column rather
-   than the app's usual dashboard-style layout, since this is read
-   top-to-bottom rather than scanned. */
+   legal_privacy.html) -- linked from signup.html's and
+   accept_invite.html's consent checkbox, and the site footer. Kept as
+   a narrow, readable text column rather than the app's usual
+   dashboard-style layout, since this is read top-to-bottom rather
+   than scanned. Always rendered logged-out (pre-login, or opened in a
+   fresh tab), so no dark-mode variant is needed -- data-theme="dark"
+   only ever gets stamped for a signed-in g.user (see base.html). */
 .legal-doc { max-width: 720px; margin: 0 auto; }
+.legal-back { display: inline-block; font-size: 13.5px; color: var(--ink-muted); text-decoration: none; margin-bottom: 18px; }
+.legal-back:hover { color: var(--ink-secondary); }
+/* The page-level "Legal" eyebrow (Kj's reference example) plus a tab
+   row so the two documents can be toggled between in place, instead
+   of the earlier "Looking for our Privacy Policy instead?" sentence.
+   The CURRENT page's own tab is a plain (non-link) span so it's never
+   mistaken for something clickable; the other tab is a real <a> and
+   picks up the blue underlined link color below, same as every other
+   link inside .legal-doc. */
+.legal-page-title { font-size: 22px; font-weight: 700; color: var(--ink-muted); margin: 0 0 16px; }
+.legal-tabs { display: flex; gap: 22px; padding-bottom: 18px; margin-bottom: 26px; border-bottom: 1px solid var(--gridline); }
+.legal-tab { font-size: 14.5px; font-weight: 600; }
+.legal-tab-active { color: var(--ink-primary); }
 .legal-doc-head { margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--gridline); }
-.legal-doc-head h1 { font-size: 28px; }
+.legal-doc-head h2 { font-size: 26px; margin: 0; }
 .legal-doc-meta { color: var(--ink-muted); font-size: 13.5px; margin: 6px 0 0; }
-.legal-doc-crosslink { font-size: 13.5px; margin: 10px 0 0; }
-.legal-doc-crosslink a { color: var(--brand); font-weight: 600; }
-.legal-doc h2 { font-size: 19px; margin-top: 34px; color: var(--ink-primary); }
-.legal-doc h2:first-of-type { margin-top: 28px; }
+.legal-doc h3 { font-size: 19px; margin-top: 34px; color: var(--ink-primary); }
+.legal-doc h3:first-of-type { margin-top: 28px; }
 .legal-doc p { font-size: 14.5px; line-height: 1.6; color: var(--ink-secondary); margin: 0 0 14px; }
 .legal-doc ul, .legal-doc ol { font-size: 14.5px; line-height: 1.6; color: var(--ink-secondary); margin: 0 0 14px; padding-left: 22px; }
 .legal-doc li { margin-bottom: 6px; }
 .legal-doc li:last-child { margin-bottom: 0; }
 .legal-doc strong { color: var(--ink-primary); }
-.legal-doc a { color: var(--brand); }
 .legal-doc-intro { font-size: 15px; color: var(--ink-primary); }
+/* Classic blue, underlined hyperlink styling -- Kj's explicit call,
+   matching a reference page he shared, deliberately NOT this app's
+   usual teal .btn/nav-link treatment. Covers every link inside the
+   legal pages themselves (the inactive tab, in-document cross-
+   references between the EULA and Privacy Policy, mailto addresses)
+   via .legal-doc a, and the two links inside the signup/accept-invite
+   consent checkbox (outside .legal-doc) via the standalone .legal-link
+   class. */
+.legal-doc a, .legal-link { color: #1a56db; text-decoration: underline; }
+.legal-doc a:hover, .legal-link:hover { color: #1543ab; }

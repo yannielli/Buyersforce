@@ -2,27 +2,33 @@
 {% block title %}End User License Agreement{% endblock %}
 {% block content %}
 <div class="legal-doc">
+  <a class="legal-back" href="{{ url_for('landing') }}">&larr; Back to BuyersForce</a>
+  <h1 class="legal-page-title">Legal</h1>
+  <nav class="legal-tabs">
+    <span class="legal-tab legal-tab-active">End User License Agreement</span>
+    <a class="legal-tab" href="{{ url_for('legal_privacy') }}">Privacy Policy</a>
+  </nav>
+
   <div class="legal-doc-head">
-    <h1>End User License Agreement</h1>
+    <h2>End User License Agreement</h2>
     <p class="legal-doc-meta">Effective Date: {{ LEGAL_DOC_EFFECTIVE_DATE }}</p>
-    <p class="legal-doc-crosslink">Looking for our <a href="{{ url_for('legal_privacy') }}" target="_blank" rel="noopener">Privacy Policy</a> instead?</p>
   </div>
 
-  <p class="legal-doc-intro">This End User License Agreement ("Agreement") is a binding agreement between you and BuyersForce ("BuyersForce," "we," "us," or "our") governing your access to and use of the BuyersForce platform, including our website, related services, and any software or tools we make available (collectively, the "Platform"). By checking the box to accept this Agreement, creating an account, or otherwise accessing or using the Platform, you agree to be bound by this Agreement and by our <a href="{{ url_for('legal_privacy') }}" target="_blank" rel="noopener">Privacy Policy</a>, which is incorporated into this Agreement by reference. If you do not agree, do not access or use the Platform.</p>
+  <p class="legal-doc-intro">This End User License Agreement ("Agreement") is a binding agreement between you and BuyersForce ("BuyersForce," "we," "us," or "our") governing your access to and use of the BuyersForce platform, including our website, related services, and any software or tools we make available (collectively, the "Platform"). By checking the box to accept this Agreement, creating an account, or otherwise accessing or using the Platform, you agree to be bound by this Agreement and by our <a href="{{ url_for('legal_privacy') }}">Privacy Policy</a>, which is incorporated into this Agreement by reference. If you do not agree, do not access or use the Platform.</p>
 
-  <h2>1. Acceptance of Terms</h2>
+  <h3>1. Acceptance of Terms</h3>
   <p>This Agreement applies to every person who accesses or uses the Platform, including buyers, sellers (vendor representatives), and anyone acting on their company's behalf. If you are entering into this Agreement on behalf of a company or other organization, you represent that you have the authority to bind that organization, and "you" refers to both you individually and that organization.</p>
 
-  <h2>2. Eligibility</h2>
+  <h3>2. Eligibility</h3>
   <p>You must be at least 18 years old to use the Platform. There is no restriction on where you or your company are located -- buyers and sellers may use the Platform from anywhere in the United States or the world, subject to the Export Compliance section below. Access to the Platform is currently by invitation or by request: new accounts are created either when BuyersForce reviews and approves a signup request, or when BuyersForce or an approved vendor listing issues a direct invitation. BuyersForce may decline or revoke access to the Platform at its discretion, including during this early-access period.</p>
 
-  <h2>3. The BuyersForce Platform</h2>
+  <h3>3. The BuyersForce Platform</h3>
   <p>BuyersForce is a business-to-business marketplace that helps technology buyers discover, evaluate, and compare vendors, and helps vendors (sellers) reach and respond to buyers. Platform features include a vendor directory and comparison tools, structured evaluation projects and scorecards, direct messaging between buyers, sellers, and BuyersForce staff (including the ability to attach files to messages), scheduling tools, and an AI-assisted directory and support assistant we call "Frankie." BuyersForce currently offers the Platform in an early-access capacity and may add, change, or remove features at any time.</p>
 
-  <h2>4. Account Registration and Security</h2>
+  <h3>4. Account Registration and Security</h3>
   <p>You agree to provide accurate, current, and complete information when requesting or activating an account, and to keep that information up to date. You are responsible for maintaining the confidentiality of your password and for all activity that occurs under your account. You agree not to share your account credentials or let anyone else use your account. Notify us promptly at <a href="mailto:legal@buyersforce.io">legal@buyersforce.io</a> if you believe your account has been compromised.</p>
 
-  <h2>5. License Grant and Acceptable Use</h2>
+  <h3>5. License Grant and Acceptable Use</h3>
   <p>Subject to this Agreement, BuyersForce grants you a limited, non-exclusive, non-transferable, revocable license to access and use the Platform for your own internal business purposes related to evaluating or offering technology products and services. You agree not to:</p>
   <ul>
     <li>copy, modify, or create derivative works of the Platform;</li>
@@ -36,52 +42,52 @@
     <li>use the Platform to build a competing product or service.</li>
   </ul>
 
-  <h2>6. User Content and Data</h2>
+  <h3>6. User Content and Data</h3>
   <p>You retain ownership of the information, messages, files, evaluation notes, scores, and other content you submit to the Platform ("User Content"). By submitting User Content, you grant BuyersForce a worldwide, royalty-free license to host, store, reproduce, and display that User Content solely as necessary to operate and provide the Platform to you and the other users you choose to share it with (for example, the other members of your evaluation project, or the BuyersForce staff you message). You are solely responsible for your User Content and for having the rights necessary to submit it. BuyersForce may use de-identified or aggregated data derived from use of the Platform (that does not identify you or your company) to operate, support, and improve the Platform.</p>
 
-  <h2>7. Vendor and Company Information; No Endorsement</h2>
+  <h3>7. Vendor and Company Information; No Endorsement</h3>
   <p>The Platform displays information about vendor companies that is drawn from public sources, submitted by vendors themselves, or submitted by BuyersForce staff, and may include evaluation scores, notes, and comparisons created by buyers using the Platform's evaluation tools. BuyersForce does not guarantee the accuracy, completeness, or current status of any vendor information, and does not endorse, recommend, or guarantee the suitability of any vendor, product, or service. Any decision to evaluate, select, contact, or enter into a business relationship with a vendor or buyer found through the Platform is entirely your own, and BuyersForce is not a party to, and has no responsibility or liability for, any agreement, transaction, or dispute between a buyer and a seller.</p>
 
-  <h2>8. Fees</h2>
+  <h3>8. Fees</h3>
   <p>The Platform is currently offered to approved users free of charge. If BuyersForce introduces paid plans or features in the future, we will describe the applicable pricing and billing terms separately, and this Agreement will be updated accordingly before any fees apply to you.</p>
 
-  <h2>9. Confidentiality</h2>
+  <h3>9. Confidentiality</h3>
   <p>In the course of using the Platform, you may receive non-public information about BuyersForce, other users, or vendor companies. You agree to use such information only as necessary to use the Platform as intended, and not to disclose it to third parties except as permitted by this Agreement or required by law. This section does not limit information that is or becomes publicly available through no fault of yours, or that you independently develop without reference to the confidential information.</p>
 
-  <h2>10. Intellectual Property</h2>
+  <h3>10. Intellectual Property</h3>
   <p>The Platform, including its design, software, trademarks (including the BuyersForce name and logo), and all content we create, is owned by BuyersForce or our licensors and is protected by intellectual property laws. Except for the limited license granted above, nothing in this Agreement transfers any ownership or license in the Platform or our intellectual property to you.</p>
 
-  <h2>11. Third-Party Services and Links</h2>
+  <h3>11. Third-Party Services and Links</h3>
   <p>BuyersForce uses third-party service providers to operate the Platform, including cloud hosting, email delivery, and artificial-intelligence services (described in our Privacy Policy). The Platform may also contain links to third-party websites, including vendor websites. We do not control and are not responsible for the content, policies, or practices of any third-party website or service.</p>
 
-  <h2>12. Disclaimers</h2>
+  <h3>12. Disclaimers</h3>
   <p>THE PLATFORM IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS, IMPLIED, OR STATUTORY, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. BUYERSFORCE DOES NOT WARRANT THAT THE PLATFORM WILL BE UNINTERRUPTED, SECURE, OR ERROR-FREE, OR THAT ANY VENDOR INFORMATION, EVALUATION SCORE, OR AI-GENERATED CONTENT (INCLUDING RESPONSES FROM FRANKIE) WILL BE ACCURATE OR RELIABLE. YOU ARE SOLELY RESPONSIBLE FOR ANY BUSINESS, PROCUREMENT, OR PURCHASING DECISION YOU MAKE BASED ON INFORMATION FOUND ON THE PLATFORM.</p>
 
-  <h2>13. Limitation of Liability</h2>
+  <h3>13. Limitation of Liability</h3>
   <p>TO THE MAXIMUM EXTENT PERMITTED BY LAW, BUYERSFORCE AND ITS PERSONNEL WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, REVENUE, DATA, OR BUSINESS OPPORTUNITY, ARISING OUT OF OR RELATED TO YOUR USE OF THE PLATFORM, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. BUYERSFORCE'S TOTAL LIABILITY FOR ANY CLAIM ARISING OUT OF OR RELATED TO THIS AGREEMENT WILL NOT EXCEED THE GREATER OF (A) ONE HUNDRED U.S. DOLLARS ($100), OR (B) THE AMOUNT YOU PAID BUYERSFORCE FOR USE OF THE PLATFORM IN THE TWELVE (12) MONTHS BEFORE THE CLAIM AROSE. SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OR LIMITATION OF CERTAIN DAMAGES, SO SOME OF THE ABOVE LIMITATIONS MAY NOT APPLY TO YOU.</p>
 
-  <h2>14. Indemnification</h2>
+  <h3>14. Indemnification</h3>
   <p>You agree to indemnify and hold BuyersForce harmless from any claims, damages, losses, and expenses (including reasonable attorneys' fees) arising out of your violation of this Agreement, your User Content, or your misuse of the Platform.</p>
 
-  <h2>15. Term and Termination</h2>
+  <h3>15. Term and Termination</h3>
   <p>This Agreement remains in effect while you use the Platform. BuyersForce may suspend or terminate your access at any time, with or without cause, including for violation of this Agreement, inactivity, or at our discretion during this early-access period. You may stop using the Platform, or request that your account be closed, at any time by contacting us. Upon termination, your right to use the Platform ends immediately. We will deactivate your account and will delete or de-identify your personal information within a reasonable time after termination, except to the extent we need to retain it to comply with a legal obligation, resolve a dispute, enforce our agreements, or as described in our Privacy Policy.</p>
 
-  <h2>16. Export Compliance</h2>
+  <h3>16. Export Compliance</h3>
   <p>You agree to comply with all applicable U.S. and international export control and economic sanctions laws in connection with your use of the Platform, and represent that you are not located in, and are not ordinarily resident in, a country or region subject to U.S. embargo, and are not on any U.S. government restricted-party list.</p>
 
-  <h2>17. Dispute Resolution; Arbitration Agreement</h2>
+  <h3>17. Dispute Resolution; Arbitration Agreement</h3>
   <p>Most disagreements can be resolved by contacting us directly, and we encourage you to do so first. If a dispute cannot be resolved informally, you and BuyersForce agree that it will be resolved by binding arbitration administered by the American Arbitration Association under its applicable rules, rather than in court, except that either party may bring an individual claim in small-claims court, and either party may seek injunctive relief in court for actual or threatened infringement, misappropriation, or violation of a party's intellectual property or confidentiality rights. YOU AND BUYERSFORCE EACH WAIVE THE RIGHT TO A JURY TRIAL AND TO PARTICIPATE IN A CLASS ACTION. You may opt out of this arbitration agreement by emailing <a href="mailto:legal@buyersforce.io">legal@buyersforce.io</a> within thirty (30) days of first accepting this Agreement, stating that you opt out of arbitration.</p>
 
-  <h2>18. Governing Law</h2>
+  <h3>18. Governing Law</h3>
   <p>This Agreement is governed by the laws of the State of California, without regard to its conflict-of-laws principles, except that the Federal Arbitration Act governs the arbitration agreement above.</p>
 
-  <h2>19. Changes to These Terms</h2>
+  <h3>19. Changes to These Terms</h3>
   <p>We may update this Agreement from time to time. If we make a material change, we will update the "Effective Date" above and, where appropriate, notify active users by email or through the Platform. Changes will not apply retroactively to require re-acceptance by existing active users, but continued use of the Platform after a change takes effect constitutes your acceptance of the updated Agreement.</p>
 
-  <h2>20. General Provisions</h2>
+  <h3>20. General Provisions</h3>
   <p>This Agreement, together with our Privacy Policy, is the entire agreement between you and BuyersForce regarding the Platform and supersedes any prior agreements on this subject. If any provision of this Agreement is found unenforceable, the remaining provisions will remain in full effect. BuyersForce's failure to enforce any provision is not a waiver of that provision. You may not assign this Agreement without our consent; BuyersForce may assign this Agreement in connection with a merger, acquisition, or sale of assets.</p>
 
-  <h2>21. Contact</h2>
+  <h3>21. Contact</h3>
   <p>Questions about this Agreement can be sent to <a href="mailto:legal@buyersforce.io">legal@buyersforce.io</a>.</p>
 </div>
 {% endblock %}

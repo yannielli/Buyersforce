@@ -829,11 +829,16 @@ Known rough edges worth remembering, not yet fixed:
     "BuyersForce, Inc." everywhere since the original landing-page build.
     Placeholder contact addresses (`legal@buyersforce.io`,
     `privacy@buyersforce.io`) are used throughout; these need to actually
-    exist (or forward somewhere Kj checks) before go-live. **Not legal
-    advice** -- both documents carry an HTML comment at the top saying so;
-    Kj should have a California-licensed attorney review them (especially
-    the arbitration clause and liability cap) before they govern real
-    users.
+    exist (or forward somewhere Kj checks) before go-live. Kj should have
+    a California-licensed attorney review both documents (especially the
+    arbitration clause and liability cap) before they govern real users
+    -- but per his explicit instruction, neither document itself says
+    anything like "not legal advice" or references attorney review
+    anywhere in its text (not even an invisible HTML comment): "I don't
+    want the documents to say that or they won't be binding." That
+    review reminder lives only here in CLAUDE.md and on the pinned
+    Pre-Launch Checklist, never in the documents a user actually agrees
+    to.
   - `users` gained two nullable columns, `legal_accepted_at` and
     `legal_version` (migrate.py's `_add_users_legal_acceptance_columns
     _2026_11_08`; schema.sql updated to match). `legal_version` is
@@ -888,3 +893,44 @@ Known rough edges worth remembering, not yet fixed:
   reason, including a future "add to the checklist" ask. Everything
   checklist-related belongs ONLY in the pinned Claude Docs artifact
   above, never in this codebase or database.**
+
+
+- **EULA/Privacy Policy consent links and legal-page header redesign**
+  (2026-11-08, same day, Kj's feedback with 3 screenshots on the consent
+  checkbox built above: his and his buddy's Ergentor.ai page as a
+  reference). Two changes:
+  - **Consent checkbox links now look like real hyperlinks.** Before
+    this, the "I agree to BuyersForce's End User License Agreement and
+    Privacy Policy" text in `signup.html`/`accept_invite.html` sat
+    inside a `.hint`-class span, which rendered it (and the links inside
+    it) muted gray with no underline -- it didn't read as clickable at
+    all. Root cause: this app's global `a { color: inherit;
+    text-decoration: none; }` means every link needs an explicit
+    override to look like a link, and `.hint` never had one. Fixed by
+    dropping the `.hint` wrapper and adding a new `.legal-link` class
+    (classic blue `#1a56db`, underlined, darkening on hover) to just the
+    two `<a>` tags -- `target="_blank" rel="noopener"` deliberately kept
+    on these two links so they still pop open in a new tab from the
+    signup form itself.
+  - **Legal pages now have a header + toggle nav instead of "Looking for
+    our Privacy Policy instead?"** Both `legal_eula.html` and
+    `legal_privacy.html` gained a `← Back to BuyersForce` breadcrumb, a
+    "Legal" eyebrow title, and a tab row (`.legal-tabs`) showing both
+    "End User License Agreement" and "Privacy Policy" -- whichever one
+    is the current page renders as a plain bold span (not a link, so
+    it's never mistaken for clickable), the other as a real link that
+    swaps to it in the same tab. All 21 EULA / 15 Privacy Policy
+    `<h2>` section headings were demoted to `<h3>` to make room for this
+    page-level header without two competing H1/H2-weight titles. Every
+    in-document cross-reference between the two documents (the intro
+    paragraph's "and our Privacy Policy" link, etc.) dropped its old
+    `target="_blank"` too, since staying in the same tab is now the tab
+    row's job -- only the signup/accept-invite checkbox links (above)
+    and the site footer still open a new tab. New shared CSS: `.legal-
+    back`, `.legal-page-title`, `.legal-tabs` / `.legal-tab` / `.legal-
+    tab-active`, and `.legal-doc a, .legal-link` for the shared blue
+    link color (replacing the old `.legal-doc-crosslink`-specific rule
+    and `.legal-doc a { color: var(--brand); }`, which was this app's
+    usual teal link color -- Kj's reference was specifically classic
+    blue, not BuyersForce's brand teal, so this one spot deliberately
+    doesn't match the rest of the app's link styling).

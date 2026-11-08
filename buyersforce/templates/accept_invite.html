@@ -38,11 +38,11 @@
       {% if not is_reset %}
       <label style="display:flex; align-items:center; gap:8px; margin:12px 0; cursor:pointer; font-weight:400;">
         <input type="checkbox" id="agree_legal" name="agree_legal" required>
-        <span class="hint" style="margin:0;">
+        <span style="margin:0; font-size:13.5px; color:var(--ink-secondary);">
           I agree to BuyersForce's
-          <a href="{{ url_for('legal_eula') }}" target="_blank" rel="noopener">End User License Agreement</a>
+          <a class="legal-link" href="{{ url_for('legal_eula') }}" target="_blank" rel="noopener">End User License Agreement</a>
           and
-          <a href="{{ url_for('legal_privacy') }}" target="_blank" rel="noopener">Privacy Policy</a>
+          <a class="legal-link" href="{{ url_for('legal_privacy') }}" target="_blank" rel="noopener">Privacy Policy</a>
         </span>
       </label>
       {% endif %}
