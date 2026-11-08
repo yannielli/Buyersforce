@@ -11,7 +11,7 @@
   <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
   <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
 </head>
-<body class="{{ body_class|default('') }}">
+<body class="{{ body_class|default('') }}" data-logged-in="{{ '1' if g.user else '' }}">
   <!-- "Thinking" overlay shown briefly while a new page (or a real form
        submit like Start project / Add-remove vendor) is on its way --
        see app.js's navigation-loading block for exactly what triggers
@@ -52,7 +52,7 @@
             <a href="{{ url_for('buyer_dashboard') }}" class="{{ 'active' if request.endpoint == 'buyer_dashboard' }}">Dashboard</a>
             <a href="{{ url_for('buyer_discover') }}" class="{{ 'active' if request.endpoint in ['buyer_discover','buyer_vendor','buyer_compare'] }}">Discover</a>
             <a href="{{ url_for('buyer_evaluations') }}" class="{{ 'active' if request.endpoint and (request.endpoint.startswith('buyer_evaluation') or request.endpoint in ('buyer_start_project', 'buyer_project_detail')) }}">Evaluate</a>
-            <a href="{{ url_for('buyer_messages') }}" class="{{ 'active' if request.endpoint in ['buyer_messages','buyer_thread','messages_new'] }}">Messages{% if g.unread_count %}<span class="nav-badge">{{ g.unread_count }}</span>{% endif %}</a>
+            <a id="nav-messages-link" href="{{ url_for('buyer_messages') }}" class="{{ 'active' if request.endpoint in ['buyer_messages','buyer_thread','messages_new'] }}">Messages{% if g.unread_count %}<span class="nav-badge">{{ g.unread_count }}</span>{% endif %}</a>
             <a href="{{ url_for('buyer_schedule') }}" class="{{ 'active' if request.endpoint == 'buyer_schedule' }}">Calendar</a>
           {% elif g.user.role == 'seller' %}
             <a href="{{ url_for('seller_dashboard') }}" class="{{ 'active' if request.endpoint == 'seller_dashboard' }}">Dashboard</a>
@@ -60,17 +60,17 @@
             <a href="{{ url_for('seller_profile') }}" class="{{ 'active' if request.endpoint == 'seller_profile' }}">My Company</a>
             <a href="{{ url_for('seller_partners') }}" class="{{ 'active' if request.endpoint == 'seller_partners' }}">Partners</a>
             <a href="{{ url_for('seller_leads') }}" class="{{ 'active' if request.endpoint == 'seller_leads' }}">Leads</a>
-            <a href="{{ url_for('seller_messages') }}" class="{{ 'active' if request.endpoint in ['seller_messages','seller_thread','messages_new'] }}">Messages{% if g.unread_count %}<span class="nav-badge">{{ g.unread_count }}</span>{% endif %}</a>
+            <a id="nav-messages-link" href="{{ url_for('seller_messages') }}" class="{{ 'active' if request.endpoint in ['seller_messages','seller_thread','messages_new'] }}">Messages{% if g.unread_count %}<span class="nav-badge">{{ g.unread_count }}</span>{% endif %}</a>
             <a href="{{ url_for('seller_schedule') }}" class="{{ 'active' if request.endpoint == 'seller_schedule' }}">Calendar</a>
           {% elif g.user.role == 'admin' %}
             <a href="{{ url_for('admin_dashboard') }}" class="{{ 'active' if request.endpoint == 'admin_dashboard' }}">Dashboard</a>
-            <a href="{{ url_for('admin_messages') }}" class="{{ 'active' if request.endpoint == 'admin_messages' or (request.endpoint == 'admin_thread' and not g.get('admin_thread_is_ticket')) }}">Messages{% if g.unread_count %}<span class="nav-badge">{{ g.unread_count }}</span>{% endif %}</a>
+            <a id="nav-messages-link" href="{{ url_for('admin_messages') }}" class="{{ 'active' if request.endpoint == 'admin_messages' or (request.endpoint == 'admin_thread' and not g.get('admin_thread_is_ticket')) }}">Messages{% if g.unread_count %}<span class="nav-badge">{{ g.unread_count }}</span>{% endif %}</a>
             <a href="{{ url_for('admin_access_control') }}" class="{{ 'active' if request.endpoint == 'admin_access_control' }}">Access control</a>
             <a href="{{ url_for('admin_vendors_page') }}" class="{{ 'active' if request.endpoint in ['admin_vendors_page','admin_vendor_new','admin_vendor_edit'] }}">Vendors</a>
             <a href="{{ url_for('admin_buyers_page') }}" class="{{ 'active' if request.endpoint == 'admin_buyers_page' }}">Buyers</a>
             <a href="{{ url_for('admin_sellers_page') }}" class="{{ 'active' if request.endpoint == 'admin_sellers_page' }}">Sellers</a>
-            <a href="{{ url_for('admin_support_queue') }}" class="{{ 'active' if request.endpoint == 'admin_support_queue' or (request.endpoint == 'admin_thread' and g.get('admin_thread_is_ticket')) }}">Support Queue{% if g.support_queue_count %}<span class="nav-badge">{{ g.support_queue_count }}</span>{% endif %}</a>
-            <a href="{{ url_for('admin_support_engineering_queue') }}" class="{{ 'active' if request.endpoint == 'admin_support_engineering_queue' }}">Engineering Queue{% if g.engineering_queue_count %}<span class="nav-badge">{{ g.engineering_queue_count }}</span>{% endif %}</a>
+            <a id="nav-support-queue-link" href="{{ url_for('admin_support_queue') }}" class="{{ 'active' if request.endpoint == 'admin_support_queue' or (request.endpoint == 'admin_thread' and g.get('admin_thread_is_ticket')) }}">Support Queue{% if g.support_queue_count %}<span class="nav-badge">{{ g.support_queue_count }}</span>{% endif %}</a>
+            <a id="nav-engineering-queue-link" href="{{ url_for('admin_support_engineering_queue') }}" class="{{ 'active' if request.endpoint == 'admin_support_engineering_queue' }}">Engineering Queue{% if g.engineering_queue_count %}<span class="nav-badge">{{ g.engineering_queue_count }}</span>{% endif %}</a>
           {% endif %}
         </nav>
         <div class="user-menu">

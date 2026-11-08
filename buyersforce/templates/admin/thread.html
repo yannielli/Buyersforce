@@ -72,7 +72,7 @@
   </div>
   {% endfor %}
 
-  <div class="msg-list">
+  <div class="msg-list" data-thread-id="{{ thread.id }}" data-latest-id="{{ messages|max(attribute='id')|attr('id') if messages else 0 }}">
     {% for m in messages %}
     <div class="msg-bubble {{ 'mine' if m.sender_user_id == g.user.id }}">
       <div class="msg-meta">{{ m.sender_name }} · {{ m.created_at|fmt_time }}</div>

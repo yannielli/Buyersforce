@@ -3038,6 +3038,86 @@ def _messages_route_for(user):
     return "buyer_messages" if user["role"] == "buyer" else "seller_messages"
 
 
+@app.route("/app/poll/badges")
+@login_required
+def poll_badges():
+    """Quiet background check behind the nav badges (Kj's 2026-11-08
+    request: pick up new messages and support requests without a full
+    page reload, which would risk clobbering an in-progress reply draft,
+    a chosen attachment, or scroll position anywhere in the app). Every
+    request already recomputes g.unread_count / g.support_queue_count /
+    g.engineering_queue_count fresh in load_logged_in_user's
+    before_request hook -- this just hands those same numbers back as
+    JSON so a small bit of JS (see static/js/app.js) can poll it every
+    30-45s and quietly swap the badge text in the nav, never touching
+    anything else on the page."""
+    return jsonify({
+        "unread_count": g.unread_count,
+        "support_queue_count": g.support_queue_count,
+        "engineering_queue_count": g.engineering_queue_count,
+    })
+
+
+@app.route("/app/messages/<int:thread_id>/poll")
+@login_required
+def messages_poll(thread_id):
+    """Companion to poll_badges, scoped to ONE open thread: returns any
+    messages newer than ?after=<message id> as JSON so an open thread
+    page can append them live (see static/js/app.js) instead of relying
+    on a reload -- the same reason as poll_badges above, just for a
+    thread's own message list instead of the nav. Marks the thread read
+    up through whatever's returned, same as a normal page load/refresh
+    of the thread would -- the viewer is right there watching them
+    arrive, so there's no reason to leave it unread.
+
+    Works the same for admin/buyer/seller: _load_thread_for_user already
+    carries the real access check (party to a direct/vendor/teammate
+    thread, or the right support/vendor-request linkage), identical to
+    opening the thread's own page.
+    """
+    _load_thread_for_user(thread_id, g.user)
+    after = request.args.get("after", type=int) or 0
+    rows = dbm.query(
+        "SELECT m.*, u.name sender_name, "
+        "es.id share_id, es.filename share_filename FROM messages m "
+        "JOIN users u ON u.id = m.sender_user_id "
+        "LEFT JOIN eval_project_shares es ON es.message_id = m.id "
+        "WHERE m.thread_id=? AND m.id > ? ORDER BY m.id ASC",
+        (thread_id, after),
+    )
+    if rows:
+        mark_thread_read(g.user["id"], thread_id)
+    messages = []
+    for m in rows:
+        attachment = None
+        if m["attachment_data_url"]:
+            attachment = {
+                "url": url_for("message_attachment", message_id=m["id"]),
+                "filename": m["attachment_filename"],
+                "is_image": bool(m["attachment_content_type"] and m["attachment_content_type"].startswith("image/")),
+            }
+        share = None
+        # Download links for a shared evaluation snapshot are a buyer-only
+        # affordance today (see buyer/thread.html) -- matched here so the
+        # poll never shows admin/seller a link their own full page reload
+        # wouldn't have shown them either.
+        if m["share_id"] and g.user["role"] == "buyer":
+            share = {
+                "url": url_for("buyer_download_share", share_id=m["share_id"]),
+                "filename": m["share_filename"],
+            }
+        messages.append({
+            "id": m["id"],
+            "is_mine": m["sender_user_id"] == g.user["id"],
+            "sender_name": m["sender_name"],
+            "created_at_display": fmt_time(m["created_at"]),
+            "body": m["body"] or "",
+            "attachment": attachment,
+            "share": share,
+        })
+    return jsonify({"messages": messages})
+
+
 def _thread_route_for(user):
     if user["role"] == "buyer":
         return "buyer_thread"

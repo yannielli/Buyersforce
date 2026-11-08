@@ -726,3 +726,61 @@ Known rough edges worth remembering, not yet fixed:
   up to 10MB)" control and the same backend path (`_insert_thread_message`
   for a thread message, or the support-attachment encode/validate for the
   one case that sends by email instead).
+
+- **Quiet background refresh for nav badges and open threads**
+  (2026-11-08, same day, Kj's question: "is there a periodic refresh...
+  does it update right away for the sender and recipient or do they
+  need to hit refresh" -- answer was no, BuyersForce had no live-push
+  mechanism at all; this adds one, deliberately NOT as a full-page
+  auto-refresh once Kj raised the obvious risk: a full reload would
+  wipe an in-progress reply draft, a chosen file attachment (browsers
+  can never restore a file input across a reload), an open "+ New team
+  thread" box, or scroll position, anywhere in the app, not just
+  Messages).
+  - New `GET /app/poll/badges` -- just hands back the same
+    `g.unread_count` / `g.support_queue_count` / `g.engineering_queue_count`
+    `load_logged_in_user`'s `before_request` hook already recomputes on
+    every request, as JSON. `static/js/app.js` polls it every 40s and
+    swaps the nav badge's text in place (`setNavBadge`, creates the
+    `<span class="nav-badge">` if one doesn't already exist, removes it
+    if the count drops to 0) -- never a page reload, so nothing else on
+    the page is touched.
+  - New `GET /app/messages/<thread_id>/poll?after=<message id>` --
+    returns any messages newer than `after` as JSON (via the same
+    `_load_thread_for_user` access check every thread page already
+    uses, so it's role-agnostic -- works the same for admin/buyer/
+    seller). Marks the thread read as it goes, same as a normal page
+    load would. `app.js` polls this every 30s on an open thread page
+    and prepends new bubbles to the TOP of `.msg-list` (matching this
+    app's newest-first convention everywhere -- unlike a typical chat
+    app, this one is NOT scrolled/ordered oldest-at-bottom), built with
+    `textContent` throughout (never `innerHTML`) so a message body can
+    never be interpreted as markup. If the viewer was already scrolled
+    to the top (reading the newest message), the view snaps back to
+    the top automatically; if they'd scrolled down into older history,
+    `scrollTop` is adjusted by exactly the new content's height so
+    their view doesn't silently jump out from under them. The reply
+    form itself is never touched by any of this.
+  - `templates/base.html`: the one Messages nav link, and admin's
+    Support Queue / Engineering Queue links, each got a stable `id`
+    (`nav-messages-link` / `nav-support-queue-link` /
+    `nav-engineering-queue-link`) for the JS to find (only one of the
+    three Messages variants ever renders per page, so the shared id
+    never collides); `<body>` grew a `data-logged-in` attribute so the
+    polling only runs for a signed-in viewer, never on the public
+    landing/login/signup pages.
+  - `templates/admin|buyer|seller/thread.html`: `.msg-list` grew
+    `data-thread-id` and `data-latest-id` (the highest message id
+    already rendered, computed via `messages|max(attribute='id')`
+    rather than trusting row order, since timestamps only have
+    one-second resolution and a same-second tie could otherwise put a
+    lower-id message first) so `app.js` knows which thread to poll and
+    where to pick up from.
+  - Both polls skip firing while the tab isn't visible
+    (`document.visibilityState`), so a backgrounded tab doesn't keep
+    hitting the server for no reason.
+  - Deliberately out of scope for now: making the Support Queue ticket
+    list itself (or any other list page) live-append new rows the same
+    way -- this round only covers the nav badges (which already cover
+    Support Queue/Engineering Queue's own "new since you last looked"
+    counts) and an open thread's own messages.

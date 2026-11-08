@@ -599,4 +599,142 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   });
+
+  // Quiet background refresh (Kj's 2026-11-08 request): nav badges and
+  // an open thread's own message list pick up new messages/support
+  // requests every 30-45s without ever doing a full page reload -- a
+  // reload would wipe out an in-progress reply draft, a chosen file
+  // attachment (browsers can never restore a file input across a
+  // reload), an open "+ New team thread" box, or scroll position,
+  // anywhere in the app. This only ever swaps small, isolated pieces of
+  // the page (a badge's text, or new bubbles prepended into one open
+  // thread's own message list) and never touches a <form>.
+  if (document.body.dataset.loggedIn) {
+    const navMessagesLink = document.getElementById("nav-messages-link");
+    const navSupportQueueLink = document.getElementById("nav-support-queue-link");
+    const navEngineeringQueueLink = document.getElementById("nav-engineering-queue-link");
+
+    const setNavBadge = (anchor, count) => {
+      if (!anchor) return;
+      let badge = anchor.querySelector(".nav-badge");
+      if (count > 0) {
+        if (!badge) {
+          badge = document.createElement("span");
+          badge.className = "nav-badge";
+          anchor.appendChild(badge);
+        }
+        badge.textContent = count;
+      } else if (badge) {
+        badge.remove();
+      }
+    };
+
+    const pollBadges = () => {
+      if (document.visibilityState !== "visible") return;
+      fetch("/app/poll/badges", { headers: { Accept: "application/json" } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!data) return;
+          setNavBadge(navMessagesLink, data.unread_count);
+          setNavBadge(navSupportQueueLink, data.support_queue_count);
+          setNavBadge(navEngineeringQueueLink, data.engineering_queue_count);
+        })
+        .catch(() => {});
+    };
+
+    const buildMessageBubble = (m) => {
+      const bubble = document.createElement("div");
+      bubble.className = "msg-bubble" + (m.is_mine ? " mine" : "");
+      const meta = document.createElement("div");
+      meta.className = "msg-meta";
+      meta.textContent = `${m.sender_name} · ${m.created_at_display}`;
+      bubble.appendChild(meta);
+      if (m.body) {
+        const body = document.createElement("div");
+        body.className = "msg-body";
+        body.textContent = m.body; // textContent, never innerHTML -- m.body is untrusted user text
+        bubble.appendChild(body);
+      }
+      if (m.share) {
+        const a = document.createElement("a");
+        a.href = m.share.url;
+        a.setAttribute("data-no-loading", "");
+        a.className = "btn btn-secondary btn-sm";
+        a.style.marginTop = "8px";
+        a.style.display = "inline-block";
+        a.textContent = `⬇ Download ${m.share.filename}`;
+        bubble.appendChild(a);
+      }
+      if (m.attachment) {
+        const wrap = document.createElement("div");
+        wrap.style.marginTop = "8px";
+        const a = document.createElement("a");
+        a.href = m.attachment.url;
+        if (m.attachment.is_image) {
+          a.target = "_blank";
+          const img = document.createElement("img");
+          img.src = m.attachment.url;
+          img.alt = "Attached image";
+          img.style.maxWidth = "280px";
+          img.style.maxHeight = "200px";
+          img.style.borderRadius = "8px";
+          img.style.border = "1px solid var(--border)";
+          img.style.display = "block";
+          a.appendChild(img);
+        } else {
+          a.className = "btn btn-ghost btn-sm";
+          a.textContent = `📎 ${m.attachment.filename}`;
+        }
+        wrap.appendChild(a);
+        bubble.appendChild(wrap);
+      }
+      return bubble;
+    };
+
+    const pollThread = (list) => {
+      if (document.visibilityState !== "visible") return;
+      const threadId = list.dataset.threadId;
+      const after = list.dataset.latestId || "0";
+      fetch(`/app/messages/${threadId}/poll?after=${after}`, { headers: { Accept: "application/json" } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!data || !data.messages || !data.messages.length) return;
+          const wasAtTop = list.scrollTop <= 4;
+          const previousScrollTop = list.scrollTop;
+          const previousScrollHeight = list.scrollHeight;
+          const emptyState = list.querySelector(".empty-state");
+          if (emptyState) emptyState.remove();
+          // The batch arrives oldest-first; this list itself renders
+          // newest-first top-to-bottom (matching every other listing in
+          // the app), so inserting each one at the current top, in
+          // order, naturally ends with the newest one on top.
+          data.messages.forEach((m) => {
+            list.insertBefore(buildMessageBubble(m), list.firstChild);
+            list.dataset.latestId = m.id;
+          });
+          if (wasAtTop) {
+            list.scrollTop = 0;
+          } else {
+            // Keep whatever the viewer was already reading anchored in
+            // place -- new bubbles landed above it, so scrollTop has to
+            // grow by exactly how much taller the list just got, or the
+            // view would silently jump out from under them.
+            list.scrollTop = previousScrollTop + (list.scrollHeight - previousScrollHeight);
+          }
+          // Someone else's message just landed while this thread was
+          // open -- the server already marked it read, so refresh the
+          // nav badge right away instead of waiting for the next tick.
+          pollBadges();
+        })
+        .catch(() => {});
+    };
+
+    pollBadges();
+    setInterval(pollBadges, 40000);
+
+    const openThreadList = document.querySelector(".msg-list[data-thread-id]");
+    if (openThreadList) {
+      setInterval(() => pollThread(openThreadList), 30000);
+    }
+  }
 });
