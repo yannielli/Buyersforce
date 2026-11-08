@@ -602,3 +602,61 @@ Known rough edges worth remembering, not yet fixed:
   with the same 4 action icons every other thread row already has --
   nothing new needed there, since `_thread_row.html`'s `thread_row()`
   macro already renders them for any row, admin's included.
+
+- **Admin reachable from any account, bulk-select on every Messages
+  section** (2026-11-08, Kj's follow-up): two changes to Messages,
+  requested together.
+  - **Admin searchable/reachable both ways.** Kj: "anyone that has a
+    Buyersforce account (buyer or seller) can message anyone from
+    Buyersforce including me... my name and email should be
+    searchable from my test accounts as buyers and sellers." The
+    2026-11-07 admin-compose fix above only opened the door from
+    admin's side; buyer/seller search still excluded admin entirely
+    (`is_admin = 0` on both directory branches). Fix: `_can_message`
+    now returns `True` whenever EITHER side is admin (not just when
+    the viewer is admin), and `search_recipients`'s buyer branch drops
+    `is_admin = 0` (now searches `role IN ('buyer','seller','admin')`)
+    while the seller branch adds `OR role = 'admin'` alongside its
+    existing buyer/same-company-seller match. Any buyer or seller
+    typing Kj's name or email into message search now finds him, same
+    as any other contact.
+  - **Bulk-select checkboxes + toolbar, every section, all three
+    Messages pages.** Kj: "for all messaging areas (admin, buyers,
+    sellers) I need to have the ability to select multiple messages
+    with check boxes so save, delete, archive, etc. So the buttons...
+    should also be at the top of each messaging section." New
+    `/app/messages/bulk` route (`messages_bulk_action`) takes an
+    `action` (mark_read/mark_unread/flag/save/archive/restore) and a
+    list of `thread_ids`, and loops the exact same per-thread
+    mutations (`mark_thread_read`, `set_thread_flag`, etc.) the
+    existing single-row icons already call -- so a bulk action behaves
+    identically to clicking that icon on each row by hand, including
+    the same `_load_thread_for_user` ownership check per id (skips any
+    id that isn't actually this viewer's thread instead of failing the
+    whole request; the checkboxes only ever list ids from that
+    viewer's own already-scoped query results, so this is a defensive
+    backstop, not the normal path).
+    Structural challenge: a thread-list section can't be wrapped in
+    one bulk-action `<form>`, because every row already has its own
+    small per-row `<form>` (the 4 toggle icons) and HTML doesn't allow
+    nested forms. Solved with the `form="<id>"` attribute instead --
+    `_thread_row.html`'s `thread_row()` macro grew a `form_id` param
+    that, when set, renders a plain (non-nested) checkbox pointing at
+    `"<form_id>-bulk-form"`, a separate sibling `<form>` rendered by a
+    new `bulk_bar(form_id, next_url, show_restore)` macro placed above
+    the section's row list. `saved_subsection()`/`resolved_subsection()`
+    thread `form_id` through the same way. Each section on a page
+    needs its own unique `form_id` (direct/team/vendor/buyer/support)
+    to keep the checkbox-to-toolbar wiring unambiguous when a page has
+    more than one section. `app.js` wires "Select all" and a submit
+    guard (empty-selection alert; `confirm()` on Archive via
+    `data-bulk-confirm`) by querying `input[form="<id>"]` across the
+    whole document, same reason -- the checkboxes aren't DOM
+    descendants of the toolbar form they submit with.
+    Rolled out to every section on all three Messages pages: admin
+    (Direct, Team), buyer (Direct, Vendor, Team, Support &
+    BuyersForce), seller (Direct, Buyer, Team, Support & BuyersForce).
+    Scoped to Messages only, per Kj's wording ("admin, buyers,
+    sellers") -- Support Queue's ticket rows use their own separate,
+    `<details>`-based local macros (not `_thread_row.html`), so they're
+    left out of this round; say if that should get the same treatment.

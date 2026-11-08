@@ -43,27 +43,29 @@
 {% include "_archive_toggle.html" %}
 
 <div class="section-title"><h2>Direct messages</h2></div>
+{{ tr.bulk_bar('direct', request.full_path, show_restore=(view == 'archived')) }}
 <div class="thread-list" style="margin-bottom:8px;">
   {% for t in direct_threads %}
-  {% call tr.thread_row(t, 'admin_thread', request.full_path) %}{{ direct_body(t) }}{% endcall %}
+  {% call tr.thread_row(t, 'admin_thread', request.full_path, form_id='direct') %}{{ direct_body(t) }}{% endcall %}
   {% else %}
   <div class="card empty-state"><div class="icon">💬</div>
     {% if view == 'active' %}Nothing here yet -- a plain message to BuyersForce (not a support ticket or vendor suggestion) will show up here.{% else %}Nothing archived.{% endif %}
   </div>
   {% endfor %}
 </div>
-{% if view != 'archived' %}{{ tr.saved_subsection(saved_direct, direct_body, 'admin_thread', request.full_path) }}{% endif %}
+{% if view != 'archived' %}{{ tr.saved_subsection(saved_direct, direct_body, 'admin_thread', request.full_path, form_id='direct') }}{% endif %}
 
 <div class="section-title" style="margin-top:28px;"><h2>Team</h2></div>
+{{ tr.bulk_bar('team', request.full_path, show_restore=(view == 'archived')) }}
 <div class="thread-list" style="margin-bottom:8px;">
   {% for t in team_threads %}
-  {% call tr.thread_row(t, 'admin_thread', request.full_path) %}{{ team_body(t) }}{% endcall %}
+  {% call tr.thread_row(t, 'admin_thread', request.full_path, form_id='team') %}{{ team_body(t) }}{% endcall %}
   {% else %}
   <div class="card empty-state"><div class="icon">👥</div>
     {% if view == 'active' %}No team threads yet -- once there's more than one BuyersForce teammate, conversations with them will show up here.{% else %}Nothing archived.{% endif %}
   </div>
   {% endfor %}
 </div>
-{% if view != 'archived' %}{{ tr.saved_subsection(saved_team, team_body, 'admin_thread', request.full_path) }}{% endif %}
+{% if view != 'archived' %}{{ tr.saved_subsection(saved_team, team_body, 'admin_thread', request.full_path, form_id='team') }}{% endif %}
 
 {% endblock %}

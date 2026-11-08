@@ -567,4 +567,36 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
     });
   });
+
+  // Bulk-action toolbars on messaging pages (admin/buyer/seller
+  // Messages -- Kj's 2026-11-08 "select multiple messages" request).
+  // Each row's checkbox lives inside the row list but isn't a
+  // descendant of the toolbar's <form> -- it's tied to it purely via
+  // its own form="<id>" attribute (see _thread_row.html's bulk_bar() /
+  // thread_row()), so "select all" and the submit guard below have to
+  // look it up by that attribute across the whole document rather than
+  // querying inside the form.
+  document.querySelectorAll("[data-bulk-select-all]").forEach((selectAll) => {
+    const formId = selectAll.dataset.bulkSelectAll;
+    selectAll.addEventListener("change", () => {
+      document.querySelectorAll(`input[type="checkbox"][form="${formId}"]`).forEach((box) => {
+        box.checked = selectAll.checked;
+      });
+    });
+  });
+  document.querySelectorAll("form.bulk-bar").forEach((form) => {
+    form.addEventListener("submit", (e) => {
+      const checked = document.querySelectorAll(`input[type="checkbox"][form="${form.id}"]:checked`);
+      if (checked.length === 0) {
+        e.preventDefault();
+        alert("Select at least one conversation first.");
+        return;
+      }
+      const button = e.submitter;
+      const confirmLabel = button && button.dataset.bulkConfirm;
+      if (confirmLabel && !confirm(`${confirmLabel} ${checked.length} conversation${checked.length === 1 ? "" : "s"}?`)) {
+        e.preventDefault();
+      }
+    });
+  });
 });

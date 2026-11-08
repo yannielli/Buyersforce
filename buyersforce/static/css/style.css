@@ -727,6 +727,19 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .icon-btn:hover { background: var(--page); color: var(--ink-primary); border-color: var(--gridline); }
 .icon-btn.flag-active { color: var(--critical); background: var(--critical-tint); }
 .icon-btn.save-active { color: var(--progress-ink); background: var(--progress-tint); }
+/* Bulk-action toolbar above a thread-list, and the per-row checkbox it
+   acts on (Kj's 2026-11-08 "select multiple messages" request). The
+   checkbox sits inside .thread-row but is associated with the toolbar
+   purely via its own form="..." attribute, not DOM nesting -- see
+   _thread_row.html's bulk_bar()/thread_row() for why. */
+.bulk-bar {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  padding: 8px 12px; margin-bottom: 8px; border: 1px solid var(--gridline); border-radius: 10px;
+  background: var(--surface);
+}
+.bulk-bar-select-all { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-secondary); cursor: pointer; white-space: nowrap; }
+.bulk-bar-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.thread-row-check { flex-shrink: 0; width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand); }
 .thread-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--gridline); }
 .recipient-chip {
   display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--gridline);

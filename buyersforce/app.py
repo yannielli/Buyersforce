@@ -16,6 +16,7 @@ from flask import (
     send_file
 )
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.exceptions import HTTPException
 
 import db as dbm
 import emailer
@@ -2427,18 +2428,16 @@ def _can_message(user, candidate):
     any other buyer, at any company -- peer buyers often want a second
     opinion on a vendor or a referral, and that's worth more than the
     company boundary here. Sellers still can't reach competing sellers
-    at another company. Admin accounts are never reachable THIS way from
-    a buyer or seller's own compose (their role is neither 'buyer' nor
-    'seller', so every check below simply fails for them) -- support
-    tickets and vendor suggestions are how they reach admin instead. The
-    reverse direction is wide open, though (Kj's 2026-11-07 request):
-    admin can message anyone, since Messages is admin's own full-featured
-    inbox, not the marketplace's buyer/seller matching rules. A seller
-    can never reach a buyer who has blocked them (or their whole
-    company) via Account > Blocked Vendors."""
+    at another company. Admin is reachable from EITHER direction (Kj's
+    2026-11-08 request: "anyone with a BuyersForce account can message
+    anyone... including me") -- admin can message anyone, and anyone can
+    message admin, on top of the existing support-ticket/vendor-
+    suggestion paths to reach them. A seller can never reach a buyer who
+    has blocked them (or their whole company) via Account > Blocked
+    Vendors."""
     if candidate["id"] == user["id"]:
         return False
-    if user["role"] == "admin":
+    if user["role"] == "admin" or candidate["role"] == "admin":
         return True
     opposite = "seller" if user["role"] == "buyer" else "buyer"
     if candidate["role"] == opposite:
@@ -2494,17 +2493,20 @@ def search_recipients(user, q):
                 (user["id"], f"%{needle}%", f"%{needle}%", f"%{needle}%"),
             )
         elif user["role"] == "buyer":
-            # Any other buyer (any company) or any seller -- mirrors the
-            # widened _can_message rule above.
+            # Any other buyer (any company), any seller, or any admin --
+            # mirrors the widened _can_message rule above (Kj's
+            # 2026-11-08 request: admin should be findable from a
+            # buyer/seller's own search too, not just reachable via a
+            # support ticket).
             directory_rows = dbm.query(
-                "SELECT * FROM users WHERE is_admin = 0 AND role IN ('buyer', 'seller') "
+                "SELECT * FROM users WHERE role IN ('buyer', 'seller', 'admin') "
                 "AND id != ? AND (LOWER(name) LIKE ? OR LOWER(company) LIKE ? OR LOWER(email) LIKE ?) "
                 "ORDER BY name LIMIT 25",
                 (user["id"], f"%{needle}%", f"%{needle}%", f"%{needle}%"),
             )
         else:
             directory_rows = dbm.query(
-                "SELECT * FROM users WHERE is_admin = 0 AND ((role = 'buyer') OR (role = 'seller' AND company = ?)) "
+                "SELECT * FROM users WHERE ((role = 'buyer') OR (role = 'seller' AND company = ?) OR role = 'admin') "
                 "AND id != ? AND (LOWER(name) LIKE ? OR LOWER(company) LIKE ? OR LOWER(email) LIKE ?) "
                 "ORDER BY name LIMIT 25",
                 (user["company"], user["id"], f"%{needle}%", f"%{needle}%", f"%{needle}%"),
@@ -2970,6 +2972,64 @@ def toggle_thread_save(thread_id):
     set_thread_flag(g.user["id"], thread_id, "is_saved", new_value)
     flash("Saved." if new_value else "Removed from Saved.", "success")
     return redirect(_safe_redirect_target(request.form.get("next"), url_for(_messages_route_for(g.user))))
+
+
+@app.route("/app/messages/bulk", methods=("POST",))
+@login_required
+def messages_bulk_action():
+    """One endpoint behind every messaging section's bulk toolbar on
+    admin, buyer, and seller Messages (Kj's 2026-11-08 request: select
+    several conversations with checkboxes and act on all of them at
+    once, instead of one row's icon at a time). Reuses the exact same
+    per-thread mutations the single-row toggle routes already call
+    (mark_thread_read / set_thread_manually_unread / set_thread_flag /
+    set_thread_deleted) looped over the checked ids, so a bulk action
+    behaves identically to clicking the matching icon on each row by
+    hand -- including the same ownership check: _load_thread_for_user
+    aborts 403/404 for a thread this viewer isn't actually a party to,
+    which here just skips that one id instead of failing the whole
+    request (the checkboxes themselves only ever list ids from that
+    viewer's own already-scoped query results, so this is a defensive
+    backstop, not the normal path)."""
+    action = request.form.get("action", "")
+    if action not in ("mark_read", "mark_unread", "flag", "save", "archive", "restore"):
+        abort(400)
+    thread_ids = request.form.getlist("thread_ids", type=int)
+    next_url = _safe_redirect_target(request.form.get("next"), url_for(_messages_route_for(g.user)))
+    if not thread_ids:
+        flash("Select at least one conversation first.", "error")
+        return redirect(next_url)
+
+    done = 0
+    for thread_id in thread_ids:
+        try:
+            _load_thread_for_user(thread_id, g.user)
+        except HTTPException:
+            continue
+        if action == "mark_read":
+            mark_thread_read(g.user["id"], thread_id)
+        elif action == "mark_unread":
+            set_thread_manually_unread(g.user["id"], thread_id, True)
+        elif action == "flag":
+            set_thread_flag(g.user["id"], thread_id, "is_flagged", True)
+        elif action == "save":
+            set_thread_flag(g.user["id"], thread_id, "is_saved", True)
+        elif action == "archive":
+            set_thread_deleted(g.user["id"], thread_id, True)
+        elif action == "restore":
+            set_thread_deleted(g.user["id"], thread_id, False)
+        done += 1
+
+    verb = {
+        "mark_read": "Marked as read", "mark_unread": "Marked as unread",
+        "flag": "Flagged as important", "save": "Saved",
+        "archive": "Archived", "restore": "Restored",
+    }[action]
+    if done:
+        flash(f"{verb}: {done} conversation{'s' if done != 1 else ''}.", "success")
+    else:
+        flash("Nothing to update -- those conversations may no longer be yours to act on.", "error")
+    return redirect(next_url)
 
 
 def _messages_route_for(user):
