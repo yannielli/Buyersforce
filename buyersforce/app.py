@@ -32,6 +32,13 @@ dbm.init_app(app)
 # ---------------------------------------------------------------------------
 
 US_STATES = [
+    # Pinned first, ahead of the alphabetical list below, for a buyer or
+    # seller outside the US (Kj's ask, 2026-11-08, once the Country field
+    # made that a real, common case rather than an edge case State never
+    # had an honest answer for): "N/A" is a real, required selection --
+    # same as every other US_STATE_CODES value -- not a blank/skippable
+    # option, so the field still always has *something* on file.
+    ("N/A", "Not Applicable"),
     ("AL", "Alabama"), ("AK", "Alaska"), ("AZ", "Arizona"), ("AR", "Arkansas"),
     ("CA", "California"), ("CO", "Colorado"), ("CT", "Connecticut"), ("DE", "Delaware"),
     ("DC", "District of Columbia"), ("FL", "Florida"), ("GA", "Georgia"), ("HI", "Hawaii"),

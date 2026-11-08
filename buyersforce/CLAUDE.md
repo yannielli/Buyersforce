@@ -1101,3 +1101,16 @@ Known rough edges worth remembering, not yet fixed:
     ask was specific to signup.html, so `_profile_form.html`'s layout
     changed only as much as adding Country required, not a full mirror
     of signup's field order).
+
+
+- **"Not Applicable" added to the State dropdown** (2026-11-08, same
+  day, Kj's answer to the non-US-State gap flagged above). `US_STATES`
+  (`app.py`) now has `("N/A", "Not Applicable")` pinned first, ahead of
+  the alphabetical state list -- a real, required selection like every
+  other state, not a blank/skippable option, so State still always has
+  an actual answer on file. One-line change: every page that renders
+  `us_states` (`signup.html`, `_profile_form.html`) and every place
+  that validates against `US_STATE_CODES` (`signup()`,
+  `_apply_profile_form()`) picks this up automatically, since they all
+  read the same shared list -- no template or validation changes
+  needed.
