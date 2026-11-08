@@ -89,6 +89,20 @@ PHONE_COUNTRIES = [
 ]
 
 
+# pytz.country_names uses a handful of short/informal labels rather than
+# the commonly recognized name -- GB in particular comes back as
+# "Britain (UK)", which Kj flagged (2026-11-08) as reading like the
+# United Kingdom was missing from the Country list rather than just
+# oddly labeled. Overridden here to "United Kingdom" -- the standard
+# short name for that ISO entry ("Great Britain" alone is only the
+# island of England/Scotland/Wales, excluding Northern Ireland, so it
+# isn't actually the right "full name" for a GB-coded country field --
+# this also matches how PHONE_COUNTRIES above already spells GB out.
+_COUNTRY_NAME_OVERRIDES = {
+    "GB": "United Kingdom",
+}
+
+
 def _build_world_countries():
     """The full ISO 3166-1 country/territory list, for the mandatory
     "Country" field on signup.html / _profile_form.html (added
@@ -100,9 +114,16 @@ def _build_world_countries():
     above, which only needs to cover common dial codes, not every
     territory. Returns [(code, name), ...], alphabetical by name except
     United States pinned first -- same convention as
-    world_timezones_for_picker()'s pinned US zone group."""
+    world_timezones_for_picker()'s pinned US zone group. A few of
+    pytz's own labels are corrected via _COUNTRY_NAME_OVERRIDES above
+    before sorting, so overridden names land alphabetically by their
+    corrected spelling, not pytz's."""
     rest = sorted(
-        ((code, name) for code, name in pytz.country_names.items() if code != "US"),
+        (
+            (code, _COUNTRY_NAME_OVERRIDES.get(code, name))
+            for code, name in pytz.country_names.items()
+            if code != "US"
+        ),
         key=lambda item: item[1],
     )
     return [("US", "United States")] + rest
@@ -798,6 +819,7 @@ def signup():
         linkedin_url = request.form.get("linkedin_url", "").strip()
         no_linkedin = request.form.get("no_linkedin") == "on"
         password = request.form.get("password", "")
+        confirm = request.form.get("confirm", "")
         agree_legal = request.form.get("agree_legal") == "on"
 
         if no_linkedin:
@@ -828,6 +850,8 @@ def signup():
             error = "That doesn't look like a LinkedIn URL -- we need it to verify your request."
         elif len(password) < 8:
             error = "Password must be at least 8 characters."
+        elif password != confirm:
+            error = "Passwords don't match."
         elif not agree_legal:
             error = "You must agree to the End User License Agreement and Privacy Policy to request an account."
         elif dbm.query("SELECT id FROM users WHERE email = ?", (work_email,), one=True):

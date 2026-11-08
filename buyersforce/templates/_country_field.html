@@ -14,7 +14,7 @@
    for "country picker" JS/CSS and not finding it, this is why -- it's
    the timezone picker's code, shared. #}
 <div class="field">
-  <label for="country">Country *</label>
+  <label for="country">Country <span class="required-asterisk">*</span></label>
   <select id="country" name="country" required data-tz-picker>
     <option value="">Select a country…</option>
     {% for code, name in world_countries %}

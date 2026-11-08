@@ -123,10 +123,18 @@
       </script>
 
       <div class="field">
-        <label for="password">Password</label>
+        <label for="password">Password <span class="required-asterisk">*</span></label>
         <div class="password-field">
           <input type="password" id="password" name="password" required placeholder="At least 8 characters" minlength="8">
           <button type="button" class="password-toggle" data-password-toggle="password" aria-label="Show password">Show</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="confirm">Confirm password <span class="required-asterisk">*</span></label>
+        <div class="password-field">
+          <input type="password" id="confirm" name="confirm" required placeholder="Re-enter password" minlength="8">
+          <button type="button" class="password-toggle" data-password-toggle="confirm" aria-label="Show password">Show</button>
         </div>
       </div>
 

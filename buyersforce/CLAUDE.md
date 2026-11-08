@@ -1114,3 +1114,49 @@ Known rough edges worth remembering, not yet fixed:
   `_apply_profile_form()`) picks this up automatically, since they all
   read the same shared list -- no template or validation changes
   needed.
+
+- **Country-field follow-ups** (2026-11-08, same day, Kj's reply after
+  asking whether England/Wales/Scotland were missing from the new
+  Country list):
+  - **United Kingdom label corrected.** `WORLD_COUNTRIES` is sourced
+    from `pytz.country_names`, which labels the UK's ISO entry (code
+    `GB`) as "Britain (UK)" rather than the more familiar "United
+    Kingdom" -- that odd label is almost certainly why it read as
+    missing when Kj scanned the list, even though the UK was always
+    present as a single entry (England/Wales/Scotland/Northern Ireland
+    aren't separate ISO 3166-1 codes, so they correctly don't get
+    their own rows -- same as every standard country picker). Added a
+    small `_COUNTRY_NAME_OVERRIDES` dict in `app.py`, applied inside
+    `_build_world_countries()` before the alphabetical sort, currently
+    overriding just `GB` -> `"United Kingdom"`. Used "United Kingdom"
+    rather than literally "Great Britain" (which Kj asked about) since
+    "Great Britain" is only the island of England/Scotland/Wales and
+    excludes Northern Ireland -- not actually the right full name for
+    a field representing the whole country -- and "United Kingdom"
+    also matches how `PHONE_COUNTRIES` already spells GB out. Because
+    the override is applied before sorting, "United Kingdom" now
+    lands alphabetically next to "United Arab Emirates"/"United
+    States" rather than under "B" for "Britain".
+  - **Country field's asterisk fixed to red.** `_country_field.html`'s
+    label had a bare `Country *` -- never wrapped in the
+    `.required-asterisk` span the other fields on signup.html use --
+    so it rendered in the default (black) text color instead of the
+    red used everywhere else on the page. Wrapped it the same way:
+    `Country <span class="required-asterisk">*</span>`. Since this
+    partial is shared, the fix applies to both signup.html and
+    `_profile_form.html` automatically.
+  - **Confirm-password added to signup.html.** The self-signup form's
+    Password field had no "type it again" check -- unlike
+    `accept_invite.html` (invited users setting their password), which
+    already has this. Added a matching `confirm` field right after
+    Password (same id/name convention, same "Re-enter password"
+    placeholder, same password-toggle Show/Hide button --
+    `static/js/app.js`'s `[data-password-toggle]` wiring is already
+    generic, so no JS changes were needed). `signup()` in `app.py` now
+    reads `confirm` and rejects the submission with "Passwords don't
+    match." when it doesn't match `password` -- same message and
+    validation order (after the 8-character-minimum check, before the
+    legal-agreement check) as `accept_invite()` already uses. Both the
+    Password and the new Confirm password labels got the red
+    `.required-asterisk` -- Password previously had no asterisk at all
+    despite always being required.
