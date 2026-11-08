@@ -934,3 +934,27 @@ Known rough edges worth remembering, not yet fixed:
     usual teal link color -- Kj's reference was specifically classic
     blue, not BuyersForce's brand teal, so this one spot deliberately
     doesn't match the rest of the app's link styling).
+
+
+- **Legal page "Back" link now goes back, not to the landing page**
+  (2026-11-08, same day, Kj's follow-up: opening the EULA/Privacy Policy
+  from the new signup consent checkbox and then clicking "<- Back to
+  BuyersForce" dropped the user on the generic landing page instead of
+  back on the Request Access form, losing everything they'd typed).
+  Root cause: that link was a hard `href="{{ url_for('landing') }}"`
+  -- a forward navigation to a fixed destination, not an actual
+  "go back." The signup/accept-invite checkbox links already open the
+  legal pages with `target="_blank"` into a separate tab, so normally
+  nothing on the original tab is at risk either way -- but some
+  browsers and in-app browsers (embedded webviews in Mail/Messages/
+  social apps, in particular) silently ignore `target="_blank"` and
+  navigate in place instead, which is almost certainly what Kj hit.
+  Fixed with a small click handler in `static/js/app.js`: clicking
+  `.legal-back` now calls `window.history.back()` when this tab has
+  somewhere to go back to, letting the browser restore the exact
+  signup page the user left (bfcache keeps typed-in field values, not
+  just the markup) rather than re-rendering it empty -- and falls back
+  to the normal landing-page link when there's no prior page in this
+  tab (a bookmarked or directly-shared `/legal/eula` link, for
+  instance). No server-side change; nothing in `app.py` or the forms
+  themselves was touched.

@@ -74,6 +74,27 @@ window.BFLoading = (function () {
   return { show: show, hide: hide };
 })();
 
+// The legal pages' (legal_eula.html, legal_privacy.html) "<- Back to
+// BuyersForce" link: prefer going back in this tab's own history over a
+// hard link to the landing page, so a browser that still has this tab's
+// previous page cached (the signup or accept-invite form, half-filled
+// in) restores it exactly as the user left it, instead of handing them
+// a blank landing page and losing their input. The checkbox links that
+// open these pages use target="_blank" (a fresh tab, nothing to lose
+// either way), but a handful of browsers and in-app browsers ignore
+// that and navigate in place, and there's no harm in this also covering
+// someone who followed the footer's in-page legal links. Falls through
+// to the normal href -- the landing page -- when there's nowhere in
+// this tab to go back to, e.g. a bookmarked or directly-shared link.
+document.addEventListener("click", function (e) {
+  var link = e.target.closest(".legal-back");
+  if (!link || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) { return; }
+  if (window.history.length > 1) {
+    e.preventDefault();
+    window.history.back();
+  }
+});
+
 document.addEventListener("DOMContentLoaded", () => {
   // Role toggle on signup page
   document.querySelectorAll(".role-option").forEach((opt) => {
