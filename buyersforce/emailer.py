@@ -205,6 +205,40 @@ def send_signup_decision(to_email, approved, login_url=None):
     return send_email(to_email, subject, text, html=html)
 
 
+def send_work_email_verification(to_email, first_name, verify_url):
+    """Sent the moment someone submits a self-signup request (app.py's
+    signup()) -- a quick "click this to confirm your work email is
+    real" step that runs alongside Kj's manual review, not instead of
+    it. Clicking verify_url hits the public GET /verify-work-email/
+    <token> route, which marks work_email_verified_at and shows up as
+    a badge on Access Control next to that request's LinkedIn link.
+    Purely informational for Kj (his explicit call, 2026-11-08) -- an
+    unverified request can still be approved; this just gives him one
+    more signal."""
+    first_name = (first_name or "").strip() or "there"
+    subject = "Verify your email for your BuyersForce account request"
+    text = (
+        f"Hi {first_name},\n\n"
+        "Thanks for requesting a BuyersForce account. Before we review your request, "
+        "please confirm this is really your work email address:\n\n"
+        f"{verify_url}\n\n"
+        "If you didn't request a BuyersForce account, you can ignore this email."
+    )
+    html = (
+        f"<p>Hi {html_lib.escape(first_name)},</p>"
+        "<p>Thanks for requesting a BuyersForce account. Before we review your request, "
+        "please confirm this is really your work email address:</p>"
+        f"<p><a href=\"{html_lib.escape(verify_url)}\" "
+        "style=\"display:inline-block; background:#0f766e; color:#fff; padding:10px 18px; "
+        "border-radius:6px; text-decoration:none; font-weight:600;\">Verify my email</a></p>"
+        f"<p style=\"color:#666; font-size:13px;\">Or paste this link into your browser: "
+        f"{html_lib.escape(verify_url)}</p>"
+        "<p style=\"color:#666; font-size:13px;\">If you didn't request a BuyersForce account, "
+        "you can ignore this email.</p>"
+    )
+    return send_email(to_email, subject, text, html=html)
+
+
 def send_role_change_decision(to_email, approved, new_role=None, login_url=None):
     """Notifies someone who asked to switch between buyer and seller (via
     the "Request a change" button on Account > Profile) of the outcome,

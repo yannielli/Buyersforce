@@ -701,6 +701,45 @@ def legal_privacy():
     return render_template("legal_privacy.html")
 
 
+def _send_work_email_verification(user_id, work_email, first_name):
+    """Generates a fresh verify token for a just-submitted (or
+    re-sent -- see admin_resend_work_email_verification) signup
+    request, stores it, and emails the link. Informational only on
+    Access Control (Kj's explicit call, 2026-11-08) -- never blocks
+    admin_approve_signup."""
+    token = secrets.token_urlsafe(32)
+    dbm.execute(
+        "UPDATE users SET work_email_verify_token=?, work_email_verify_sent_at=? WHERE id=?",
+        (token, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), user_id),
+    )
+    emailer.send_work_email_verification(
+        work_email, first_name, url_for("verify_work_email", token=token, _external=True)
+    )
+
+
+@app.route("/verify-work-email/<token>")
+def verify_work_email(token):
+    """Public, no login required -- the link from
+    emailer.send_work_email_verification. Marks work_email_verified_at
+    so the badge on Access Control's pending-signups list (templates/
+    admin/dashboard.html) flips to verified; doesn't touch
+    account_status, and never blocks or auto-approves anything -- Kj
+    still reviews and decides every request himself."""
+    user = dbm.query(
+        "SELECT * FROM users WHERE work_email_verify_token = ? AND work_email_verify_token IS NOT NULL",
+        (token,), one=True,
+    )
+    already_verified = bool(user and user["work_email_verified_at"])
+    if user and not already_verified:
+        dbm.execute(
+            "UPDATE users SET work_email_verified_at=? WHERE id=?",
+            (datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), user["id"]),
+        )
+    return render_template(
+        "verify_work_email.html", valid=bool(user), already_verified=already_verified,
+    )
+
+
 @app.route("/signup", methods=("GET", "POST"))
 def signup():
     # Self-signup: anyone can request an account, but it starts 'pending'
@@ -768,7 +807,7 @@ def signup():
                 "signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=world_timezones_for_picker(), form_data=form_data,
             )
 
-        dbm.execute(
+        new_user_id = dbm.execute(
             "INSERT INTO users (role, name, first_name, last_name, email, password_hash, company, "
             "title, personal_email, phone, phone_country, state, timezone, linkedin_url, no_linkedin, "
             "account_status, legal_accepted_at, legal_version) "
@@ -778,6 +817,7 @@ def signup():
              state, timezone, linkedin_url, int(no_linkedin),
              datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), LEGAL_DOC_VERSION),
         )
+        _send_work_email_verification(new_user_id, work_email, first_name)
         return render_template("signup_pending.html")
     return render_template("signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=world_timezones_for_picker(), form_data={})
 
@@ -2115,6 +2155,22 @@ def admin_deny_signup(user_id):
     log_activity(user_id, "account denied by admin")
     emailer.send_signup_decision(user["email"], approved=False)
     flash(f"{user['name']}'s request denied.", "success")
+    return redirect(url_for("admin_access_control"))
+
+
+@app.route("/app/admin/signups/<int:user_id>/resend-verification", methods=("POST",))
+@admin_required
+def admin_resend_work_email_verification(user_id):
+    """Access Control's "Resend" button next to an unverified pending
+    signup -- covers a verification email that landed in spam, expired
+    attention, or just hasn't been clicked yet. Generates a fresh token
+    rather than reusing the old one, same as _send_work_email_verification
+    does from signup() itself."""
+    user = dbm.query("SELECT * FROM users WHERE id=? AND account_status='pending'", (user_id,), one=True)
+    if not user:
+        abort(404)
+    _send_work_email_verification(user_id, user["email"], user["first_name"])
+    flash(f"Verification email resent to {user['email']}.", "success")
     return redirect(url_for("admin_access_control"))
 
 

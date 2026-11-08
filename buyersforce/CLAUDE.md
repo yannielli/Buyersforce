@@ -958,3 +958,30 @@ Known rough edges worth remembering, not yet fixed:
   tab (a bookmarked or directly-shared `/legal/eula` link, for
   instance). No server-side change; nothing in `app.py` or the forms
   themselves was touched.
+
+
+- **Work-email verification on self-signup requests** (2026-11-08, same
+  day, Kj's ask: alongside the existing mandatory LinkedIn link, "a
+  little test verification on the work email address... that comes
+  back to me in my approval queue and 'work email verified'"). The
+  moment someone submits `/signup`, a verification email goes out to
+  the work email address they entered (`emailer.send_work_email_
+  verification`), with a link to `GET /verify-work-email/<token>`
+  (public, no login) that marks `users.work_email_verified_at`. Access
+  Control's pending-signups card now shows a badge next to each
+  request's LinkedIn link -- green "Work email verified" once they've
+  clicked it, amber "Work email not verified yet" with a "Resend"
+  button (`admin_resend_work_email_verification`, generates a fresh
+  token) until they have. **Deliberately informational only, per Kj's
+  explicit choice between the two options offered**: it never blocks
+  `admin_approve_signup` -- an unverified request can still be
+  approved on Kj's own judgment, same as an unchecked "no LinkedIn"
+  box doesn't block approval either. New columns `work_email_verify_
+  token`, `work_email_verified_at`, `work_email_verify_sent_at` on
+  `users` (migrate.py's `_add_users_work_email_verification_columns_
+  2026_11_08`; schema.sql updated to match) -- new signups only, same
+  as `legal_accepted_at`. `templates/verify_work_email.html` is the
+  public confirmation page (handles an already-used or invalid token
+  gracefully, never reveals whether an email exists). `signup_pending.
+  html` now mentions the verification email so a new applicant isn't
+  surprised by it.

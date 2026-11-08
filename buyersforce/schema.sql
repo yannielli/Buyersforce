@@ -91,7 +91,18 @@ CREATE TABLE users (
     -- LEGAL_DOC_VERSION). Both stay NULL for an account created before
     -- this existed; there is no retroactive consent requirement.
     legal_accepted_at TEXT,
-    legal_version TEXT
+    legal_version TEXT,
+    -- Work-email verification for self-signup requests (added
+    -- 2026-11-08; new signups only -- see migrate.py's
+    -- _add_users_work_email_verification_columns_2026_11_08 for the
+    -- equivalent migration on a pre-existing database). A verify link
+    -- is emailed to work_email right after signup(); clicking it sets
+    -- work_email_verified_at. Shown as an informational badge next to
+    -- each pending request on Access Control -- it never blocks
+    -- Approve, which stays the admin's own call either way.
+    work_email_verify_token TEXT,
+    work_email_verified_at TEXT,
+    work_email_verify_sent_at TEXT
 );
 
 -- A buyer-owned blocklist so a buyer can stop a specific seller, or every

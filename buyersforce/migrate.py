@@ -104,6 +104,7 @@ def run_migrations():
             _add_users_legal_acceptance_columns_2026_11_08(cur)
             _revert_mistaken_prelaunch_items_2026_11_08(cur)
             _empty_prelaunch_checklist_items_2026_11_08(cur)
+            _add_users_work_email_verification_columns_2026_11_08(cur)
     finally:
         con.close()
 
@@ -2362,6 +2363,25 @@ def _add_users_legal_acceptance_columns_2026_11_08(cur):
     # retroactive consent gate for already-active accounts.
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS legal_accepted_at TEXT")
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS legal_version TEXT")
+
+
+def _add_users_work_email_verification_columns_2026_11_08(cur):
+    # Work-email verification for self-signup requests (Kj's ask: "a
+    # little test verification on the work email address... comes back
+    # to me in my approval queue and 'work email verified'"). Sent
+    # automatically right after a signup request is submitted (see
+    # app.py's signup(), emailer.send_work_email_verification), clicked
+    # via the public GET /verify-work-email/<token> route
+    # (app.py's verify_work_email), and shown as a badge next to each
+    # pending request on Access Control (templates/admin/dashboard.html)
+    # -- informational only, same as the LinkedIn link next to it: Kj
+    # still approves/denies by his own judgment either way, this isn't a
+    # hard gate on the Approve button (his explicit call, 2026-11-08).
+    # New signups only, same as legal_accepted_at above -- no retroactive
+    # verification request goes out to already-active accounts.
+    cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS work_email_verify_token TEXT")
+    cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS work_email_verified_at TEXT")
+    cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS work_email_verify_sent_at TEXT")
 
 
 if __name__ == "__main__":

@@ -14,7 +14,9 @@
 <div class="card" style="border-color:var(--warning-border); background:var(--warning-tint); margin-bottom:24px;">
   <h3 style="font-size:14.5px;">Pending self-signup requests ({{ pending_signups|length }})</h3>
   <p style="font-size:13px; margin-bottom:12px;">Check their LinkedIn link against the company and
-    role they claim before approving.</p>
+    role they claim before approving. Each request also shows whether they've clicked the
+    verification email sent to their work address — informational only, it's still your call
+    either way.</p>
   {% for u in pending_signups %}
   <div class="mock-row" style="align-items:flex-start;">
     <span style="flex:1;">
@@ -35,6 +37,16 @@
       {% else %}
       <div class="hint"><a href="{{ u.linkedin_url }}" target="_blank" rel="noopener">{{ u.linkedin_url }}</a></div>
       {% endif %}
+      <div style="margin-top:6px; display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+        {% if u.work_email_verified_at %}
+        <span class="badge badge-good">✓ Work email verified</span>
+        {% else %}
+        <span class="badge badge-warning">Work email not verified yet</span>
+        <form method="post" action="{{ url_for('admin_resend_work_email_verification', user_id=u.id) }}">
+          <button class="btn btn-ghost btn-sm" type="submit" style="font-size:11.5px; padding:2px 8px;">Resend</button>
+        </form>
+        {% endif %}
+      </div>
     </span>
     <span style="display:flex; gap:6px;">
       <button class="btn btn-primary btn-sm" type="submit" form="approve-signup-{{ u.id }}">Approve</button>

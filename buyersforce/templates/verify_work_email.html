@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Verify your email{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card" style="text-align:center;">
+    {% if valid %}
+    <div class="icon" style="font-size:40px; margin-bottom:8px;">✅</div>
+    <h1 style="font-size:22px;">Email verified</h1>
+    {% if already_verified %}
+    <p>This link was already used — your work email is confirmed. No further action needed.</p>
+    {% else %}
+    <p>Thanks — your work email address is confirmed. Your BuyersForce account request is
+      still under review; we'll email you as soon as it's approved, usually within a day
+      or two.</p>
+    {% endif %}
+    {% else %}
+    <div class="icon" style="font-size:40px; margin-bottom:8px;">⚠️</div>
+    <h1 style="font-size:22px;">Link not valid</h1>
+    <p>This verification link isn't valid — it may have already been used to create a
+      different request, or the link was copied incorrectly. If you still need to verify
+      your email, ask BuyersForce to resend it, or just wait — your request is reviewed
+      either way.</p>
+    {% endif %}
+    <a href="{{ url_for('landing') }}" class="btn btn-secondary" style="margin-top:12px;">Back to home</a>
+  </div>
+</div>
+{% endblock %}
