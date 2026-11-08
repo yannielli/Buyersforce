@@ -101,6 +101,7 @@ def run_migrations():
             _add_support_requests_engineering_decision_columns_2026_11_07(cur)
             _add_support_requests_admin_completed_status_2026_11_07(cur)
             _backfill_engineering_decisions_2026_11_07(cur)
+            _add_users_legal_acceptance_columns_2026_11_08(cur)
     finally:
         con.close()
 
@@ -2304,6 +2305,18 @@ def _backfill_engineering_decisions_2026_11_07(cur):
         "INSERT INTO _data_patches (name, applied_at) VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
         (patch_name,),
     )
+
+
+def _add_users_legal_acceptance_columns_2026_11_08(cur):
+    # New-signup EULA/Privacy Policy consent checkbox (templates/
+    # legal_eula.html, legal_privacy.html; signup()/accept_invite() in
+    # app.py). legal_accepted_at + legal_version together record *that*
+    # and *which text version* someone agreed to -- see app.py's
+    # LEGAL_DOC_VERSION. New signups only (Kj's call, 2026-11-08): these
+    # stay NULL for every pre-existing user, on purpose -- there's no
+    # retroactive consent gate for already-active accounts.
+    cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS legal_accepted_at TEXT")
+    cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS legal_version TEXT")
 
 
 if __name__ == "__main__":

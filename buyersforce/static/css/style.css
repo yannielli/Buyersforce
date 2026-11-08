@@ -1191,3 +1191,26 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 }
 .frankie-criteria-chip.is-added { opacity: 0.6; }
 .frankie-criteria-chip-add { flex-shrink: 0; white-space: nowrap; }
+
+
+/* ---------- legal documents (EULA / Privacy Policy) ---------- */
+/* Standalone, publicly reachable pages (templates/legal_eula.html,
+   legal_privacy.html) -- linked from signup.html, accept_invite.html,
+   and the site footer. Kept as a narrow, readable text column rather
+   than the app's usual dashboard-style layout, since this is read
+   top-to-bottom rather than scanned. */
+.legal-doc { max-width: 720px; margin: 0 auto; }
+.legal-doc-head { margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--gridline); }
+.legal-doc-head h1 { font-size: 28px; }
+.legal-doc-meta { color: var(--ink-muted); font-size: 13.5px; margin: 6px 0 0; }
+.legal-doc-crosslink { font-size: 13.5px; margin: 10px 0 0; }
+.legal-doc-crosslink a { color: var(--brand); font-weight: 600; }
+.legal-doc h2 { font-size: 19px; margin-top: 34px; color: var(--ink-primary); }
+.legal-doc h2:first-of-type { margin-top: 28px; }
+.legal-doc p { font-size: 14.5px; line-height: 1.6; color: var(--ink-secondary); margin: 0 0 14px; }
+.legal-doc ul, .legal-doc ol { font-size: 14.5px; line-height: 1.6; color: var(--ink-secondary); margin: 0 0 14px; padding-left: 22px; }
+.legal-doc li { margin-bottom: 6px; }
+.legal-doc li:last-child { margin-bottom: 0; }
+.legal-doc strong { color: var(--ink-primary); }
+.legal-doc a { color: var(--brand); }
+.legal-doc-intro { font-size: 15px; color: var(--ink-primary); }

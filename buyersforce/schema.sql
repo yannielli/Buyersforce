@@ -83,7 +83,15 @@ CREATE TABLE users (
     -- Appearance. Defaults to 'light' so nobody's view changes until they
     -- opt in. See migrate.py's _add_theme_preference_column for the
     -- equivalent migration on a pre-existing database.
-    theme_preference TEXT NOT NULL DEFAULT 'light' CHECK (theme_preference IN ('light', 'dark'))
+    theme_preference TEXT NOT NULL DEFAULT 'light' CHECK (theme_preference IN ('light', 'dark')),
+    -- EULA/Privacy Policy consent, captured at signup (added 2026-11-08,
+    -- new signups only -- see migrate.py's
+    -- _add_users_legal_acceptance_columns_2026_11_08 for the equivalent
+    -- migration on a pre-existing database, and app.py's
+    -- LEGAL_DOC_VERSION). Both stay NULL for an account created before
+    -- this existed; there is no retroactive consent requirement.
+    legal_accepted_at TEXT,
+    legal_version TEXT
 );
 
 -- A buyer-owned blocklist so a buyer can stop a specific seller, or every

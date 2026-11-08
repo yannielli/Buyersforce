@@ -415,6 +415,18 @@ EXTERNAL_LINK_PRIVACY_NOTE = (
 )
 app.jinja_env.globals["EXTERNAL_LINK_PRIVACY_NOTE"] = EXTERNAL_LINK_PRIVACY_NOTE
 
+# The EULA/Privacy Policy text version (templates/legal_eula.html,
+# legal_privacy.html) that a new signup is agreeing to. Bump the date
+# string here (and the matching "Effective Date" line atop each
+# document) whenever those documents materially change -- signup()
+# and accept_invite() stamp this exact value onto users.legal_version
+# at the moment of acceptance, so we always know which text version
+# a given person agreed to. New signups only (Kj's call, 2026-11-08):
+# there's no retroactive consent gate for already-active users.
+LEGAL_DOC_VERSION = "2026-11-08"
+LEGAL_DOC_EFFECTIVE_DATE = "November 8, 2026"
+app.jinja_env.globals["LEGAL_DOC_EFFECTIVE_DATE"] = LEGAL_DOC_EFFECTIVE_DATE
+
 # Checked dynamically against the user row rather than tracked with a
 # stored flag, so there's nothing that can drift out of sync. role,
 # company, and email are guaranteed non-blank by the users table itself
@@ -675,6 +687,20 @@ def landing():
     return render_template("landing.html")
 
 
+# Public, no-login-required: linked (each as its own page, opened in a
+# new tab) from signup.html's and accept_invite.html's new-account
+# consent checkbox, and from the site footer. See LEGAL_DOC_VERSION
+# above for the versioning convention.
+@app.route("/legal/eula")
+def legal_eula():
+    return render_template("legal_eula.html")
+
+
+@app.route("/legal/privacy")
+def legal_privacy():
+    return render_template("legal_privacy.html")
+
+
 @app.route("/signup", methods=("GET", "POST"))
 def signup():
     # Self-signup: anyone can request an account, but it starts 'pending'
@@ -698,6 +724,7 @@ def signup():
         linkedin_url = request.form.get("linkedin_url", "").strip()
         no_linkedin = request.form.get("no_linkedin") == "on"
         password = request.form.get("password", "")
+        agree_legal = request.form.get("agree_legal") == "on"
 
         if no_linkedin:
             # Some people genuinely don't have a LinkedIn account. We still
@@ -727,6 +754,8 @@ def signup():
             error = "That doesn't look like a LinkedIn URL -- we need it to verify your request."
         elif len(password) < 8:
             error = "Password must be at least 8 characters."
+        elif not agree_legal:
+            error = "You must agree to the End User License Agreement and Privacy Policy to request an account."
         elif dbm.query("SELECT id FROM users WHERE email = ?", (work_email,), one=True):
             error = "An account already exists (or is pending review) for that email."
 
@@ -734,6 +763,7 @@ def signup():
             flash(error, "error")
             form_data = request.form.to_dict()
             form_data["no_linkedin"] = no_linkedin
+            form_data["agree_legal"] = agree_legal
             return render_template(
                 "signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=world_timezones_for_picker(), form_data=form_data,
             )
@@ -741,11 +771,12 @@ def signup():
         dbm.execute(
             "INSERT INTO users (role, name, first_name, last_name, email, password_hash, company, "
             "title, personal_email, phone, phone_country, state, timezone, linkedin_url, no_linkedin, "
-            "account_status) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')",
+            "account_status, legal_accepted_at, legal_version) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
             (role, f"{first_name} {last_name}", first_name, last_name, work_email,
              generate_password_hash(password), company, title, personal_email, phone, phone_country,
-             state, timezone, linkedin_url, int(no_linkedin)),
+             state, timezone, linkedin_url, int(no_linkedin),
+             datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), LEGAL_DOC_VERSION),
         )
         return render_template("signup_pending.html")
     return render_template("signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=world_timezones_for_picker(), form_data={})
@@ -887,14 +918,22 @@ def accept_invite(token):
         password = request.form.get("password", "")
         confirm = request.form.get("confirm", "")
         name = request.form.get("name", "").strip() or invite["name"] or invite["email"].split("@")[0]
+        agree_legal = request.form.get("agree_legal") == "on"
         error = None
         if len(password) < 8:
             error = "Password must be at least 8 characters."
         elif password != confirm:
             error = "Passwords don't match."
+        elif not existing_user and not agree_legal:
+            # Only a brand-new account needs this -- an existing active
+            # user resetting their password already agreed when their
+            # account was created. New signups only (Kj's call,
+            # 2026-11-08): no retroactive gate for existing users.
+            error = "You must agree to the End User License Agreement and Privacy Policy to activate your account."
 
         if error is None:
             pw_hash = generate_password_hash(password)
+            now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             if existing_user:
                 dbm.execute(
                     "UPDATE users SET password_hash = ? WHERE id = ?",
@@ -903,16 +942,17 @@ def accept_invite(token):
                 user_id = existing_user["id"]
             else:
                 user_id = dbm.execute(
-                    "INSERT INTO users (role, name, email, password_hash, company) "
-                    "VALUES (?, ?, ?, ?, ?)",
-                    (invite["role"], name, invite["email"], pw_hash, invite["company"]),
+                    "INSERT INTO users (role, name, email, password_hash, company, "
+                    "legal_accepted_at, legal_version) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (invite["role"], name, invite["email"], pw_hash, invite["company"],
+                     now_str, LEGAL_DOC_VERSION),
                 )
                 if invite["role"] == "seller":
                     # Accepting an invite only creates the BuyersForce account --
                     # see _ensure_unclaimed_vendor_for_company for why it never
                     # grants edit access to the company's listing.
                     _ensure_unclaimed_vendor_for_company(invite["company"])
-            now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             dbm.execute("UPDATE invites SET used_at = ? WHERE id = ?", (now_str, invite["id"]))
             # Backfill any evaluation(s) this person was added to as a
             # brand-new teammate before they had an account -- see

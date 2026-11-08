@@ -35,6 +35,18 @@
           <button type="button" class="password-toggle" data-password-toggle="confirm" aria-label="Show password">Show</button>
         </div>
       </div>
+      {% if not is_reset %}
+      <label style="display:flex; align-items:center; gap:8px; margin:12px 0; cursor:pointer; font-weight:400;">
+        <input type="checkbox" id="agree_legal" name="agree_legal" required>
+        <span class="hint" style="margin:0;">
+          I agree to BuyersForce's
+          <a href="{{ url_for('legal_eula') }}" target="_blank" rel="noopener">End User License Agreement</a>
+          and
+          <a href="{{ url_for('legal_privacy') }}" target="_blank" rel="noopener">Privacy Policy</a>
+        </span>
+      </label>
+      {% endif %}
+
       <button class="btn btn-primary btn-block btn-lg" type="submit">
         {{ 'Reset password & log in' if is_reset else 'Activate account' }}
       </button>

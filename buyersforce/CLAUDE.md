@@ -784,3 +784,75 @@ Known rough edges worth remembering, not yet fixed:
     way -- this round only covers the nav badges (which already cover
     Support Queue/Engineering Queue's own "new since you last looked"
     counts) and an open thread's own messages.
+
+
+- **EULA + Privacy Policy, required at new-account creation** (2026-11-08,
+  same day, Kj's follow-up: "the new user needs to click a box to agree
+  to our End User License Agreement and Privacy Policy" -- Kj supplied a
+  sample Terms-of-Use document, written for an unrelated product
+  ("Ergentor.ai"), to adapt rather than drafting from nothing). Two new
+  public, no-login pages:
+  - `GET /legal/eula` -> `templates/legal_eula.html` and
+    `GET /legal/privacy` -> `templates/legal_privacy.html` -- deliberately
+    two separate pages/URLs rather than one combined page with anchors
+    (Kj: "make sure they are separate links... so the docs are
+    separated"), each linking to the other at the top. Both are plain
+    HTML, no login required, and are linked (opened in a new tab) from
+    the new consent checkbox below, plus the site footer
+    (`templates/base.html`).
+  - Both documents are adapted from Kj's sample, NOT copied as-is --
+    every Ergentor-specific fact was swapped for BuyersForce's real
+    ones (confirmed by reading app.py/emailer.py/migrate.py rather than
+    guessing): hosting is Railway (not Supabase), email is Resend, AI
+    features (Frankie, AI-assisted support-ticket drafting) run on
+    Anthropic -- and that's the *entire* sub-processor list; there's no
+    Stripe/billing (BuyersForce has none), no Google/Slack/Twilio
+    integration, no analytics or tracking cookies (just one functional
+    session cookie), and no Cloudflare dependency of BuyersForce's own
+    (the one "Cloudflare" hit in the codebase is a vendor company
+    *listed in* the marketplace directory, unrelated to BuyersForce's
+    own infrastructure). The sample's retroactive eligibility
+    restriction (its users had to be US-based) was removed per Kj's
+    explicit note: "A buyer or seller... can be located anywhere in the
+    US or the world." The sample's "data deleted within 30 days of
+    termination" promise was also deliberately NOT copied, since
+    BuyersForce has no such automated job -- the retention language here
+    is honest about what's actually implemented (delete/de-identify
+    "within a reasonable time") rather than promising a feature that
+    doesn't exist. Added a dedicated California Privacy Rights
+    (CCPA/CPRA) section per Kj's "capture any california items" ask, plus
+    California governing law (both already matched the sample). The
+    company is referred to throughout as plain "BuyersForce" with no
+    corporate suffix, per Kj: "BuyersForce is... not yet formalized into
+    a C or S Corp or LLC... for now we can just call it 'BuyersForce'"
+    -- which also meant fixing the site footer, which had been saying
+    "BuyersForce, Inc." everywhere since the original landing-page build.
+    Placeholder contact addresses (`legal@buyersforce.io`,
+    `privacy@buyersforce.io`) are used throughout; these need to actually
+    exist (or forward somewhere Kj checks) before go-live. **Not legal
+    advice** -- both documents carry an HTML comment at the top saying so;
+    Kj should have a California-licensed attorney review them (especially
+    the arbitration clause and liability cap) before they govern real
+    users.
+  - `users` gained two nullable columns, `legal_accepted_at` and
+    `legal_version` (migrate.py's `_add_users_legal_acceptance_columns
+    _2026_11_08`; schema.sql updated to match). `legal_version` is
+    `app.py`'s `LEGAL_DOC_VERSION` constant (bump it, and the "Effective
+    Date" text in both templates, whenever the documents materially
+    change) -- so it's always clear exactly which text version a given
+    person agreed to.
+  - New-signup consent checkbox added at the two, and only the two,
+    places a brand-new BuyersForce account is ever actually created
+    (traced through the real code rather than Kj's own guess of "after
+    approval, reset password" -- there's no such step; approving a
+    signup just flips `account_status` and emails a plain login link):
+    `signup.html` (self-serve request) and `accept_invite.html`, but on
+    accept-invite ONLY on the new-account branch, never the
+    existing-user password-reset branch (`is_reset`) -- resetting a
+    password isn't a new signup. Required server-side in both
+    `signup()` and `accept_invite()`; unchecked shows the same flash-
+    error pattern as every other validation on those forms.
+  - Deliberately out of scope, per Kj's explicit decision ("New signups
+    only (Recommended for now)"): no retroactive consent gate for
+    already-active users. `legal_accepted_at`/`legal_version` stay NULL
+    on every pre-existing account, on purpose.
