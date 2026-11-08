@@ -105,6 +105,7 @@ def run_migrations():
             _revert_mistaken_prelaunch_items_2026_11_08(cur)
             _empty_prelaunch_checklist_items_2026_11_08(cur)
             _add_users_work_email_verification_columns_2026_11_08(cur)
+            _add_users_country_column_2026_11_08(cur)
     finally:
         con.close()
 
@@ -2382,6 +2383,21 @@ def _add_users_work_email_verification_columns_2026_11_08(cur):
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS work_email_verify_token TEXT")
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS work_email_verified_at TEXT")
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS work_email_verify_sent_at TEXT")
+
+
+def _add_users_country_column_2026_11_08(cur):
+    # New mandatory "Country" field on signup.html / _profile_form.html
+    # (Kj's ask, 2026-11-08: "an alphabetical country listing... have
+    # United States always at the top", positioned ahead of State, with
+    # the phone country-code select defaulting to match it). A 2-letter
+    # ISO 3166-1 code, same code space as app.py's WORLD_COUNTRIES (built
+    # from pytz.country_names) and PHONE_COUNTRIES -- see
+    # app.py's PROFILE_REQUIRED_FIELDS, which now includes "country" too,
+    # so an invited user who skipped signup.html is asked for it on
+    # complete_profile the same way state/phone/timezone already work.
+    # Nullable here since existing rows predate this field; new signups
+    # and newly-completed profiles always set it going forward.
+    cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS country TEXT")
 
 
 if __name__ == "__main__":

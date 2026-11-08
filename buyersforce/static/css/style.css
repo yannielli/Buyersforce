@@ -348,6 +348,16 @@ button { font-family: inherit; }
 label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink-primary); }
 .field { margin-bottom: 16px; }
 .hint { font-size: 12.5px; color: var(--ink-muted); margin-top: 4px; }
+/* The "*" marking a required field in a label (e.g. "First name *"),
+   and the matching note at the top of a form explaining what it means
+   (signup.html's "Fields marked with a red asterisk..." line -- Kj's
+   explicit ask, 2026-11-08, for a bright, unmissable red rather than
+   this app's softer --serious/--critical-ink tones used elsewhere for
+   flagged content -- reuses --critical itself, which is already a true,
+   saturated red and already proven legible in both themes (see
+   .icon-btn.flag-active) rather than inventing a new color token). */
+.required-asterisk { color: var(--critical); font-weight: 700; }
+.required-note { font-size: 13px; color: var(--ink-secondary); margin-bottom: 18px; }
 /* A text link or disclosure trigger that performs an action right where
    you are (reveal a form, jump to a sub-page) rather than plain body
    copy -- colored so it reads as clickable instead of blending into

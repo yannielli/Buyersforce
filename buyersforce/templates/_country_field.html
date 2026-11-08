@@ -1,0 +1,33 @@
+{# Shared "Country" field (signup.html, _profile_form.html -- added
+   2026-11-08, Kj's ask for "an alphabetical country listing... have
+   United States always at the top"). `world_countries` is the
+   (code, name) list (app.py's WORLD_COUNTRIES -- US pinned first, then
+   alphabetical); `country_selected` is the value to preselect.
+
+   Reuses _timezone_field.html's search-over-a-<select> picker component
+   as-is (static/js/app.js's "select[data-tz-picker]" wiring,
+   static/css/style.css's .tz-picker* rules) -- that component is a
+   generic filterable dropdown, not actually timezone-specific (it has
+   no opinion on grouped vs. flat option lists), so this field tags onto
+   the same data-tz-picker attribute and tz-picker-* classes rather than
+   duplicating the whole component under a new name. If you're hunting
+   for "country picker" JS/CSS and not finding it, this is why -- it's
+   the timezone picker's code, shared. #}
+<div class="field">
+  <label for="country">Country *</label>
+  <select id="country" name="country" required data-tz-picker>
+    <option value="">Select a country…</option>
+    {% for code, name in world_countries %}
+    <option value="{{ code }}" {% if country_selected == code %}selected{% endif %}>{{ name }}</option>
+    {% endfor %}
+  </select>
+  <div class="tz-picker" data-tz-picker-wrap style="display:none;">
+    <input type="text" class="tz-picker-input" autocomplete="off" placeholder="Search country…">
+    <div class="tz-picker-list" data-tz-picker-list style="display:none;">
+      {% for code, name in world_countries %}
+      <div class="tz-picker-option" data-value="{{ code }}">{{ name }}</div>
+      {% endfor %}
+      <div class="tz-picker-empty" data-tz-picker-empty style="display:none;">No matches</div>
+    </div>
+  </div>
+</div>

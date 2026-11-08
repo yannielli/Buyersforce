@@ -519,6 +519,12 @@ document.addEventListener("DOMContentLoaded", () => {
       select.value = option.dataset.value;
       input.value = option.textContent;
       close();
+      // Picking from the search list sets .value directly, which (unlike
+      // a real <select> the user clicked through) never fires a native
+      // "change" event on its own. Dispatch one so anything listening
+      // for this field to change -- the Country field's phone-country-
+      // code auto-sync below, in particular -- actually hears it.
+      select.dispatchEvent(new Event("change", { bubbles: true }));
     };
 
     input.addEventListener("focus", open);
@@ -552,6 +558,33 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!wrap.contains(e.target)) close();
     });
   });
+
+  // Country field -> phone country-code auto-sync (signup.html,
+  // _profile_form.html -- Kj's ask, 2026-11-08: "once the country is
+  // set, the phone number defaults to the applicable country code
+  // automatically"). Country and the phone field's own little country-
+  // code <select> (phone-format.js's BFPhone.wire) share the same
+  // 2-letter code space (app.py's WORLD_COUNTRIES and PHONE_COUNTRIES
+  // are both ISO 3166-1), so this is just "copy the value over" --
+  // except PHONE_COUNTRIES only lists ~70 common dial codes plus an
+  // "XX -- Other / not listed" catch-all, so a country outside that
+  // shortlist (WORLD_COUNTRIES has the full ~249) falls back to XX
+  // rather than leaving the phone code showing a stale, wrong country.
+  // Sets a DEFAULT only -- phone country-code stays a normal, separately
+  // editable field afterward, for the (uncommon) case of someone whose
+  // phone is registered in a different country than they live in.
+  const countryField = document.getElementById("country");
+  const phoneCountryField = document.getElementById("phone_country");
+  if (countryField && phoneCountryField) {
+    countryField.addEventListener("change", () => {
+      if (!countryField.value) return;
+      const hasMatch = Array.prototype.some.call(
+        phoneCountryField.options, (o) => o.value === countryField.value
+      );
+      phoneCountryField.value = hasMatch ? countryField.value : "XX";
+      phoneCountryField.dispatchEvent(new Event("change"));
+    });
+  }
 
   // Password visibility toggles: a "Show"/"Hide" button next to any
   // password field wrapped in .password-field (login, signup, accept

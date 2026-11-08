@@ -102,7 +102,14 @@ CREATE TABLE users (
     -- Approve, which stays the admin's own call either way.
     work_email_verify_token TEXT,
     work_email_verified_at TEXT,
-    work_email_verify_sent_at TEXT
+    work_email_verify_sent_at TEXT,
+    -- Mandatory "Country" field on signup.html / _profile_form.html
+    -- (added 2026-11-08; see migrate.py's _add_users_country_column_
+    -- 2026_11_08 for the equivalent migration on a pre-existing
+    -- database). 2-letter ISO 3166-1 code -- same code space as
+    -- app.py's WORLD_COUNTRIES/PHONE_COUNTRIES. Nullable here since
+    -- existing rows predate this field.
+    country TEXT
 );
 
 -- A buyer-owned blocklist so a buyer can stop a specific seller, or every

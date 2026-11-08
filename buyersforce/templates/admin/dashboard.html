@@ -28,7 +28,7 @@
         <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
           <input type="text" name="title" value="{{ u.title }}" placeholder="Title" style="font-size:12.5px; width:120px; padding:3px 6px;">
           <input type="text" name="company" value="{{ u.company }}" placeholder="Company" style="font-size:12.5px; width:150px; padding:3px 6px;">
-          <span class="hint">{{ u.email }} · {{ u.phone }} · {{ u.state }}</span>
+          <span class="hint">{{ u.email }} · {{ u.phone }} · {{ WORLD_COUNTRY_NAMES.get(u.country, u.country) }} · {{ u.state }}</span>
         </div>
       </form>
       <p class="hint" style="margin-top:4px;">Fix a typo (e.g. company name) here before approving — it's saved when you hit Approve.</p>

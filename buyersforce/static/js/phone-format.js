@@ -87,7 +87,25 @@
       // doesn't (country was just switched, or the user backspaced into
       // the prefix), fall back to reading the whole field -- imperfect,
       // but only affects the rare case of switching country mid-entry.
-      var nationalSource = (prefix && raw.indexOf(prefix) === 0) ? raw.slice(prefix.length) : raw;
+      var nationalSource;
+      if (prefix && raw.indexOf(prefix) === 0) {
+        nationalSource = raw.slice(prefix.length);
+      } else if (/^\+\d*\s*$/.test(raw)) {
+        // The field holds nothing but a PREVIOUS country's auto-inserted
+        // "+<dial> " prefix -- no digits typed yet. Without this check,
+        // the generic fallback below reads digits out of raw as if they
+        // were a national number, which means that old dial code's own
+        // digits leak into the new one: switching US ("+1 ", nothing
+        // typed) to Germany produced "+49 1", the stray "1" pulled
+        // straight from "+1"'s own "1". Noticed once the Country field
+        // (signup.html, _profile_form.html) started auto-switching this
+        // select on every pick, 2026-11-08 -- previously only reachable
+        // by manually using the small country-code dropdown before
+        // typing a number, so it came up far less often.
+        nationalSource = "";
+      } else {
+        nationalSource = raw;
+      }
       var digits = digitsOnly(nationalSource);
       var fmt = FORMATTERS[select.value] || groupGeneric;
       var national = fmt(digits);

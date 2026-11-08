@@ -82,6 +82,34 @@ PHONE_COUNTRIES = [
 ]
 
 
+def _build_world_countries():
+    """The full ISO 3166-1 country/territory list, for the mandatory
+    "Country" field on signup.html / _profile_form.html (added
+    2026-11-08, Kj's ask for "an alphabetical country listing... have
+    United States always at the top" now that worldwide signups are
+    allowed). Sourced from pytz.country_names -- pytz is already a
+    dependency (used for the time zone picker below), and its ISO list
+    is more complete than the ~70-country PHONE_COUNTRIES shortlist
+    above, which only needs to cover common dial codes, not every
+    territory. Returns [(code, name), ...], alphabetical by name except
+    United States pinned first -- same convention as
+    world_timezones_for_picker()'s pinned US zone group."""
+    rest = sorted(
+        ((code, name) for code, name in pytz.country_names.items() if code != "US"),
+        key=lambda item: item[1],
+    )
+    return [("US", "United States")] + rest
+
+
+# [(code, name), ...] -- see _build_world_countries. Static, so computed
+# once at import time, same as WORLD_TIMEZONES below.
+WORLD_COUNTRIES = _build_world_countries()
+WORLD_COUNTRY_CODES = {code for code, _ in WORLD_COUNTRIES}
+# For displaying a stored country code as a name (e.g. admin's pending-
+# signups queue) without a per-template lookup list.
+app.jinja_env.globals["WORLD_COUNTRY_NAMES"] = dict(WORLD_COUNTRIES)
+
+
 def _build_world_timezones():
     """Groups pytz's curated ~430-zone "common_timezones" list by region
     (the part before the first "/") for a worldwide, DST-safe time zone
@@ -432,7 +460,7 @@ app.jinja_env.globals["LEGAL_DOC_EFFECTIVE_DATE"] = LEGAL_DOC_EFFECTIVE_DATE
 # company, and email are guaranteed non-blank by the users table itself
 # (set by an admin at invite time), so they aren't re-checked here.
 PROFILE_REQUIRED_FIELDS = (
-    "first_name", "last_name", "personal_email", "phone", "state", "title", "timezone",
+    "first_name", "last_name", "personal_email", "phone", "state", "title", "timezone", "country",
 )
 
 # Endpoints reachable even with an incomplete profile: auth/public pages
@@ -758,8 +786,8 @@ def signup():
         personal_email = request.form.get("personal_email", "").strip().lower()
         phone = request.form.get("phone", "").strip()
         phone_country = (request.form.get("phone_country", "US").strip().upper() or "US")[:2]
+        country = request.form.get("country", "").strip().upper()
         state = request.form.get("state", "").strip().upper()
-        timezone = request.form.get("timezone", "").strip()
         linkedin_url = request.form.get("linkedin_url", "").strip()
         no_linkedin = request.form.get("no_linkedin") == "on"
         password = request.form.get("password", "")
@@ -777,16 +805,16 @@ def signup():
         if role not in ("buyer", "seller"):
             error = "Choose whether you're a buyer or a seller."
         elif not all((first_name, last_name, company, title, work_email, personal_email,
-                      phone, state, timezone, password)):
+                      phone, country, state, password)):
             error = "All fields are required."
         elif "@" not in work_email:
             error = "Work email doesn't look like a valid email address."
         elif "@" not in personal_email:
             error = "Personal email doesn't look like a valid email address."
+        elif country not in WORLD_COUNTRY_CODES:
+            error = "Choose a valid country."
         elif state not in US_STATE_CODES:
             error = "Choose a valid US state."
-        elif timezone not in WORLD_TIMEZONE_CODES:
-            error = "Choose a valid time zone."
         elif not no_linkedin and not linkedin_url:
             error = "LinkedIn is required, or check \"I don't have a LinkedIn account.\""
         elif not no_linkedin and "linkedin.com" not in linkedin_url.lower():
@@ -804,22 +832,26 @@ def signup():
             form_data["no_linkedin"] = no_linkedin
             form_data["agree_legal"] = agree_legal
             return render_template(
-                "signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=world_timezones_for_picker(), form_data=form_data,
+                "signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES,
+                world_countries=WORLD_COUNTRIES, form_data=form_data,
             )
 
         new_user_id = dbm.execute(
             "INSERT INTO users (role, name, first_name, last_name, email, password_hash, company, "
-            "title, personal_email, phone, phone_country, state, timezone, linkedin_url, no_linkedin, "
+            "title, personal_email, phone, phone_country, country, state, linkedin_url, no_linkedin, "
             "account_status, legal_accepted_at, legal_version) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
             (role, f"{first_name} {last_name}", first_name, last_name, work_email,
              generate_password_hash(password), company, title, personal_email, phone, phone_country,
-             state, timezone, linkedin_url, int(no_linkedin),
+             country, state, linkedin_url, int(no_linkedin),
              datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), LEGAL_DOC_VERSION),
         )
         _send_work_email_verification(new_user_id, work_email, first_name)
         return render_template("signup_pending.html")
-    return render_template("signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=world_timezones_for_picker(), form_data={})
+    return render_template(
+        "signup.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES,
+        world_countries=WORLD_COUNTRIES, form_data={},
+    )
 
 
 @app.route("/join-as-vendor", methods=("GET", "POST"))
@@ -1225,18 +1257,21 @@ def _apply_profile_form(user, form, files=None):
     personal_email = form.get("personal_email", "").strip().lower()
     phone = form.get("phone", "").strip()
     phone_country = (form.get("phone_country", "US").strip().upper() or "US")[:2]
+    country = form.get("country", "").strip().upper()
     state = form.get("state", "").strip().upper()
     title = form.get("title", "").strip()
     company = form.get("company", "").strip()
     timezone = form.get("timezone", "").strip()
 
-    if not all((first_name, last_name, work_email, personal_email, phone, state, title, company, timezone)):
-        return ("First name, last name, company, work email, personal email, phone, job title, "
-                "state, and time zone are all required.")
+    if not all((first_name, last_name, work_email, personal_email, phone, country, state, title, company, timezone)):
+        return ("First name, last name, company, work email, personal email, phone, country, job "
+                "title, state, and time zone are all required.")
     if "@" not in work_email:
         return "Work email doesn't look like a valid email address."
     if "@" not in personal_email:
         return "Personal email doesn't look like a valid email address."
+    if country not in WORLD_COUNTRY_CODES:
+        return "Choose a valid country."
     if state not in US_STATE_CODES:
         return "Choose a valid US state."
     if timezone not in WORLD_TIMEZONE_CODES:
@@ -1296,12 +1331,12 @@ def _apply_profile_form(user, form, files=None):
 
     dbm.execute(
         "UPDATE users SET first_name=?, last_name=?, name=?, email=?, company=?, personal_email=?, "
-        "phone=?, phone_country=?, state=?, title=?, address_line1=?, address_line2=?, city=?, zip=?, "
+        "phone=?, phone_country=?, country=?, state=?, title=?, address_line1=?, address_line2=?, city=?, zip=?, "
         "secondary_phone=?, secondary_phone_country=?, linkedin_url=?, no_linkedin=?, timezone=?, "
         "open_to_buy=?, outreach_enabled=?, outreach_informational=?, outreach_marketing_events=?, "
         "outreach_none=? WHERE id=?",
         (first_name, last_name, f"{first_name} {last_name}", work_email, company, personal_email,
-         phone, phone_country, state, title, address_line1, address_line2, city, zip_code,
+         phone, phone_country, country, state, title, address_line1, address_line2, city, zip_code,
          secondary_phone, secondary_phone_country, linkedin_url, int(no_linkedin), timezone,
          int(open_to_buy), int(outreach_enabled), int(outreach_informational),
          int(outreach_marketing_events), int(outreach_none), user["id"]),
@@ -1340,7 +1375,8 @@ def complete_profile():
         # and so we're not rendering a stale g.user from before the (failed) update.
         g.user = dbm.query("SELECT * FROM users WHERE id=?", (g.user["id"],), one=True)
     return render_template(
-        "complete_profile.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=world_timezones_for_picker(), user=g.user,
+        "complete_profile.html", us_states=US_STATES, phone_countries=PHONE_COUNTRIES,
+        world_timezones=world_timezones_for_picker(), world_countries=WORLD_COUNTRIES, user=g.user,
     )
 
 
@@ -1364,7 +1400,8 @@ def account():
             (g.user["id"],), one=True,
         )
     return render_template(
-        "account.html", tab=tab, us_states=US_STATES, phone_countries=PHONE_COUNTRIES, world_timezones=world_timezones_for_picker(),
+        "account.html", tab=tab, us_states=US_STATES, phone_countries=PHONE_COUNTRIES,
+        world_timezones=world_timezones_for_picker(), world_countries=WORLD_COUNTRIES,
         blocked=blocked, user=g.user, pending_role_request=pending_role_request, show_role_change=True,
     )
 

@@ -1010,3 +1010,94 @@ Known rough edges worth remembering, not yet fixed:
   (`static/css/style.css`) and its `history.back()` click handler
   (`static/js/app.js`, added in that same earlier fix) along with the
   markup -- nothing else on the legal pages changed.
+
+
+- **Required-field asterisks in red, Country field, Time Zone removed
+  from signup, State repositioned** (2026-11-08, same day, Kj's
+  follow-up list of 5 changes to the account-request page). All on
+  `signup.html` unless noted:
+  - A `* indicates a required field.` note now sits right under the
+    page's intro paragraph, and every field label's `*` (not just this
+    note's) renders in a bright, unmissable red -- reuses `--critical`
+    (`#d03b3b`), an existing design-system token already proven legible
+    in both themes, rather than this app's softer `--serious` tone or a
+    new one-off hex. New `.required-asterisk` / `.required-note` rules
+    in `static/css/style.css`.
+  - **Time Zone removed from this page entirely** -- `timezone` stays
+    in `users` and in `PROFILE_REQUIRED_FIELDS`, so this doesn't lose
+    the data: a self-signup user who's approved and logs in now simply
+    meets the same `complete_profile` gate an *invited* user already
+    always had to (their profile was already "incomplete" the moment
+    timezone stopped being collected here), and sets it there instead,
+    via `_profile_form.html`, same as before. `signup()` no longer
+    reads, validates, or inserts `timezone`.
+  - **New mandatory "Country" field**, positioned right after the email
+    fields, per Kj: "an alphabetical country listing... have United
+    States always at the top." `app.py`'s new `WORLD_COUNTRIES` ((code,
+    name) list, US pinned first then alphabetical) is built from
+    `pytz.country_names` -- pytz is already a dependency (the time zone
+    picker uses it too) and its ~249-entry ISO 3166-1 list is far more
+    complete than `PHONE_COUNTRIES`' ~70-country dial-code shortlist, so
+    this is its own list, not a reuse of that one. New `_country_field.
+    html` partial (used by both `signup.html` and `_profile_form.html`)
+    renders it as a searchable dropdown -- but isn't new UI: it
+    deliberately reuses `_timezone_field.html`'s existing filterable-
+    select component as-is (same `data-tz-picker` attribute, same
+    `tz-picker-*` classes in `static/js/app.js`/`style.css`), since that
+    component was already generic (no opinion on grouped vs. flat
+    lists) and building a second one would've just been the same ~90
+    lines of JS twice. New `country` column on `users` (migrate.py's
+    `_add_users_country_column_2026_11_08`; schema.sql updated),
+    required in `signup()` (`WORLD_COUNTRY_CODES` membership, same
+    pattern as `US_STATE_CODES` for State) and now also in
+    `_apply_profile_form()`/`PROFILE_REQUIRED_FIELDS` -- added there
+    too, not just signup.html, so an invited user who never saw
+    signup's form still gets asked for their country via
+    `complete_profile`, same as state/phone/timezone/title already
+    work; otherwise `country` would stay NULL forever for anyone who
+    didn't self-signup. Shown next to State in Access Control's
+    pending-signups card (`WORLD_COUNTRY_NAMES`, a code->name dict
+    registered as a Jinja global, so the admin queue shows "Germany,"
+    not "DE").
+  - **Phone country-code now defaults from the Country pick** (Kj:
+    "once the country is set, the phone number defaults to the
+    applicable country code automatically"). A small generic listener
+    in `app.js` (keyed off `#country`/`#phone_country`, so it applies
+    to `_profile_form.html` too, not just signup.html) copies the
+    chosen country's code into the phone country-code `<select>` and
+    re-fires its `change` event -- falls back to `"XX -- Other / not
+    listed"` when the chosen country isn't one of PHONE_COUNTRIES' ~70
+    (WORLD_COUNTRIES has ~249), rather than leaving a stale, wrong
+    dial code showing. Only sets a *default*: the phone country-code
+    field stays independently editable afterward. Required one small
+    supporting fix to the shared filterable-select component itself --
+    choosing an option sets the hidden `<select>`'s `.value` directly,
+    which never fired a native `change` event on its own, so nothing
+    downstream (this new listener included) ever heard a pick happen;
+    `choose()` now dispatches one.
+  - **Found and fixed a related pre-existing bug** while testing the
+    above: switching the phone country-code dropdown on an EMPTY phone
+    field (nothing typed yet) always produced a stray leading digit --
+    e.g. US ("+1 ", untouched) to Germany produced "+49 1", not "+49 ".
+    `phone-format.js`'s `reformat()` was pulling the "1" out of the
+    *old* "+1" prefix itself, treating it as a typed national digit
+    once the new prefix no longer matched. This bug predates today and
+    wasn't about Country at all -- reachable before only by manually
+    using the small phone country-code dropdown pre-entry, which
+    nobody is likely to do much. The new Country-driven auto-sync
+    above fires this exact path on essentially every signup now, so it
+    was worth fixing while already in this code rather than shipping a
+    feature that surfaces it constantly.
+  - **State moved**, now directly between Country and Phone (was
+    between Phone and the old Time Zone field). Its own behavior is
+    unchanged -- still a fixed US-state dropdown, still always
+    required regardless of which Country is chosen. Kj asked only to
+    reposition it, not to change what it does; flagged to him
+    separately that a non-US Country selection will still show a
+    US-only State list, in case that's worth revisiting later.
+  - `_profile_form.html` gained the same Country field (inserted as
+    its own row immediately before the existing Phone/State row,
+    which is left paired exactly as it already was -- Kj's reordering
+    ask was specific to signup.html, so `_profile_form.html`'s layout
+    changed only as much as adding Country required, not a full mirror
+    of signup's field order).

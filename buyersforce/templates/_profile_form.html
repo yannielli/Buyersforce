@@ -2,9 +2,13 @@
    complete_profile.html (mandatory first-completion) and account.html's
    Profile tab (later edits). `user` is the user row to populate from;
    `us_states` is the (code, name) list; `phone_countries` is the
-   (iso2, name, dial) list for the phone country pickers. `show_role_change`
-   and `pending_role_request` are only passed from account.html -- see
-   there for why the "request a role change" control only shows up there. #}
+   (iso2, name, dial) list for the phone country pickers; `world_countries`
+   is the (code, name) list for _country_field.html (added 2026-11-08,
+   same field as signup.html, so an invited user who skipped signup gets
+   asked for it here instead -- see app.py's PROFILE_REQUIRED_FIELDS).
+   `show_role_change` and `pending_role_request` are only passed from
+   account.html -- see there for why the "request a role change" control
+   only shows up there. #}
 <div class="field" style="display:flex; align-items:center; gap:14px;">
   <span id="photo-initials" class="vendor-logo"
         style="width:56px; height:56px; font-size:18px; background:var(--brand); {% if user.photo_data_url %}display:none;{% endif %}">{{ (user.first_name or user.name)[0]|upper }}</span>
@@ -107,6 +111,9 @@
     <p class="hint" style="margin-top:4px;">A backup in case your work email ever changes.</p>
   </div>
 </div>
+
+{% set country_selected = user.country %}
+{% include "_country_field.html" %}
 
 <div class="form-row">
   <div class="field">

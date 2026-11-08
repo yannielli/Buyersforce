@@ -8,6 +8,7 @@
       <p style="margin:0;">BuyersForce reviews every request by hand before granting access —
         we'll email you once it's approved, usually within a day or two.</p>
     </div>
+    <p class="required-note"><span class="required-asterisk">*</span> indicates a required field.</p>
     <form method="post">
       <div class="role-toggle">
         <label class="role-option {{ 'selected' if form_data.role == 'buyer' or not form_data }}">
@@ -24,39 +25,52 @@
 
       <div class="form-row">
         <div class="field">
-          <label for="first_name">First name *</label>
+          <label for="first_name">First name <span class="required-asterisk">*</span></label>
           <input type="text" id="first_name" name="first_name" required value="{{ form_data.first_name or '' }}">
         </div>
         <div class="field">
-          <label for="last_name">Last name *</label>
+          <label for="last_name">Last name <span class="required-asterisk">*</span></label>
           <input type="text" id="last_name" name="last_name" required value="{{ form_data.last_name or '' }}">
         </div>
       </div>
 
       <div class="form-row">
         <div class="field">
-          <label for="company">Company *</label>
+          <label for="company">Company <span class="required-asterisk">*</span></label>
           <input type="text" id="company" name="company" required value="{{ form_data.company or '' }}" placeholder="Acme Corp">
         </div>
         <div class="field">
-          <label for="title">Job title *</label>
+          <label for="title">Job title <span class="required-asterisk">*</span></label>
           <input type="text" id="title" name="title" required value="{{ form_data.title or '' }}">
         </div>
       </div>
 
       <div class="form-row">
         <div class="field">
-          <label for="email">Work email *</label>
+          <label for="email">Work email <span class="required-asterisk">*</span></label>
           <input type="email" id="email" name="email" required value="{{ form_data.email or '' }}" placeholder="you@company.com">
         </div>
         <div class="field">
-          <label for="personal_email">Personal email *</label>
+          <label for="personal_email">Personal email <span class="required-asterisk">*</span></label>
           <input type="email" id="personal_email" name="personal_email" required value="{{ form_data.personal_email or '' }}">
         </div>
       </div>
 
+      {% set country_selected = form_data.country %}
+      {% include "_country_field.html" %}
+
       <div class="field">
-        <label for="phone">Phone *</label>
+        <label for="state">State <span class="required-asterisk">*</span></label>
+        <select id="state" name="state" required>
+          <option value="">Select a state…</option>
+          {% for code, label in us_states %}
+          <option value="{{ code }}" {% if form_data.state == code %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="phone">Phone <span class="required-asterisk">*</span></label>
         <div style="display:flex; gap:8px;">
           <select id="phone_country" name="phone_country" required style="flex:0 0 118px; min-width:0;">
             {% for code, name, dial in phone_countries %}
@@ -68,18 +82,6 @@
           <input type="tel" id="phone" name="phone" required value="{{ form_data.phone or '' }}" placeholder="(555) 555-5555" style="flex:1 1 auto; min-width:0;">
         </div>
       </div>
-      <div class="field">
-        <label for="state">State *</label>
-        <select id="state" name="state" required>
-          <option value="">Select a state…</option>
-          {% for code, label in us_states %}
-          <option value="{{ code }}" {% if form_data.state == code %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      {% set tz_selected = form_data.timezone %}
-      {% include "_timezone_field.html" %}
 
       <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -88,7 +90,7 @@
       </script>
 
       <div class="field">
-        <label for="linkedin_url">LinkedIn profile *</label>
+        <label for="linkedin_url">LinkedIn profile <span class="required-asterisk">*</span></label>
         <input type="url" id="linkedin_url" name="linkedin_url"
                {{ 'required' if not form_data.no_linkedin }}
                {{ 'disabled' if form_data.no_linkedin }}
