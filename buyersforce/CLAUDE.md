@@ -858,41 +858,27 @@ Known rough edges worth remembering, not yet fixed:
     on every pre-existing account, on purpose.
 
 
-- **Two more Pre-Launch Checklist items** (2026-11-08, same day --
-  "Please add a couple of things to the BF Pre-Launch Checklist for
-  me: Under Needs Coding (Claude's work) -"). Inserted directly via a
-  one-shot migrate.py data patch (`_add_prelaunch_items_2026_11_08`),
-  the same mechanism the original three items used -- there's still no
-  admin page reading `prelaunch_checklist_items` at all (despite
-  `_add_prelaunch_checklist_table_2026_11_07`'s docstring assuming one
-  would exist by now), so this is backend-only for now; say if that
-  page should finally get built.
-  - *Free-tier messaging at signup*: nothing in the signup flow
-    currently says BuyersForce is free. Needs Kj's naming call (he
-    floated "Free" or "Core") before it's coded.
-  - *Design paid pricing tiers*: explicitly "a ways off" per Kj --
-    filed as a reminder, not a request to build anything now. He
-    shared a friend's Ergentor.ai pricing-tier screenshot as a sample
-    shape to react to later (AI Lite/Pro, Business, POC Planner tiers)
-    -- noted in the checklist detail as reference only, not anything
-    BuyersForce is adopting.
-
-
-- **Three more Pre-Launch Checklist items** (2026-11-08, same day --
-  Kj's follow-up after the two above: a "Kevin's own tasks (outside
-  claude config)" bucket, same label-prefix convention since there's
-  still no category column/admin page). Same one-shot data-patch
-  mechanism (`_add_prelaunch_items_2026_11_08b`):
-  - *Get the EULA/Privacy Policy reviewed by a real lawyer* (Kevin's
-    own task) -- also notes the third-party apps Kj flagged to think
-    about (GitHub, Gmail, Microsoft 365) beyond the three actually
-    listed as Privacy Policy sub-processors today (Railway, Resend,
-    Anthropic).
-  - *Create legal@ and privacy@ email aliases* (Kevin's own task) --
-    "so I remember to do this"; he's self-administering via Gmail.
-  - *Apply attorney-reviewed EULA/Privacy Policy verbiage* (Needs
-    Coding) -- the matching follow-up Kj explicitly asked to have
-    filed now, so the attorney-review item has somewhere to land:
-    update the two templates, bump `LEGAL_DOC_VERSION`/
-    `LEGAL_DOC_EFFECTIVE_DATE`, and extend the Privacy Policy's
-    Service Providers list if the attorney flags anything new.
+- **Correction: "BF Pre-Launch Checklist" is NOT this app's
+  `prelaunch_checklist_items` table** (2026-11-08, same day). Claude
+  misread Kj's "Please add a couple of things to the BF Pre-Launch
+  Checklist for me" as a request to insert rows into that table (it
+  even added five rows across two migrations before catching the
+  mistake). Kj's actual correction: "I didn't want you to do anything
+  in the BF platform after creating the links to @privacy and @legal
+  in the new account sign up process... The items I requested to be
+  added to the 'BF Pre-Launch Checklist' is a running checklist
+  document pinned in Claude to the left of the app." That document is
+  the pinned "BuyersForce Pre-Launch Checklist" Claude Docs artifact
+  (https://claude.ai/artifact/V7FqRdnoNvSEWxBunBs8BF) -- the five
+  items went there instead (three under its "Needs coding (Claude's
+  work)" section, two under "Kevin's own tasks (outside Claude
+  coding)"), and the mistaken rows were reverted
+  (`_revert_mistaken_prelaunch_items_2026_11_08`, replacing the two
+  migrations that inserted them). **For any future session: a request
+  to add to "the Pre-Launch Checklist" means that pinned Claude Docs
+  artifact, never this table.** This table (`prelaunch_checklist_items`,
+  seeded 2026-11-07 with three items: SMS/Twilio, iOS app, Android app)
+  was left as-is -- those three rows predate this confusion and Kj
+  didn't ask for them to be touched -- but there is still no admin page
+  that reads this table at all, so it's unclear whether it has any
+  ongoing purpose; ask Kj before adding anything else to it.
