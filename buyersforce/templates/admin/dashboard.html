@@ -146,7 +146,7 @@
         · {{ r.created_at|fmt_time }}
       </span>
     </summary>
-    <form method="post" action="{{ url_for('admin_vendor_request_decide', request_id=r.id) }}" style="margin-top:12px;">
+    <form method="post" action="{{ url_for('admin_vendor_request_decide', request_id=r.id) }}" enctype="multipart/form-data" style="margin-top:12px;">
       <div class="form-row">
         <div class="field"><label>Company name</label><input type="text" name="company_name" value="{{ r.company_name }}"></div>
         <div class="field"><label>Website</label><input type="url" name="website" value="{{ r.website }}"></div>
@@ -195,6 +195,7 @@
       </div>
       {% if r.notes %}<p class="hint">Submitter's notes: "{{ r.notes }}"</p>{% endif %}
       <div class="field"><label>Denial note (only used if you deny)</label><input type="text" name="denial_note" placeholder="Optional — included in the message they get"></div>
+      <div class="field"><label>Attach a file <span class="hint">(optional, up to 10MB -- included with the message they get, either outcome)</span></label><input type="file" name="attachment"></div>
       <div style="display:flex; gap:8px; margin-top:6px;">
         <button class="btn btn-primary btn-sm" type="submit" name="action" value="approve">Approve &amp; post live</button>
         <button class="btn btn-ghost btn-sm" type="submit" name="action" value="deny">Deny</button>

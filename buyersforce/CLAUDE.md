@@ -698,3 +698,31 @@ Known rough edges worth remembering, not yet fixed:
   vendor" box on a vendor's profile page -- none of those are the
   Messages page Kj was pointing at. Say if any of those should get the
   same treatment.
+
+- **File attachments, the last three spots** (2026-11-08, same day,
+  Kj's follow-up: "attaching files is a pretty basic thing and should
+  be consistent" -- extending the attachment work above to the three
+  places explicitly left out of it):
+  - `admin_support_decide`'s approve/modify reply (the AI-drafted
+    resolution box on Support Queue) now takes an optional attachment,
+    reusing `_insert_thread_message` the same way every other compose
+    point does. Only wired for approve/modify, since reject/defer never
+    post anything to the thread.
+  - `admin_vendor_request_decide`'s deny and approve branches (the
+    vendor-suggestion review form on the Dashboard) now take an
+    optional attachment on the message posted back to a buyer/seller's
+    referral thread. Doesn't apply to the `seller_signup` kind's email
+    path (a prospective seller who filed their own listing, not a
+    referral) -- there's no thread to store the file in, and emailer.py
+    only sends plain text, no MIME attachments; extending that would
+    mean building real email-attachment support, a bigger separate
+    piece of work if ever wanted.
+  - `buyer_message_vendor` (the "✉️ Message vendor" quick box on a
+    vendor's profile page) now takes an optional attachment too, and
+    (matching every other compose point) can be sent as a file alone
+    with no text.
+  Net effect: every place on BuyersForce where a human composes a
+  message to another human now has the same "Attach a file (optional,
+  up to 10MB)" control and the same backend path (`_insert_thread_message`
+  for a thread message, or the support-attachment encode/validate for the
+  one case that sends by email instead).

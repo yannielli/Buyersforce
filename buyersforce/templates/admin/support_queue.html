@@ -107,7 +107,7 @@
         <span class="badge badge-neutral">Suggested: {{ r.ai_suggested_status.replace('_', ' ')|capitalize }}</span>
       </div>
       {% if r.decision == 'pending_review' %}
-      <form method="post" action="{{ url_for('admin_support_decide', request_id=r.id) }}" style="margin-top:8px;">
+      <form method="post" action="{{ url_for('admin_support_decide', request_id=r.id) }}" enctype="multipart/form-data" style="margin-top:8px;">
         <input type="hidden" name="next" value="{{ next_url }}">
         <div class="field"><textarea name="resolution_text" rows="4" style="width:100%;">{{ r.ai_suggested_resolution }}</textarea></div>
         <div class="field" style="display:inline-block; margin-right:10px;">
@@ -121,6 +121,10 @@
         <div class="field" style="display:inline-block;">
           <label>Internal note (optional, not sent to requester)</label>
           <input type="text" name="decision_note" placeholder="Optional">
+        </div>
+        <div class="field" style="display:inline-block;">
+          <label>Attach a file <span class="hint">(optional, up to 10MB -- sent with Approve/Save edits only)</span></label>
+          <input type="file" name="attachment">
         </div>
         <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
           <button class="btn btn-primary btn-sm" type="submit" name="action" value="approve">Approve as drafted</button>

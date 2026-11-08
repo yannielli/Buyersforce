@@ -129,8 +129,12 @@
       {% if is_claimed %}
       <details style="margin-bottom:10px;">
         <summary class="btn btn-secondary btn-block" style="list-style:none; cursor:pointer;">✉️ Message vendor</summary>
-        <form method="post" action="{{ url_for('buyer_message_vendor', vendor_id=vendor.id) }}" style="margin-top:10px;">
-          <textarea name="body" placeholder="Ask a question — the vendor can only reply once you send the first message." required></textarea>
+        <form method="post" action="{{ url_for('buyer_message_vendor', vendor_id=vendor.id) }}" enctype="multipart/form-data" style="margin-top:10px;">
+          <textarea name="body" placeholder="Ask a question — the vendor can only reply once you send the first message."></textarea>
+          <div class="field" style="margin-top:8px;">
+            <label>Attach a file <span class="hint">(optional, up to 10MB)</span></label>
+            <input type="file" name="attachment">
+          </div>
           <button class="btn btn-primary btn-block" type="submit" style="margin-top:8px;">Send</button>
         </form>
       </details>

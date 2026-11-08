@@ -3506,11 +3506,12 @@ def admin_support_decide(request_id):
         if new_status not in ("open", "in_progress", "resolved"):
             new_status = req["ai_suggested_status"] or req["status"]
 
-        dbm.execute(
-            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-            (req["thread_id"], g.user["id"], resolution_text),
+        error = _insert_thread_message(
+            req["thread_id"], g.user["id"], resolution_text, request.files.get("attachment")
         )
-        notify_new_message(req["thread_id"], g.user["id"], resolution_text)
+        if error:
+            flash(error, "error")
+            return redirect(request.form.get("next") or url_for("admin_support_queue"))
         dbm.execute(
             "UPDATE support_requests SET decision=?, decision_note=?, decided_at=?, "
             "decided_by=?, status=? WHERE id=?",
@@ -3875,11 +3876,12 @@ def admin_vendor_request_decide(request_id):
             )
             if denial_note:
                 note += f"\n\n{denial_note}"
-            dbm.execute(
-                "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-                (req["thread_id"], g.user["id"], note),
+            error = _insert_thread_message(
+                req["thread_id"], g.user["id"], note, request.files.get("attachment")
             )
-            notify_new_message(req["thread_id"], g.user["id"], note)
+            if error:
+                flash(error, "error")
+                return redirect(url_for("admin_access_control"))
         elif req["kind"] == "seller_signup" and req["contact_email"]:
             note = (
                 f"Sorry, we received your request to add {req['company_name']} to BuyersForce, "
@@ -3939,11 +3941,12 @@ def admin_vendor_request_decide(request_id):
 
     if req["kind"] in ("buyer_referral", "seller_referral") and req["thread_id"]:
         approve_note = f"Congratulations! We took your advice and added {company_name} to BuyersForce."
-        dbm.execute(
-            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-            (req["thread_id"], g.user["id"], approve_note),
+        error = _insert_thread_message(
+            req["thread_id"], g.user["id"], approve_note, request.files.get("attachment")
         )
-        notify_new_message(req["thread_id"], g.user["id"], approve_note)
+        if error:
+            flash(error, "error")
+            return redirect(url_for("admin_access_control"))
     elif req["kind"] == "seller_signup" and contact_email:
         invite_id, token = _create_invite(contact_email, "seller", company_name, contact_name, g.user["id"])
         emailer.send_email(
@@ -5156,14 +5159,14 @@ def buyer_message_vendor(vendor_id):
         return redirect(url_for("buyer_vendor", vendor_id=vendor_id))
     thread = get_or_create_vendor_thread(g.user["id"], vendor_id)
     body = request.form.get("body", "").strip()
-    if body:
-        dbm.execute(
-            "INSERT INTO messages (thread_id, sender_user_id, body) VALUES (?, ?, ?)",
-            (thread["id"], g.user["id"], body),
-        )
-        notify_new_message(thread["id"], g.user["id"], body)
-        vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
-        log_activity(g.user["id"], f"messaged {vendor['company_name']}")
+    file_storage = request.files.get("attachment")
+    if body or (file_storage and file_storage.filename):
+        error = _insert_thread_message(thread["id"], g.user["id"], body, file_storage)
+        if error:
+            flash(error, "error")
+        else:
+            vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (vendor_id,), one=True)
+            log_activity(g.user["id"], f"messaged {vendor['company_name']}")
     return redirect(url_for("buyer_thread", thread_id=thread["id"]))
 
 
