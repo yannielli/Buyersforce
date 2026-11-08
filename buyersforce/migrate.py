@@ -102,6 +102,7 @@ def run_migrations():
             _add_support_requests_admin_completed_status_2026_11_07(cur)
             _backfill_engineering_decisions_2026_11_07(cur)
             _add_users_legal_acceptance_columns_2026_11_08(cur)
+            _add_prelaunch_items_2026_11_08(cur)
     finally:
         con.close()
 
@@ -2301,6 +2302,57 @@ def _backfill_engineering_decisions_2026_11_07(cur):
             (status, note, admin_id, reference_number),
         )
 
+    cur.execute(
+        "INSERT INTO _data_patches (name, applied_at) VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
+        (patch_name,),
+    )
+
+
+_PRELAUNCH_CHECKLIST_SEED_2026_11_08 = [
+    # (sort_order, label, detail) -- two items Kj flagged while this
+    # session was wrapping up the EULA/Privacy Policy work. Both filed
+    # under the same bucket he described in chat ("Needs Coding --
+    # Claude's work"); there's no category COLUMN for that yet (no admin
+    # page reads this table at all right now -- see
+    # _add_prelaunch_checklist_table_2026_11_07 -- so a category field
+    # would have nothing to display it; this just says so in the label
+    # text instead, cheap to restructure later once that page exists).
+    (40, "Needs Coding: Free-tier messaging at signup",
+     "Signup/onboarding needs to say plainly that BuyersForce is free "
+     "right now (a 'Free' or 'Core' tier, naming TBD) -- nothing on the "
+     "signup flow currently mentions cost at all. Needs Kj's copy "
+     "decisions (what to call the free tier, where it shows) before "
+     "this gets coded."),
+    (50, "Needs Coding: Design paid pricing tiers",
+     "Kj: 'a ways off' -- revisit once the free-tier messaging above "
+     "is live and BuyersForce is further along. Work with Claude to "
+     "design what paid tiers would look like and what functionality "
+     "would be gated behind them. Reference only (not BuyersForce's "
+     "actual plan names or prices -- a friend's sample for a different "
+     "product, Ergentor.ai, shared in chat 2026-11-08, as a shape to "
+     "react to): AI Lite $5/mo, AI Pro $15/mo, Business $25/mo, POC "
+     "Planner (unlimited) $5/mo, POC Planner + AI $15/mo -- framed as "
+     "'Start free today -- you can move to a paid plan from inside the "
+     "app once billing opens.'"),
+]
+
+
+def _add_prelaunch_items_2026_11_08(cur):
+    """Two more items on Kj's running Pre-Launch Checklist -- see
+    _add_prelaunch_checklist_table_2026_11_07 for the table itself.
+    Same one-shot _data_patches guard as that seed, under its own patch
+    name, so this never re-inserts if Kj has since edited or removed
+    either row (once there's a page to do that from).
+    """
+    patch_name = "add_prelaunch_items_2026_11_08"
+    cur.execute("SELECT 1 FROM _data_patches WHERE name = %s", (patch_name,))
+    if cur.fetchone():
+        return
+    for sort_order, label, detail in _PRELAUNCH_CHECKLIST_SEED_2026_11_08:
+        cur.execute(
+            "INSERT INTO prelaunch_checklist_items (label, detail, sort_order) VALUES (%s, %s, %s)",
+            (label, detail, sort_order),
+        )
     cur.execute(
         "INSERT INTO _data_patches (name, applied_at) VALUES (%s, to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))",
         (patch_name,),

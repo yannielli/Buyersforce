@@ -856,3 +856,23 @@ Known rough edges worth remembering, not yet fixed:
     only (Recommended for now)"): no retroactive consent gate for
     already-active users. `legal_accepted_at`/`legal_version` stay NULL
     on every pre-existing account, on purpose.
+
+
+- **Two more Pre-Launch Checklist items** (2026-11-08, same day --
+  "Please add a couple of things to the BF Pre-Launch Checklist for
+  me: Under Needs Coding (Claude's work) -"). Inserted directly via a
+  one-shot migrate.py data patch (`_add_prelaunch_items_2026_11_08`),
+  the same mechanism the original three items used -- there's still no
+  admin page reading `prelaunch_checklist_items` at all (despite
+  `_add_prelaunch_checklist_table_2026_11_07`'s docstring assuming one
+  would exist by now), so this is backend-only for now; say if that
+  page should finally get built.
+  - *Free-tier messaging at signup*: nothing in the signup flow
+    currently says BuyersForce is free. Needs Kj's naming call (he
+    floated "Free" or "Core") before it's coded.
+  - *Design paid pricing tiers*: explicitly "a ways off" per Kj --
+    filed as a reminder, not a request to build anything now. He
+    shared a friend's Ergentor.ai pricing-tier screenshot as a sample
+    shape to react to later (AI Lite/Pro, Business, POC Planner tiers)
+    -- noted in the checklist detail as reference only, not anything
+    BuyersForce is adopting.
