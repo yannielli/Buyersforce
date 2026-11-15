@@ -1,10 +1,20 @@
 {# Shared Active/Archived toggle for a Messages page. Expects `view`
    ('active' or 'archived') in context -- every *_messages() route sets
    it. Threads themselves just list newest-message-first, like a chat
-   app; this is the one place "inbox vs archived" shows up at all. #}
+   app; this is the one place "inbox vs archived" shows up at all.
+
+   list_url (optional): where the two tabs link to. Defaults to
+   request.path, which is right on the Messages LIST page itself (this
+   toggle previously only appeared there) but wrong on an open-thread
+   page, which hardcodes view="active" and has its own different path
+   -- the 2026-11-15 "sidebar shouldn't shift" fix shows this toggle on
+   BOTH pages now (so the sidebar header is the exact same height
+   either way), so an open-thread page passes its own messages-list
+   route explicitly. #}
+{% set base = list_url or request.path %}
 <div class="folder-tabs">
-  <a href="{{ request.path }}" class="{{ 'active' if view == 'active' }}">All conversations</a>
-  <a href="{{ request.path }}?view=archived" class="{{ 'active' if view == 'archived' }}">Archived</a>
+  <a href="{{ base }}" class="{{ 'active' if view == 'active' }}">All conversations</a>
+  <a href="{{ base }}?view=archived" class="{{ 'active' if view == 'archived' }}">Archived</a>
 </div>
 {% if view == 'archived' %}
 <p class="hint" style="margin-top:-12px; margin-bottom:18px;">Archived conversations stay here for 30 days, then they're gone for good. Open one and restore it to bring it back.</p>

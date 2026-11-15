@@ -391,6 +391,15 @@ CREATE TABLE threads (
     external_email TEXT,
     pending_email_sent_at TEXT,
     subject TEXT NOT NULL DEFAULT '',
+    -- An optional nickname for an External (vendor/direct) thread --
+    -- always shown AFTER the vendor/person's real name, never in place
+    -- of it. A teammate (Internal) thread doesn't use this column at
+    -- all; its name IS `subject` above, directly. Both are settable
+    -- any time via app.py's rename_thread, not just at creation.
+    -- (2026-11-15 follow-up -- see migrate.py's
+    -- _add_threads_custom_name_column_2026_11_15b for the equivalent
+    -- migration on a pre-existing database.)
+    custom_name TEXT,
     created_by INTEGER NOT NULL REFERENCES users(id),
     created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
 );

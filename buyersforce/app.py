@@ -2779,18 +2779,38 @@ def thread_with_user(user, other):
     return get_or_create_direct_thread(user["id"], other["id"])
 
 
+def _extra_participants(thread_id, exclude_user_id=None):
+    """Everyone added to this thread later via 'Add people' --
+    thread_participants rows -- regardless of type. thread_display_info
+    folds these into vendor/direct (on top of each type's own natural
+    one or two people) the same way it already builds 'teammate'
+    threads entirely from this table. (2026-11-15 follow-up.)"""
+    rows = dbm.query(
+        "SELECT u.* FROM thread_participants tp JOIN users u ON u.id = tp.user_id "
+        "WHERE tp.thread_id=? ORDER BY u.name", (thread_id,),
+    )
+    if exclude_user_id is None:
+        return rows
+    return [r for r in rows if r["id"] != exclude_user_id]
+
+
 def thread_display_info(thread, viewer):
     """Describes who/what a thread is with, regardless of its type, so
     buyer/thread.html and seller/thread.html can render one consistent
     header instead of special-casing every thread shape. For a 'vendor'
     thread the "other side" depends on which of the two is looking: a
-    seller sees the buyer they're talking to, a buyer sees the vendor."""
+    seller sees the buyer they're talking to, a buyer sees the vendor.
+    extra_participants (anyone added later via 'Add people', beyond a
+    vendor/direct thread's own natural one or two people) is always
+    present on vendor/direct, even as an empty list, so callers never
+    have to special-case its absence."""
     if thread["type"] == "vendor":
+        extra = _extra_participants(thread["id"], exclude_user_id=viewer["id"])
         if viewer["role"] == "seller":
             buyer = dbm.query("SELECT * FROM users WHERE id=?", (thread["buyer_user_id"],), one=True)
-            return {"kind": "vendor", "buyer": buyer}
+            return {"kind": "vendor", "buyer": buyer, "extra_participants": extra}
         vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (thread["vendor_id"],), one=True)
-        return {"kind": "vendor", "vendor": vendor}
+        return {"kind": "vendor", "vendor": vendor, "extra_participants": extra}
     if thread["type"] == "teammate":
         participants = dbm.query(
             "SELECT u.* FROM thread_participants tp JOIN users u ON u.id = tp.user_id "
@@ -2799,12 +2819,25 @@ def thread_display_info(thread, viewer):
         return {"kind": "teammate", "participants": participants}
     if thread["type"] == "direct":
         if thread["participant_b_id"]:
-            other_id = (
-                thread["participant_b_id"] if thread["participant_a_id"] == viewer["id"]
-                else thread["participant_a_id"]
-            )
-            other = dbm.query("SELECT * FROM users WHERE id=?", (other_id,), one=True)
-            return {"kind": "direct", "other_user": other}
+            # Normally just the other one of the original pair; anyone
+            # added later via 'Add people' shows up too (after the
+            # original other person), so a direct 1:1 can grow into a
+            # small group without becoming a different thread type.
+            ids = [i for i in (thread["participant_a_id"], thread["participant_b_id"]) if i]
+            for r in dbm.query("SELECT user_id FROM thread_participants WHERE thread_id=?", (thread["id"],)):
+                if r["user_id"] not in ids:
+                    ids.append(r["user_id"])
+            other_ids = [i for i in ids if i != viewer["id"]]
+            rows = dbm.query(
+                f"SELECT * FROM users WHERE id IN ({','.join('?' for _ in other_ids)})", other_ids
+            ) if other_ids else []
+            by_id = {r["id"]: r for r in rows}
+            others = [by_id[i] for i in other_ids if i in by_id]
+            return {
+                "kind": "direct",
+                "other_user": others[0] if others else None,
+                "extra_participants": others[1:],
+            }
         return {
             "kind": "pending_email",
             "external_name": thread["external_name"],
@@ -2812,6 +2845,75 @@ def thread_display_info(thread, viewer):
             "email_sent": bool(thread["pending_email_sent_at"]),
         }
     return {"kind": "unknown"}
+
+
+def _people_at_company(company, role, exclude_id=None):
+    """Everyone with an account at a given company in a given role --
+    the 'other side' pool for Add People on an External thread (the
+    vendor's other reps, or the other company's other buyers/sellers),
+    the same company-name match company_teammates/seller_company_vendor
+    already use elsewhere."""
+    company = (company or "").strip()
+    if not company or not role:
+        return []
+    rows = dbm.query(
+        "SELECT id, name, company FROM users WHERE LOWER(TRIM(company))=LOWER(TRIM(?)) AND role=? ORDER BY name",
+        (company, role),
+    )
+    if exclude_id is None:
+        return rows
+    return [r for r in rows if r["id"] != exclude_id]
+
+
+def _addable_people_for(info, viewer):
+    """Who 'Add people' can offer to add to this thread right now --
+    always viewer's own company teammates (not already on it) plus,
+    for a vendor/direct thread, whoever's on 'the other side' of this
+    specific conversation (the vendor's other reps, or the other
+    person's teammates) -- excluding everyone already on the thread
+    either way. Returns {'team': [...], 'other': [...], 'other_label':
+    str|None}; nobody left to add (or no 'add people' concept at all,
+    e.g. a not-yet-joined pending invite) comes back with empty lists
+    and a None label."""
+    kind = info.get("kind")
+    if kind == "teammate":
+        current_ids = {p["id"] for p in info.get("participants") or []}
+        team = [p for p in company_teammates(viewer) if p["id"] not in current_ids]
+        return {"team": team, "other": [], "other_label": None}
+    if kind == "vendor":
+        current_ids = {p["id"] for p in info.get("extra_participants") or []}
+        current_ids.add(viewer["id"])
+        if viewer["role"] == "seller":
+            buyer = info.get("buyer") or {}
+            if buyer.get("id"):
+                current_ids.add(buyer["id"])
+            other = _people_at_company(buyer.get("company"), "buyer", exclude_id=buyer.get("id"))
+            other_label = buyer.get("company") or "the buyer's team"
+        else:
+            vendor = info.get("vendor") or {}
+            if vendor.get("seller_user_id"):
+                current_ids.add(vendor["seller_user_id"])
+            other = _people_at_company(vendor.get("company_name"), "seller")
+            other_label = vendor.get("company_name") or "the vendor"
+        team = [p for p in company_teammates(viewer) if p["id"] not in current_ids]
+        other = [p for p in other if p["id"] not in current_ids]
+        return {"team": team, "other": other, "other_label": other_label if other else None}
+    if kind == "direct":
+        other_user = info.get("other_user")
+        if not other_user:
+            return {"team": [], "other": [], "other_label": None}
+        current_ids = {viewer["id"], other_user["id"]}
+        current_ids |= {p["id"] for p in info.get("extra_participants") or []}
+        team = [p for p in company_teammates(viewer) if p["id"] not in current_ids]
+        other, other_label = [], None
+        if other_user.get("company") and other_user.get("role"):
+            other = [
+                p for p in _people_at_company(other_user["company"], other_user["role"], exclude_id=other_user["id"])
+                if p["id"] not in current_ids
+            ]
+            other_label = other_user["company"] if other else None
+        return {"team": team, "other": other, "other_label": other_label}
+    return {"team": [], "other": [], "other_label": None}
 
 
 def _shape_vendor_row(t, viewer):
@@ -2850,18 +2952,21 @@ def _shape_direct_row(t):
             **t, "ext_kind": "pending_email", "ext_title": title,
             "ext_subtitle": "Not on BuyersForce yet",
             "ext_logo_url": None, "ext_initials": "@", "ext_accent": "var(--brand-mcm-mustard)",
+            "ext_custom_name": t.get("custom_name") or None,
         }
     other = t.get("other_user") or {}
     name = other.get("name") or "Someone"
+    extra = t.get("extra_participants") or []
+    title = f"{name} +{len(extra)}" if extra else name
     sub = None
     if other.get("company"):
         sub = f"{(other.get('role') or '').capitalize()} · {other['company']}"
     elif other.get("role"):
         sub = other["role"].capitalize()
     return {
-        **t, "ext_kind": "direct", "ext_title": name, "ext_subtitle": sub,
+        **t, "ext_kind": "direct", "ext_title": title, "ext_subtitle": sub,
         "ext_logo_url": other.get("photo_data_url"), "ext_initials": name[0].upper(),
-        "ext_accent": "var(--brand)",
+        "ext_accent": "var(--brand)", "ext_custom_name": t.get("custom_name") or None,
     }
 
 
@@ -2892,55 +2997,100 @@ def _thread_header_view(thread, info, viewer):
     thread_display_info's return value, which already has the right
     "other side" for this viewer. block_user_id, when set, is who the
     "Block this vendor" button (shown by the shared detail macro)
-    targets; None means don't show that button at all."""
+    targets; None means don't show that button at all.
+
+    Also carries the two generic, kind-aware actions every open thread
+    (other than a not-yet-joined pending invite) offers: renaming it
+    (can_rename / rename_label / rename_value -- a teammate thread's
+    own 'subject', or an External thread's optional nickname, shown
+    after the vendor/person's real name, never instead of it) and
+    adding more people to it (addable_team / addable_other /
+    addable_other_label -- see _addable_people_for). 2026-11-15
+    follow-up."""
     kind = info.get("kind")
+    extra = info.get("extra_participants") or []
     if kind == "vendor":
         if viewer["role"] == "seller":
             buyer = info["buyer"]
             sub = " \u00b7 ".join(p for p in [buyer.get("title"), buyer.get("company")] if p)
-            return {
+            base = {
                 "kind": "vendor", "title": buyer["name"], "subtitle": sub or None,
                 "logo_url": buyer.get("photo_data_url"), "initials": buyer["name"][0].upper(),
                 "accent": "var(--brand)", "block_user_id": None,
             }
-        vendor = info["vendor"]
-        return {
-            "kind": "vendor", "title": vendor["company_name"], "subtitle": vendor.get("category"),
-            "logo_url": vendor_display_logo_url(vendor), "initials": vendor["initials"],
-            "accent": vendor["accent"], "block_user_id": vendor.get("seller_user_id"),
-        }
-    if kind == "direct":
+        else:
+            vendor = info["vendor"]
+            base = {
+                "kind": "vendor", "title": vendor["company_name"], "subtitle": vendor.get("category"),
+                "logo_url": vendor_display_logo_url(vendor), "initials": vendor["initials"],
+                "accent": vendor["accent"], "block_user_id": vendor.get("seller_user_id"),
+            }
+        base["participants"] = extra or None
+    elif kind == "direct":
         other = info["other_user"]
         sub = " \u00b7 ".join(p for p in [(other.get("role") or "").capitalize(), other.get("company")] if p)
-        return {
+        base = {
             "kind": "direct", "title": other["name"], "subtitle": sub or None,
             "logo_url": other.get("photo_data_url"), "initials": other["name"][0].upper(),
             "accent": "var(--brand)",
             "block_user_id": other["id"] if other.get("role") == "seller" else None,
+            "participants": extra or None,
         }
-    if kind == "pending_email":
+    elif kind == "pending_email":
         title = info.get("external_name") or info.get("external_email")
-        return {
+        base = {
             "kind": "pending_email", "title": title,
             "subtitle": info.get("external_email") if info.get("external_name") else None,
             "logo_url": None, "initials": "@", "accent": "var(--brand-mcm-mustard)",
-            "block_user_id": None,
+            "block_user_id": None, "participants": None,
         }
-    if kind == "teammate":
+    elif kind == "teammate":
         participants = info.get("participants") or []
         others = [p for p in participants if p["id"] != viewer["id"]]
         names = [p["name"] for p in others]
         seed = (names[0] if names else viewer["name"]) or "T"
-        return {
+        base = {
             "kind": "teammate", "title": thread.get("subject") or (", ".join(names) or "Just you"),
             "subtitle": ", ".join(names) if names else "Just you",
             "logo_url": None, "initials": seed[0].upper(), "accent": "var(--brand)",
             "block_user_id": None, "participants": participants,
         }
-    return {
-        "kind": "unknown", "title": thread.get("subject") or "Conversation", "subtitle": None,
-        "logo_url": None, "initials": "?", "accent": "var(--brand)", "block_user_id": None,
-    }
+    else:
+        base = {
+            "kind": "unknown", "title": thread.get("subject") or "Conversation", "subtitle": None,
+            "logo_url": None, "initials": "?", "accent": "var(--brand)", "block_user_id": None,
+            "participants": None,
+        }
+
+    if kind == "teammate":
+        base["custom_name"] = None
+        base["can_rename"] = True
+        base["rename_label"] = "Thread name"
+        base["rename_value"] = thread.get("subject") or ""
+    elif kind in ("vendor", "direct", "pending_email"):
+        base["custom_name"] = thread.get("custom_name") or None
+        base["can_rename"] = True
+        base["rename_label"] = "Nickname for this conversation"
+        base["rename_value"] = thread.get("custom_name") or ""
+    else:
+        base["custom_name"] = None
+        base["can_rename"] = False
+        base["rename_label"] = None
+        base["rename_value"] = ""
+
+    if kind in ("teammate", "vendor", "direct"):
+        addable = _addable_people_for(info, viewer)
+        base["addable_team"] = addable["team"]
+        base["addable_other"] = addable["other"]
+        base["addable_other_label"] = addable["other_label"]
+        base["can_add_people"] = True
+    else:
+        base["addable_team"] = []
+        base["addable_other"] = []
+        base["addable_other_label"] = None
+        base["can_add_people"] = False
+
+    return base
 
 
 def _sort_by_last_at(rows):
@@ -2975,18 +3125,20 @@ def visible_thread_ids(user):
         ids += [r["id"] for r in dbm.query(
             "SELECT id FROM threads WHERE type='vendor' AND buyer_user_id=?", (user["id"],)
         )]
-    # 'teammate' (Internal) visibility is now by explicit participant row,
+    # 'teammate' (Internal) visibility is by explicit participant row,
     # not company membership -- see thread_participants / the 2026-11-15
-    # privacy fix. Same query shape for buyer/seller/admin alike.
+    # privacy fix. The same table now also covers anyone added later to
+    # a vendor/direct thread via "Add people" (2026-11-15 follow-up), on
+    # top of each type's own natural relationship above/below.
     ids += [r["id"] for r in dbm.query(
         "SELECT t.id FROM threads t JOIN thread_participants tp ON tp.thread_id=t.id "
-        "WHERE t.type='teammate' AND tp.user_id=?", (user["id"],)
+        "WHERE t.type IN ('teammate', 'vendor', 'direct') AND tp.user_id=?", (user["id"],)
     )]
     ids += [r["id"] for r in dbm.query(
         "SELECT id FROM threads WHERE type='direct' AND (participant_a_id=? OR participant_b_id=?)",
         (user["id"], user["id"]),
     )]
-    return ids
+    return list(set(ids))
 
 
 def unread_count_for(user):
@@ -3291,17 +3443,23 @@ def toggle_thread_save(thread_id):
 @app.route("/app/messages/<int:thread_id>/add-participants", methods=("POST",))
 @login_required
 def add_thread_participants(thread_id):
-    """Add more people to an existing Internal (teammate) thread --
-    group-DM-style, same restriction as starting one: only actual
-    teammates (same company+role as the person doing the adding) can be
-    added, never an arbitrary user id someone tampered into the form.
-    External (vendor/direct) threads don't support this yet."""
+    """Add more people to an existing thread -- group-DM-style for an
+    Internal (teammate) thread, same idea now generalized to External
+    (vendor/direct) threads too (2026-11-15 follow-up): loop in another
+    teammate, or someone from 'the other side' of that specific
+    conversation (the vendor's other reps, or the other person's
+    teammates). _addable_people_for is the single source of truth for
+    who's actually offered -- never an arbitrary user id someone
+    tampered into the form. A not-yet-joined pending-email thread has
+    nobody real to add yet, so it's excluded."""
     thread = _load_thread_for_user(thread_id, g.user)
-    if thread["type"] != "teammate":
-        flash("You can only add people to an internal team thread.", "error")
+    if thread["type"] not in ("teammate", "vendor", "direct"):
+        flash("You can't add people to this conversation.", "error")
         return redirect(_safe_redirect_target(request.form.get("next"), url_for(_messages_route_for(g.user))))
+    info = thread_display_info(thread, g.user)
+    addable = _addable_people_for(info, g.user)
+    valid_ids = {p["id"] for p in addable["team"] + addable["other"]}
     new_ids = {int(v) for v in request.form.getlist("participant_ids") if v.isdigit()}
-    valid_ids = {t["id"] for t in company_teammates(g.user)}
     new_ids &= valid_ids
     added = 0
     for pid in new_ids:
@@ -3313,6 +3471,26 @@ def add_thread_participants(thread_id):
         added += 1
     flash(f"Added {added} {'person' if added == 1 else 'people'} to the thread." if added
           else "Nobody was added.", "success" if added else "error")
+    return redirect(_safe_redirect_target(request.form.get("next"), url_for(_thread_route_for(g.user), thread_id=thread_id)))
+
+
+@app.route("/app/messages/<int:thread_id>/rename", methods=("POST",))
+@login_required
+def rename_thread(thread_id):
+    """Name (or rename, or clear the name of) any thread, any time --
+    optional either way (Kj's 2026-11-15 follow-up ask). A teammate
+    (Internal) thread's name IS its 'subject' -- already shown as the
+    thread's title with no vendor/person name ahead of it, so renaming
+    just updates that column directly. An External (vendor/direct)
+    thread instead gets an optional nickname in the new 'custom_name'
+    column, always shown AFTER the vendor/person's real name, never in
+    place of it -- that real name isn't something the user can rename."""
+    thread = _load_thread_for_user(thread_id, g.user)
+    name = (request.form.get("name") or "").strip()[:80]
+    if thread["type"] == "teammate":
+        dbm.execute("UPDATE threads SET subject=? WHERE id=?", (name, thread_id))
+    else:
+        dbm.execute("UPDATE threads SET custom_name=? WHERE id=?", (name or None, thread_id))
     return redirect(_safe_redirect_target(request.form.get("next"), url_for(_thread_route_for(g.user), thread_id=thread_id)))
 
 
@@ -3467,14 +3645,6 @@ def messages_poll(thread_id):
             "share": share,
         })
     return jsonify({"messages": messages})
-
-
-def _thread_route_for(user):
-    if user["role"] == "buyer":
-        return "buyer_thread"
-    if user["role"] == "seller":
-        return "seller_thread"
-    return "admin_thread"
 
 
 # How long a recipient's "you have a new message" alert email stays fresh
@@ -5693,8 +5863,10 @@ def _buyer_messages_sections(user, view):
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
         f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
         "FROM threads t JOIN vendors v ON v.id = t.vendor_id " + thread_reads_join_sql() + " "
-        "WHERE t.type='vendor' AND t.buyer_user_id=? ORDER BY last_at DESC",
-        (user["id"], user["id"], user["id"]),
+        "WHERE t.type='vendor' AND (t.buyer_user_id=? OR EXISTS "
+        "(SELECT 1 FROM thread_participants tpx WHERE tpx.thread_id=t.id AND tpx.user_id=?)) "
+        "ORDER BY last_at DESC",
+        (user["id"], user["id"], user["id"], user["id"]),
     )
     vendor_active, vendor_archived = split_by_archived(vendor_rows)
     team_rows = dbm.query(
@@ -5753,9 +5925,10 @@ def _direct_threads_for(user):
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
         f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
         "FROM threads t " + thread_reads_join_sql() + " "
-        "WHERE t.type='direct' AND (t.participant_a_id=? OR t.participant_b_id=?) "
+        "WHERE t.type='direct' AND (t.participant_a_id=? OR t.participant_b_id=? OR EXISTS "
+        "(SELECT 1 FROM thread_participants tpx WHERE tpx.thread_id=t.id AND tpx.user_id=?)) "
         "ORDER BY last_at DESC",
-        (user["id"], user["id"], user["id"], user["id"]),
+        (user["id"], user["id"], user["id"], user["id"], user["id"]),
     )
     direct_rows, support_rows = [], []
     for t in rows:
@@ -5799,7 +5972,10 @@ app.jinja_env.globals["company_teammates"] = company_teammates
 
 
 def _create_team_thread(user, thread_route):
-    subject = request.form.get("subject", "").strip() or "Team discussion"
+    # Optional now -- an unnamed thread just shows who's on it (see
+    # _shape_team_row's "subject or display_names" fallback) instead of
+    # forcing a generic placeholder title. (2026-11-15 follow-up.)
+    subject = request.form.get("subject", "").strip()
     body = request.form.get("body", "").strip()
     teammate_ids = {int(v) for v in request.form.getlist("participant_ids") if v.isdigit()}
     # Only actual teammates (same company+role) can be added -- never an
@@ -5827,20 +6003,37 @@ def buyer_new_team_thread():
     return _create_team_thread(g.user, "buyer_thread")
 
 
+def _is_extra_participant(thread_id, user_id):
+    """True if user_id was added to this thread later via 'Add people'
+    (thread_participants) -- on top of whatever access its type's own
+    natural relationship already grants (the buyer/seller on a vendor
+    thread, the two original people on a direct thread). Lets a vendor
+    conversation loop in another teammate or vendor rep, and a direct
+    1:1 grow into a small group, without changing how the common
+    2-person case behaves. (2026-11-15 follow-up.)"""
+    return bool(dbm.query(
+        "SELECT 1 FROM thread_participants WHERE thread_id=? AND user_id=?",
+        (thread_id, user_id), one=True,
+    ))
+
+
 def _load_thread_for_user(thread_id, user):
     thread = dbm.query("SELECT * FROM threads WHERE id=?", (thread_id,), one=True)
     if not thread:
         abort(404)
     if thread["type"] == "vendor":
-        if user["role"] == "buyer" and thread["buyer_user_id"] != user["id"]:
-            abort(403)
+        ok = _is_extra_participant(thread_id, user["id"])
+        if user["role"] == "buyer" and thread["buyer_user_id"] == user["id"]:
+            ok = True
         if user["role"] == "seller":
             vendor = dbm.query(
                 "SELECT * FROM vendors WHERE id=? AND seller_user_id=?",
                 (thread["vendor_id"], user["id"]), one=True
             )
-            if not vendor:
-                abort(403)
+            if vendor:
+                ok = True
+        if not ok:
+            abort(403)
     elif thread["type"] == "teammate":
         # Privacy fix, 2026-11-15: access is by explicit
         # thread_participants row now, not by matching the company name
@@ -5848,14 +6041,14 @@ def _load_thread_for_user(thread_id, user):
         # table_2026_11_15 in migrate.py. Anyone (buyer, seller, or
         # admin) who's actually been added to the thread can open it;
         # nobody else, even at the same company, can.
-        participant = dbm.query(
-            "SELECT 1 FROM thread_participants WHERE thread_id=? AND user_id=?",
-            (thread_id, user["id"]), one=True,
-        )
-        if not participant:
+        if not _is_extra_participant(thread_id, user["id"]):
             abort(403)
     elif thread["type"] == "direct":
-        if thread["participant_a_id"] != user["id"] and thread["participant_b_id"] != user["id"]:
+        if (
+            thread["participant_a_id"] != user["id"]
+            and thread["participant_b_id"] != user["id"]
+            and not _is_extra_participant(thread_id, user["id"])
+        ):
             abort(403)
     return thread
 
@@ -9173,8 +9366,10 @@ def _seller_messages_sections(user, view):
             "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
             f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
             "FROM threads t JOIN users u ON u.id = t.buyer_user_id " + thread_reads_join_sql() + " "
-            "WHERE t.type='vendor' AND t.vendor_id=? ORDER BY last_at DESC",
-            (user["id"], user["id"], vendor["id"]),
+            "WHERE t.type='vendor' AND (t.vendor_id=? OR EXISTS "
+            "(SELECT 1 FROM thread_participants tpx WHERE tpx.thread_id=t.id AND tpx.user_id=?)) "
+            "ORDER BY last_at DESC",
+            (user["id"], user["id"], vendor["id"], user["id"]),
         )
     vendor_active, vendor_archived = split_by_archived(vendor_rows)
     team_rows = dbm.query(

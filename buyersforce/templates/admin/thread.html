@@ -2,9 +2,11 @@
 {% import "_messages_pane.html" as mp %}
 {% block title %}{{ header.title }}{% endblock %}
 {% block content %}
-<div style="margin-bottom:10px;"><a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">Dashboard</a></div>
+<div class="mp-page-topbar"><a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">&larr; Back to dashboard</a></div>
+{% set lede %}Same Internal/External layout buyers and sellers get. Support tickets and
+  vendor suggestions live on <a href="{{ url_for('admin_support_queue') }}">Support Queue</a> instead.{% endset %}
 <div class="mp-shell">
-  {{ mp.sidebar(internal_threads, external_threads, saved_internal, saved_external, thread_route, new_team_route, view, open_thread_id=open_thread_id, show_archive_toggle=false) }}
+  {{ mp.sidebar(internal_threads, external_threads, saved_internal, saved_external, thread_route, new_team_route, view, open_thread_id=open_thread_id, list_url=url_for('admin_messages'), lede=lede) }}
   {{ mp.thread_detail(thread, info, header, messages, support_requests, category_labels, is_deleted, is_saved, is_flagged, 'admin_messages', 'admin') }}
 </div>
 {% endblock %}

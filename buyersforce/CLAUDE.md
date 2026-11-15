@@ -1204,10 +1204,62 @@ Known rough edges worth remembering, not yet fixed:
     each ticket's latest reply and a "New reply" badge when there's one
     you haven't seen, which it didn't do before.
   - **Not in this pass (planned next)**: 5-6 selectable flag colors
-    (still a single flag for now), a free-text custom name on a vendor/
-    direct thread with the vendor's name always shown first, and "add
-    people" for vendor/direct threads (Internal already has it).
+    (still a single flag for now) -- everything else originally
+    deferred here (vendor/direct "add people", a custom thread name)
+    shipped in the same-day follow-up pass below.
   - The old per-section "select several conversations and bulk mark
     read/flag/save/archive" toolbar doesn't have a home in the new
     one-line-row design and was dropped; its route is still there
     un-wired if it's ever worth bringing back in some form.
+- **Messages redesign, Pass 1 follow-up (2026-11-15, same day): fixed
+  panes, "Add people" and renaming for every thread kind, a matching
+  "new External thread" entry, and left-justified messages.** Kj's
+  feedback after trying the Pass 1 redesign live.
+  - **The sidebar and the open-thread pane no longer shift.** Both are
+    now a genuinely fixed-height box (`.mp-shell`) that scrolls its own
+    contents (`.mp-scroll` on the left, `.msg-list` on the right -- it
+    was missing `min-height: 0`, so a long conversation could overflow
+    past the shell's own edge and get clipped instead of scrolling).
+    The visible jump when opening a thread was the Active/Archived
+    toggle (and, on admin, the page header) appearing on the list page
+    but not the thread page -- both pages now render the exact same
+    things, in the exact same order, above and inside the shell
+    (`_archive_toggle.html` takes an explicit `list_url` so it still
+    works correctly from a thread page, which has its own different
+    path and always shows `view=active`).
+  - **"Add people" works on every thread kind now, not just Internal**,
+    and is a labeled button ("Add people"), not just an unlabeled
+    person icon -- Kj's "how do I add people?" was a fair question.
+    On a vendor or direct (External) thread it offers two groups:
+    your own teammates, and whoever's on "the other side" of that
+    specific conversation (the vendor's other reps, or the other
+    person's teammates) -- company-name-matched the same way
+    `company_teammates`/`seller_company_vendor` already work elsewhere.
+    Access is still a real check, not just a list-page filter:
+    `thread_participants` now also gates vendor/direct threads (on top
+    of each type's own natural buyer/seller/participant check), so
+    someone added this way can actually open the thread and sees it in
+    their own list, not just whoever started it.
+  - **Any thread can be named, or renamed, at any time -- always
+    optional.** A small pencil/"Rename" control sits next to every open
+    thread's title. For an Internal thread this edits its existing
+    `subject` directly (now optional at creation too -- an unnamed one
+    just shows who's on it, instead of a forced "Team discussion"
+    placeholder). An External thread gets a new, separate
+    `custom_name` column instead: an optional nickname shown in
+    quotes *after* the vendor/person's real name, never in place of
+    it, in both the row and the open header.
+  - **"+ New external thread" sits in the External section header**,
+    mirroring "+ New internal thread" -- it hands off to the existing
+    "start a conversation" search page (picking a vendor, a person, or
+    an email), which was already there as the sidebar's generic
+    "+ Create message" button but wasn't visible per-section. Starting
+    an Internal thread no longer pushes the list down to make room for
+    the form either -- it's a small popover now, anchored to the
+    section header, the same pattern "Add people" already used.
+  - **Messages in the open thread are left-justified and use the full
+    width of the pane** instead of the chat-bubble left/right split
+    (Kj: "just have the messages stack left justified"). Scoped to
+    `.mp-detail .msg-bubble` specifically, so admin's separate ticket-
+    thread page (which shares the same base `.msg-list`/`.msg-bubble`
+    classes) keeps its own look unless that's asked for too.

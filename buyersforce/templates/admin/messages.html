@@ -2,17 +2,11 @@
 {% import "_messages_pane.html" as mp %}
 {% block title %}Messages{% endblock %}
 {% block content %}
-<div class="page-header">
-  <div>
-    <span class="eyebrow">Communications</span>
-    <h1>Messages</h1>
-    <p class="lede">Same Internal/External layout buyers and sellers get. Support tickets and
-      vendor suggestions live on <a href="{{ url_for('admin_support_queue') }}">Support Queue</a> instead.</p>
-  </div>
-  <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">&larr; Back to dashboard</a>
-</div>
+<div class="mp-page-topbar"><a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">&larr; Back to dashboard</a></div>
+{% set lede %}Same Internal/External layout buyers and sellers get. Support tickets and
+  vendor suggestions live on <a href="{{ url_for('admin_support_queue') }}">Support Queue</a> instead.{% endset %}
 <div class="mp-shell">
-  {{ mp.sidebar(internal_threads, external_threads, saved_internal, saved_external, thread_route, new_team_route, view) }}
+  {{ mp.sidebar(internal_threads, external_threads, saved_internal, saved_external, thread_route, new_team_route, view, lede=lede) }}
   {{ mp.detail_placeholder() }}
 </div>
 {% endblock %}

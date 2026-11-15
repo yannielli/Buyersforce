@@ -1,18 +1,35 @@
 {#
-  Shared Internal/External Messages shell (2026-11-15 redesign) -- one
-  single pane with two sections (Internal: thread_participants-gated
-  team threads; External: vendor + direct conversations), newest
-  activity first, used identically by buyer, seller, and admin's
-  Messages list page and open-thread page. Support tickets/vendor
-  suggestions live on their own Support page now, not here.
+  Shared Internal/External Messages shell (2026-11-15 redesign, with a
+  2026-11-15 follow-up pass) -- one single pane with two sections
+  (Internal: thread_participants-gated team threads; External: vendor
+  + direct conversations), newest activity first, used identically by
+  buyer, seller, and admin's Messages list page and open-thread page.
+  Support tickets/vendor suggestions live on their own Support page
+  now, not here.
 
   Callers pass internal_threads / external_threads / saved_internal /
   saved_external (already shaped by app.py's _shape_*_row /
   _external_threads_for helpers -- each row carries ext_title,
-  ext_subtitle, ext_logo_url, ext_initials, ext_accent, last_body,
-  last_at, is_unread, is_flagged, is_saved), plus thread_route (the
-  per-role single-thread endpoint name) and new_team_route (the
-  per-role "start an Internal thread" endpoint name).
+  ext_subtitle, ext_logo_url, ext_initials, ext_accent, ext_custom_name,
+  last_body, last_at, is_unread, is_flagged, is_saved), plus
+  thread_route (the per-role single-thread endpoint name) and
+  new_team_route (the per-role "start an Internal thread" endpoint
+  name).
+
+  Follow-up pass (same day): the sidebar and the open-thread detail
+  pane are now both a FIXED-height box that scrolls its own contents
+  (see .mp-shell/.mp-scroll/.mp-detail .msg-list in style.css) instead
+  of one shifting the page around when you open a thread -- which
+  meant making sure every page that renders this shell puts the exact
+  same things, in the exact same order, above and inside it (see
+  sidebar()'s list_url/lede params, and buyer/seller/admin's
+  messages.html + thread.html). "Add people" is no longer teammate-only
+  (header.addable_team/addable_other), any open thread but a
+  not-yet-joined pending invite can be renamed/nicknamed at any time
+  (header.can_rename), and starting a new thread -- either section --
+  no longer pushes the list down: Internal opens a small popover in
+  place, External hands off to the existing "start a conversation"
+  search page.
 #}
 
 {% macro row(t, thread_route, open_thread_id) %}
@@ -22,7 +39,7 @@
     {{ t.ext_initials }}
   </span>
   <span class="mp-main">
-    <span class="mp-title">{{ t.ext_title }}{% if t.ext_subtitle %}<span class="mp-subtitle"> &middot; {{ t.ext_subtitle }}</span>{% endif %}</span>
+    <span class="mp-title">{{ t.ext_title }}{% if t.ext_custom_name %} <span class="mp-nickname">&ldquo;{{ t.ext_custom_name }}&rdquo;</span>{% endif %}{% if t.ext_subtitle %}<span class="mp-subtitle"> &middot; {{ t.ext_subtitle }}</span>{% endif %}</span>
     <span class="mp-snippet">{{ t.last_body or "No messages yet" }}</span>
   </span>
   <span class="mp-meta">
@@ -31,14 +48,6 @@
     <span class="mp-time">{{ t.last_at|fmt_time if t.last_at }}</span>
   </span>
 </a>
-{% endmacro %}
-
-{% macro section(label, items, thread_route, open_thread_id, lock_hint=false) %}
-<div class="mp-section-head">
-  <span>{{ label }}</span>
-  {% if lock_hint %}<span class="mp-lock">&#128274; only people on the thread can see it</span>{% endif %}
-</div>
-{% for t in items %}{{ row(t, thread_route, open_thread_id) }}{% else %}<p class="mp-empty">Nothing here yet.</p>{% endfor %}
 {% endmacro %}
 
 {% macro saved_section(label, items, thread_route, open_thread_id) %}
@@ -52,40 +61,57 @@
 {% endif %}
 {% endmacro %}
 
-{% macro sidebar(internal_threads, external_threads, saved_internal, saved_external, thread_route, new_team_route, view, open_thread_id=none, show_archive_toggle=true) %}
+{% macro new_internal_thread_form(new_team_route) %}
+<details class="mp-popover-wrap">
+  <summary class="mp-add-link" title="Start a new internal thread">+ New internal thread</summary>
+  <div class="mp-popover mp-popover-wide">
+    <form method="post" action="{{ url_for(new_team_route) }}" enctype="multipart/form-data">
+      <div class="field"><label>Name this thread <span class="hint">(optional)</span></label><input type="text" name="subject" maxlength="80" placeholder="e.g. Runtime security shortlist"></div>
+      {% set mates = company_teammates(g.user) %}
+      {% if mates %}
+      <div class="field">
+        <label>Add people <span class="hint">(optional -- just you otherwise)</span></label>
+        <div class="mp-people-list">
+          {% for m in mates %}<label class="mp-people-opt"><input type="checkbox" name="participant_ids" value="{{ m.id }}"> {{ m.name }}</label>{% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <p class="hint">Nobody else at {{ g.user.company }} on BuyersForce yet -- this'll just be your own notes thread for now.</p>
+      {% endif %}
+      <div class="field"><label>Message</label><textarea name="body" placeholder="Kick off the discussion&hellip;"></textarea></div>
+      <button class="btn btn-primary btn-sm" type="submit" style="width:100%;">Post</button>
+    </form>
+  </div>
+</details>
+{% endmacro %}
+
+{% macro sidebar(internal_threads, external_threads, saved_internal, saved_external, thread_route, new_team_route, view, open_thread_id=none, list_url=none, lede=none) %}
 <div class="mp-sidebar">
   <div class="mp-sidebar-head">
     <h1>Messages {% if g.unread_count %}<span class="badge badge-brand">{{ g.unread_count }}</span>{% endif %}</h1>
     <a class="btn btn-primary btn-sm" href="{{ url_for('messages_new') }}">+ Create message</a>
   </div>
-  {% if show_archive_toggle %}
+  {% if lede %}<p class="hint mp-lede">{{ lede }}</p>{% endif %}
+  {# Always rendered (both the list page and an open-thread page) --
+     see the module docstring above: the two pages have to put the
+     exact same things in the exact same order above .mp-scroll, or
+     the sidebar's content starts at a different height on each and
+     visibly jumps when you click a conversation. #}
   <div class="mp-archive-toggle">{% include "_archive_toggle.html" %}</div>
-  {% endif %}
   <div class="mp-scroll">
-    {{ section('Internal', internal_threads, thread_route, open_thread_id, lock_hint=true) }}
+    <div class="mp-section-head">
+      <span>Internal</span>
+      <span class="mp-lock">&#128274; only people on the thread can see it</span>
+      <span class="mp-section-action">{{ new_internal_thread_form(new_team_route) }}</span>
+    </div>
+    {% for t in internal_threads %}{{ row(t, thread_route, open_thread_id) }}{% else %}<p class="mp-empty">Nothing here yet.</p>{% endfor %}
     {{ saved_section('Internal', saved_internal, thread_route, open_thread_id) }}
 
-    <details class="card mp-new-team">
-      <summary>+ New internal thread</summary>
-      <form method="post" action="{{ url_for(new_team_route) }}" enctype="multipart/form-data">
-        <div class="field"><label>Name this thread</label><input type="text" name="subject" placeholder="e.g. Runtime security shortlist" required></div>
-        {% set mates = company_teammates(g.user) %}
-        {% if mates %}
-        <div class="field">
-          <label>Add people <span class="hint">(optional -- just you otherwise)</span></label>
-          <div class="mp-people-list">
-            {% for m in mates %}<label class="mp-people-opt"><input type="checkbox" name="participant_ids" value="{{ m.id }}"> {{ m.name }}</label>{% endfor %}
-          </div>
-        </div>
-        {% else %}
-        <p class="hint">Nobody else at {{ g.user.company }} on BuyersForce yet -- this'll just be your own notes thread for now.</p>
-        {% endif %}
-        <div class="field"><label>Message</label><textarea name="body" placeholder="Kick off the discussion&hellip;"></textarea></div>
-        <button class="btn btn-primary btn-sm" type="submit">Post</button>
-      </form>
-    </details>
-
-    {{ section('External', external_threads, thread_route, open_thread_id) }}
+    <div class="mp-section-head">
+      <span>External</span>
+      <span class="mp-section-action"><a class="mp-add-link" href="{{ url_for('messages_new') }}">+ New external thread</a></span>
+    </div>
+    {% for t in external_threads %}{{ row(t, thread_route, open_thread_id) }}{% else %}<p class="mp-empty">Nothing here yet.</p>{% endfor %}
     {{ saved_section('External', saved_external, thread_route, open_thread_id) }}
   </div>
 </div>
@@ -98,6 +124,46 @@
 </div>
 {% endmacro %}
 
+{% macro add_people_popover(thread, header) %}
+<details class="mp-popover-wrap">
+  <summary class="mp-add-people-btn" title="Add people">&#128101; Add people</summary>
+  <div class="mp-popover">
+    {% if not header.addable_team and not header.addable_other %}
+    <p class="hint" style="margin:2px;">Nobody else to add right now.</p>
+    {% else %}
+    <form method="post" action="{{ url_for('add_thread_participants', thread_id=thread.id) }}">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      {% if header.addable_team %}
+      <div class="mp-people-group-label">Your team</div>
+      {% for m in header.addable_team %}<label class="mp-people-opt"><input type="checkbox" name="participant_ids" value="{{ m.id }}"> {{ m.name }}</label>{% endfor %}
+      {% endif %}
+      {% if header.addable_other %}
+      <div class="mp-people-group-label">From {{ header.addable_other_label }}</div>
+      {% for m in header.addable_other %}<label class="mp-people-opt"><input type="checkbox" name="participant_ids" value="{{ m.id }}"> {{ m.name }}</label>{% endfor %}
+      {% endif %}
+      <button class="btn btn-primary btn-sm" type="submit" style="margin-top:6px; width:100%;">Add selected</button>
+    </form>
+    {% endif %}
+  </div>
+</details>
+{% endmacro %}
+
+{% macro rename_popover(thread, header) %}
+<details class="mp-popover-wrap">
+  <summary class="icon-btn" title="Rename">&#9998;</summary>
+  <div class="mp-popover">
+    <form method="post" action="{{ url_for('rename_thread', thread_id=thread.id) }}">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <div class="field" style="margin-bottom:6px;">
+        <label>{{ header.rename_label }}</label>
+        <input type="text" name="name" value="{{ header.rename_value }}" maxlength="80" placeholder="Optional">
+      </div>
+      <button class="btn btn-primary btn-sm" type="submit" style="width:100%;">Save</button>
+    </form>
+  </div>
+</details>
+{% endmacro %}
+
 {% macro thread_detail(thread, info, header, messages, support_requests, category_labels, is_deleted, is_saved, is_flagged, messages_route, role) %}
 <div class="mp-detail">
   <div class="mp-detail-head">
@@ -108,36 +174,24 @@
     <div class="mp-detail-titles">
       <div class="mp-detail-name">
         {{ header.title }}
+        {% if header.custom_name %}<span class="mp-nickname">&ldquo;{{ header.custom_name }}&rdquo;</span>{% endif %}
         {% if header.kind == 'vendor' and role == 'seller' %}{% set badge = buyer_outreach_badge(info.buyer) %}{% if badge %}<span class="badge {{ badge.css_class }}">{{ badge.label }}</span>{% endif %}{% endif %}
         {% if header.kind == 'direct' and role == 'seller' and info.other_user.role == 'buyer' %}{% set badge = buyer_outreach_badge(info.other_user) %}{% if badge %}<span class="badge {{ badge.css_class }}">{{ badge.label }}</span>{% endif %}{% endif %}
       </div>
       {% if header.subtitle %}<div class="mp-detail-sub">{{ header.subtitle }}</div>{% endif %}
-      {% if header.kind == 'teammate' and header.participants %}
-      <div class="mp-participants">{% for p in header.participants %}<span class="mp-chip">{{ p.name }}</span>{% endfor %}</div>
+      {% if header.participants %}
+      <div class="mp-participants">
+        {% if header.kind != 'teammate' %}<span class="mp-participants-label">Also in this thread:</span>{% endif %}
+        {% for p in header.participants %}<span class="mp-chip">{{ p.name }}</span>{% endfor %}
+      </div>
       {% endif %}
       {% if header.kind == 'pending_email' %}
       <div class="mp-detail-sub">{{ "We emailed them your message" if info.email_sent else "Not delivered yet" }}</div>
       {% endif %}
     </div>
     <div class="mp-head-actions">
-      {% if header.kind == 'teammate' %}
-      <details class="mp-popover-wrap">
-        <summary class="icon-btn" title="Add people">&#128101;</summary>
-        <div class="mp-popover">
-          {% set existing_ids = header.participants|map(attribute='id')|list %}
-          {% set candidates = company_teammates(g.user)|rejectattr('id', 'in', existing_ids)|list %}
-          {% if candidates %}
-          <form method="post" action="{{ url_for('add_thread_participants', thread_id=thread.id) }}">
-            <input type="hidden" name="next" value="{{ request.path }}">
-            {% for m in candidates %}<label class="mp-people-opt"><input type="checkbox" name="participant_ids" value="{{ m.id }}"> {{ m.name }}</label>{% endfor %}
-            <button class="btn btn-primary btn-sm" type="submit" style="margin-top:6px; width:100%;">Add selected</button>
-          </form>
-          {% else %}
-          <p class="hint" style="margin:2px;">Everyone on your team is already on this thread.</p>
-          {% endif %}
-        </div>
-      </details>
-      {% endif %}
+      {% if header.can_add_people %}{{ add_people_popover(thread, header) }}{% endif %}
+      {% if header.can_rename %}{{ rename_popover(thread, header) }}{% endif %}
       {# Redirects to the list, not back to this same thread page --
          opening a thread always calls mark_thread_read(), so bouncing
          back here would immediately clear the manually_unread flag

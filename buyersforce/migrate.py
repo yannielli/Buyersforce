@@ -107,6 +107,7 @@ def run_migrations():
             _add_users_work_email_verification_columns_2026_11_08(cur)
             _add_users_country_column_2026_11_08(cur)
             _add_thread_participants_table_2026_11_15(cur)
+            _add_threads_custom_name_column_2026_11_15b(cur)
     finally:
         con.close()
 
@@ -2449,6 +2450,17 @@ def _add_thread_participants_table_2026_11_15(cur):
         "UPDATE threads SET subject = substring(subject FROM position('] ' IN subject) + 2) "
         "WHERE type='teammate' AND subject LIKE '[%] %'"
     )
+
+
+def _add_threads_custom_name_column_2026_11_15b(cur):
+    """Follow-up to the same day's Messages redesign (Kj's ask): an
+    optional nickname for an External (vendor/direct) thread, settable
+    any time, shown AFTER the vendor/person's real name -- never in
+    place of it. A teammate (Internal) thread doesn't need this column
+    at all; its name IS `subject`, directly (also now editable any
+    time via app.py's rename_thread, not just at creation -- no schema
+    change needed there, subject already existed)."""
+    cur.execute("ALTER TABLE threads ADD COLUMN IF NOT EXISTS custom_name TEXT")
 
 
 if __name__ == "__main__":

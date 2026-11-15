@@ -2,17 +2,11 @@
 {% import "_messages_pane.html" as mp %}
 {% block title %}Messages{% endblock %}
 {% block content %}
-<div class="page-header">
-  <div>
-    <span class="eyebrow">Communications</span>
-    <h1>Messages</h1>
-    <p class="lede">One inbox, two sections: Internal for your own team (only people on a
-      thread can see it), External for buyers and anyone else on BuyersForce. Support
-      tickets now live on their own <a href="{{ url_for('support_new') }}">Support</a> page.</p>
-  </div>
-</div>
+{% set lede %}One inbox, two sections: Internal for your own team (only people on a
+  thread can see it), External for buyers and anyone else on BuyersForce. Support
+  tickets now live on their own <a href="{{ url_for('support_new') }}">Support</a> page.{% endset %}
 <div class="mp-shell">
-  {{ mp.sidebar(internal_threads, external_threads, saved_internal, saved_external, thread_route, new_team_route, view) }}
+  {{ mp.sidebar(internal_threads, external_threads, saved_internal, saved_external, thread_route, new_team_route, view, lede=lede) }}
   {{ mp.detail_placeholder() }}
 </div>
 {% endblock %}
