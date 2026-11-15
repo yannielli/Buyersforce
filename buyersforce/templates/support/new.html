@@ -42,7 +42,7 @@
     {% if past_requests %}
     <div class="thread-list" style="max-height:520px; overflow-y:auto;">
       {% for r in past_requests %}
-      <a class="thread-row" href="{{ url_for('buyer_thread' if g.user.role == 'buyer' else ('seller_thread' if g.user.role == 'seller' else 'admin_thread'), thread_id=r.thread_id) }}">
+      <a class="thread-row{{ ' unread' if r.is_unread }}" href="{{ url_for('buyer_thread' if g.user.role == 'buyer' else ('seller_thread' if g.user.role == 'seller' else 'admin_thread'), thread_id=r.thread_id) }}">
         <span class="vendor-logo" style="background:var(--brand); width:32px;height:32px;font-size:13px;">
           {{ '🛠' if r.category == 'tech_support' else ('🐛' if r.category == 'bug_report' else ('💡' if r.category == 'feature_request' else '❓')) }}
         </span>
@@ -53,9 +53,10 @@
           <span class="badge {{ 'badge-good' if r.status == 'resolved' else ('badge-brand' if r.status == 'in_progress' else 'badge-neutral') }}" style="margin-left:6px;">
             {{ r.status.replace('_', ' ')|capitalize }}
           </span>
-          <div class="snippet">{{ r.notes }}</div>
+          {% if r.is_unread %}<span class="badge badge-brand" style="margin-left:6px;">New reply</span>{% endif %}
+          <div class="snippet">{{ r.last_body or r.notes }}</div>
         </div>
-        <span class="hint" style="white-space:nowrap;">{{ r.created_at|fmt_time }}</span>
+        <span class="hint" style="white-space:nowrap;">{{ (r.last_at or r.created_at)|fmt_time }}</span>
       </a>
       {% endfor %}
     </div>

@@ -2792,7 +2792,11 @@ def thread_display_info(thread, viewer):
         vendor = dbm.query("SELECT * FROM vendors WHERE id=?", (thread["vendor_id"],), one=True)
         return {"kind": "vendor", "vendor": vendor}
     if thread["type"] == "teammate":
-        return {"kind": "teammate"}
+        participants = dbm.query(
+            "SELECT u.* FROM thread_participants tp JOIN users u ON u.id = tp.user_id "
+            "WHERE tp.thread_id=? ORDER BY u.name", (thread["id"],),
+        )
+        return {"kind": "teammate", "participants": participants}
     if thread["type"] == "direct":
         if thread["participant_b_id"]:
             other_id = (
@@ -2810,6 +2814,153 @@ def thread_display_info(thread, viewer):
     return {"kind": "unknown"}
 
 
+def _shape_vendor_row(t, viewer):
+    """Normalizes a buyer's or seller's type='vendor' thread row into the
+    common shape the single-line External row (and the open-thread
+    header) render from, regardless of which side is looking: a buyer's
+    vendor_rows carries company_name/initials/accent from its own JOIN
+    against vendors; a seller's carries buyer_name/buyer_company/
+    buyer_photo from its JOIN against users instead. (2026-11-15,
+    Internal/External Messages redesign.)"""
+    if viewer["role"] == "seller":
+        name = t.get("buyer_name") or "Buyer"
+        return {
+            **t, "ext_kind": "vendor", "ext_title": name,
+            "ext_subtitle": t.get("buyer_company"),
+            "ext_logo_url": t.get("buyer_photo"), "ext_initials": name[0].upper(),
+            "ext_accent": "var(--brand)",
+        }
+    return {
+        **t, "ext_kind": "vendor", "ext_title": t["company_name"], "ext_subtitle": None,
+        "ext_logo_url": vendor_display_logo_url(t), "ext_initials": t["initials"],
+        "ext_accent": t["accent"],
+    }
+
+
+def _shape_direct_row(t):
+    """Normalizes a 1:1 'direct' thread row -- already run through
+    thread_display_info by _direct_threads_for / admin_messages, so it
+    carries 'other_user' (a real counterpart) or the pending-email
+    fields (someone invited who hasn't joined yet) -- into the same
+    shape _shape_vendor_row produces, so every External row across
+    buyer, seller, and admin renders off one set of fields."""
+    if t.get("kind") == "pending_email":
+        title = t.get("external_name") or t.get("external_email") or "Pending invite"
+        return {
+            **t, "ext_kind": "pending_email", "ext_title": title,
+            "ext_subtitle": "Not on BuyersForce yet",
+            "ext_logo_url": None, "ext_initials": "@", "ext_accent": "var(--brand-mcm-mustard)",
+        }
+    other = t.get("other_user") or {}
+    name = other.get("name") or "Someone"
+    sub = None
+    if other.get("company"):
+        sub = f"{(other.get('role') or '').capitalize()} · {other['company']}"
+    elif other.get("role"):
+        sub = other["role"].capitalize()
+    return {
+        **t, "ext_kind": "direct", "ext_title": name, "ext_subtitle": sub,
+        "ext_logo_url": other.get("photo_data_url"), "ext_initials": name[0].upper(),
+        "ext_accent": "var(--brand)",
+    }
+
+
+def _shape_team_row(t, viewer):
+    """Normalizes a 'teammate' (Internal) thread row -- already carrying
+    thread_display_info's 'participants' list -- the same way: the
+    thread's own subject is its display name (every team thread has
+    one; the "Subject" field is required when starting one), and who
+    else is on it is the secondary line, so a thread reads as "what
+    it's about, who's in it" at a glance -- the free-text NAME buyers/
+    sellers asked for, for spotting group threads."""
+    participants = t.get("participants") or []
+    others = [p for p in participants if p["id"] != viewer["id"]]
+    names = [p["name"] for p in others]
+    display_names = ", ".join(names) if names else "Just you"
+    seed = (names[0] if names else viewer["name"]) or "T"
+    return {
+        **t, "ext_kind": "teammate", "ext_title": t.get("subject") or display_names,
+        "ext_subtitle": display_names, "ext_logo_url": None,
+        "ext_initials": seed[0].upper(), "ext_accent": "var(--brand)",
+        "participant_names": names,
+    }
+
+
+def _thread_header_view(thread, info, viewer):
+    """Same idea as the sidebar-row shapers above, but for the single
+    OPEN thread's header (buyer/seller/admin thread.html) -- built from
+    thread_display_info's return value, which already has the right
+    "other side" for this viewer. block_user_id, when set, is who the
+    "Block this vendor" button (shown by the shared detail macro)
+    targets; None means don't show that button at all."""
+    kind = info.get("kind")
+    if kind == "vendor":
+        if viewer["role"] == "seller":
+            buyer = info["buyer"]
+            sub = " \u00b7 ".join(p for p in [buyer.get("title"), buyer.get("company")] if p)
+            return {
+                "kind": "vendor", "title": buyer["name"], "subtitle": sub or None,
+                "logo_url": buyer.get("photo_data_url"), "initials": buyer["name"][0].upper(),
+                "accent": "var(--brand)", "block_user_id": None,
+            }
+        vendor = info["vendor"]
+        return {
+            "kind": "vendor", "title": vendor["company_name"], "subtitle": vendor.get("category"),
+            "logo_url": vendor_display_logo_url(vendor), "initials": vendor["initials"],
+            "accent": vendor["accent"], "block_user_id": vendor.get("seller_user_id"),
+        }
+    if kind == "direct":
+        other = info["other_user"]
+        sub = " \u00b7 ".join(p for p in [(other.get("role") or "").capitalize(), other.get("company")] if p)
+        return {
+            "kind": "direct", "title": other["name"], "subtitle": sub or None,
+            "logo_url": other.get("photo_data_url"), "initials": other["name"][0].upper(),
+            "accent": "var(--brand)",
+            "block_user_id": other["id"] if other.get("role") == "seller" else None,
+        }
+    if kind == "pending_email":
+        title = info.get("external_name") or info.get("external_email")
+        return {
+            "kind": "pending_email", "title": title,
+            "subtitle": info.get("external_email") if info.get("external_name") else None,
+            "logo_url": None, "initials": "@", "accent": "var(--brand-mcm-mustard)",
+            "block_user_id": None,
+        }
+    if kind == "teammate":
+        participants = info.get("participants") or []
+        others = [p for p in participants if p["id"] != viewer["id"]]
+        names = [p["name"] for p in others]
+        seed = (names[0] if names else viewer["name"]) or "T"
+        return {
+            "kind": "teammate", "title": thread.get("subject") or (", ".join(names) or "Just you"),
+            "subtitle": ", ".join(names) if names else "Just you",
+            "logo_url": None, "initials": seed[0].upper(), "accent": "var(--brand)",
+            "block_user_id": None, "participants": participants,
+        }
+    return {
+        "kind": "unknown", "title": thread.get("subject") or "Conversation", "subtitle": None,
+        "logo_url": None, "initials": "?", "accent": "var(--brand)", "block_user_id": None,
+    }
+
+
+def _sort_by_last_at(rows):
+    """Newest-activity-first across a list merged from more than one
+    query (so a plain SQL ORDER BY can't do it) -- a thread with no
+    messages yet (last_at is None) sorts to the end, same as every
+    per-section listing's own ORDER BY already does."""
+    return sorted(rows, key=lambda r: r.get("last_at") or "", reverse=True)
+
+
+def _external_threads_for(user, vendor_rows, direct_rows):
+    """The 'External' section for Messages: vendor conversations (type=
+    'vendor' -- empty for admin, who has none) plus genuine 1:1s with
+    another real person or a not-yet-joined invitee (type='direct',
+    already excluding BuyersForce-support/ticket threads -- see
+    _direct_threads_for), normalized to one shape and newest-first."""
+    shaped = [_shape_vendor_row(t, user) for t in vendor_rows] + [_shape_direct_row(t) for t in direct_rows]
+    return _sort_by_last_at(shaped)
+
+
 def visible_thread_ids(user):
     """Every thread id this user is a party to, across all thread
     shapes -- used to compute the unread-messages badge."""
@@ -2820,18 +2971,17 @@ def visible_thread_ids(user):
             ids += [r["id"] for r in dbm.query(
                 "SELECT id FROM threads WHERE type='vendor' AND vendor_id=?", (vendor["id"],)
             )]
-        ids += [r["id"] for r in dbm.query(
-            "SELECT id FROM threads WHERE type='teammate' AND subject LIKE ?",
-            (f"%{user['company']}%",),
-        )]
     else:
         ids += [r["id"] for r in dbm.query(
             "SELECT id FROM threads WHERE type='vendor' AND buyer_user_id=?", (user["id"],)
         )]
-        ids += [r["id"] for r in dbm.query(
-            "SELECT id FROM threads WHERE type='teammate' AND subject LIKE ?",
-            (f"%{user['company']}%",),
-        )]
+    # 'teammate' (Internal) visibility is now by explicit participant row,
+    # not company membership -- see thread_participants / the 2026-11-15
+    # privacy fix. Same query shape for buyer/seller/admin alike.
+    ids += [r["id"] for r in dbm.query(
+        "SELECT t.id FROM threads t JOIN thread_participants tp ON tp.thread_id=t.id "
+        "WHERE t.type='teammate' AND tp.user_id=?", (user["id"],)
+    )]
     ids += [r["id"] for r in dbm.query(
         "SELECT id FROM threads WHERE type='direct' AND (participant_a_id=? OR participant_b_id=?)",
         (user["id"], user["id"]),
@@ -3138,6 +3288,34 @@ def toggle_thread_save(thread_id):
     return redirect(_safe_redirect_target(request.form.get("next"), url_for(_messages_route_for(g.user))))
 
 
+@app.route("/app/messages/<int:thread_id>/add-participants", methods=("POST",))
+@login_required
+def add_thread_participants(thread_id):
+    """Add more people to an existing Internal (teammate) thread --
+    group-DM-style, same restriction as starting one: only actual
+    teammates (same company+role as the person doing the adding) can be
+    added, never an arbitrary user id someone tampered into the form.
+    External (vendor/direct) threads don't support this yet."""
+    thread = _load_thread_for_user(thread_id, g.user)
+    if thread["type"] != "teammate":
+        flash("You can only add people to an internal team thread.", "error")
+        return redirect(_safe_redirect_target(request.form.get("next"), url_for(_messages_route_for(g.user))))
+    new_ids = {int(v) for v in request.form.getlist("participant_ids") if v.isdigit()}
+    valid_ids = {t["id"] for t in company_teammates(g.user)}
+    new_ids &= valid_ids
+    added = 0
+    for pid in new_ids:
+        dbm.execute(
+            "INSERT INTO thread_participants (thread_id, user_id) VALUES (?, ?) "
+            "ON CONFLICT DO NOTHING",
+            (thread_id, pid),
+        )
+        added += 1
+    flash(f"Added {added} {'person' if added == 1 else 'people'} to the thread." if added
+          else "Nobody was added.", "success" if added else "error")
+    return redirect(_safe_redirect_target(request.form.get("next"), url_for(_thread_route_for(g.user), thread_id=thread_id)))
+
+
 @app.route("/app/messages/bulk", methods=("POST",))
 @login_required
 def messages_bulk_action():
@@ -3200,6 +3378,15 @@ def _messages_route_for(user):
     if user["role"] == "admin":
         return "admin_messages"
     return "buyer_messages" if user["role"] == "buyer" else "seller_messages"
+
+
+def _thread_route_for(user):
+    """Same idea as _messages_route_for, but the per-role single-thread
+    route -- used by add_thread_participants to send the user back to
+    the thread they just added people to."""
+    if user["role"] == "admin":
+        return "admin_thread"
+    return "buyer_thread" if user["role"] == "buyer" else "seller_thread"
 
 
 @app.route("/app/poll/badges")
@@ -3636,9 +3823,24 @@ def support_new():
     # Shown in the "Your past requests" pane right on this page -- newest
     # request first (ORDER BY created_at DESC), same ordering as the full
     # history page.
+    # Enriched with the thread's latest activity (the original ticket note
+    # is r.notes, but a reply since then should show up here too) and an
+    # unread flag (same calc as THREAD_UNREAD_SQL, just keyed off
+    # support_requests.thread_id instead of threads.id) -- 2026-11-15:
+    # Support tickets no longer have a presence on the Messages page, so
+    # this "Your past requests" list is the one place to see that at a
+    # glance.
     past_requests = dbm.query(
-        "SELECT * FROM support_requests WHERE user_id = ? ORDER BY created_at DESC",
-        (g.user["id"],),
+        "SELECT sr.*, "
+        "(SELECT body FROM messages WHERE thread_id=sr.thread_id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
+        "(SELECT created_at FROM messages WHERE thread_id=sr.thread_id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
+        "(COALESCE(tr.manually_unread, false) OR EXISTS ("
+        "SELECT 1 FROM messages um WHERE um.thread_id=sr.thread_id AND um.sender_user_id <> ? "
+        "AND um.id > COALESCE(tr.last_read_message_id, 0))) is_unread "
+        "FROM support_requests sr "
+        "LEFT JOIN thread_reads tr ON tr.thread_id=sr.thread_id AND tr.user_id=? "
+        "WHERE sr.user_id = ? ORDER BY sr.created_at DESC",
+        (g.user["id"], g.user["id"], g.user["id"]),
     )
     return render_template(
         "support/new.html", categories=SUPPORT_CATEGORIES,
@@ -4210,6 +4412,68 @@ def admin_vendor_request_decide(request_id):
     return redirect(url_for("admin_access_control"))
 
 
+def _admin_messages_sections(user, view):
+    """Same job as _buyer_messages_sections / _seller_messages_sections,
+    for admin: 'External' is just genuine 1:1s (type='direct') -- admin
+    has no vendor-type threads -- excluding anything that's actually a
+    support ticket or vendor suggestion (those live on Support Queue,
+    per Kj's 2026-11-07 request); 'Internal' is BuyersForce-teammate
+    threads, same as everyone else."""
+    rows = dbm.query(
+        "SELECT t.*, "
+        "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
+        "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
+        "FROM threads t " + thread_reads_join_sql() + " "
+        "WHERE t.type='direct' AND (t.participant_a_id=? OR t.participant_b_id=?) "
+        "ORDER BY last_at DESC",
+        (user["id"], user["id"], user["id"], user["id"]),
+    )
+    vendor_suggestion_thread_ids = {
+        r["thread_id"] for r in
+        dbm.query("SELECT DISTINCT thread_id FROM vendor_requests WHERE thread_id IS NOT NULL")
+    }
+    direct_rows = []
+    for t in rows:
+        has_ticket = dbm.query(
+            "SELECT 1 FROM support_requests WHERE thread_id=? LIMIT 1", (t["id"],), one=True
+        )
+        if has_ticket or t["id"] in vendor_suggestion_thread_ids:
+            continue  # shown on the Support Queue page instead
+        info = thread_display_info(t, user)
+        direct_rows.append({**dict(t), **info})
+    direct_active, direct_archived = split_by_archived(direct_rows)
+    team_rows = dbm.query(
+        "SELECT t.*, "
+        "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
+        "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
+        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
+        "FROM threads t JOIN thread_participants tp ON tp.thread_id=t.id "
+        + thread_reads_join_sql() + " WHERE t.type='teammate' AND tp.user_id=? "
+        "ORDER BY last_at DESC",
+        (user["id"], user["id"], user["id"]),
+    )
+    team_active, team_archived = split_by_archived(team_rows)
+    if view == "archived":
+        direct_threads, team_threads = direct_archived, team_archived
+        saved_direct = saved_team = []
+    else:
+        direct_threads, saved_direct = split_saved(direct_active)
+        team_threads, saved_team = split_saved(team_active)
+    return {
+        "internal_threads": [_shape_team_row(t, user) for t in team_threads],
+        "external_threads": _external_threads_for(user, [], direct_threads),
+        "saved_internal": [_shape_team_row(t, user) for t in saved_team],
+        "saved_external": _external_threads_for(user, [], saved_direct),
+    }
+
+
+@app.route("/app/admin/messages/team/new", methods=("POST",))
+@admin_required
+def admin_new_team_thread():
+    return _create_team_thread(g.user, "admin_thread")
+
+
 @app.route("/app/admin/messages")
 @admin_required
 def admin_messages():
@@ -4231,54 +4495,10 @@ def admin_messages():
     never land in Direct messages either; see admin_support_queue /
     _admin_support_queue_context for where they live now."""
     view = current_view()
-    rows = dbm.query(
-        "SELECT t.*, "
-        "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
-        "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
-        "FROM threads t " + thread_reads_join_sql() + " "
-        "WHERE t.type='direct' AND (t.participant_a_id=? OR t.participant_b_id=?) "
-        "ORDER BY last_at DESC",
-        (g.user["id"], g.user["id"], g.user["id"], g.user["id"]),
-    )
-    vendor_suggestion_thread_ids = {
-        r["thread_id"] for r in
-        dbm.query("SELECT DISTINCT thread_id FROM vendor_requests WHERE thread_id IS NOT NULL")
-    }
-    direct_rows = []
-    for t in rows:
-        has_ticket = dbm.query(
-            "SELECT 1 FROM support_requests WHERE thread_id=? LIMIT 1", (t["id"],), one=True
-        )
-        if has_ticket or t["id"] in vendor_suggestion_thread_ids:
-            continue  # shown on the Support Queue page instead
-        info = thread_display_info(t, g.user)
-        direct_rows.append({**dict(t), **info})
-    direct_active, direct_archived = split_by_archived(direct_rows)
-    team_rows = dbm.query(
-        "SELECT t.*, "
-        "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
-        "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
-        "FROM threads t " + thread_reads_join_sql() + " WHERE t.type='teammate' AND "
-        "(t.created_by=? OR t.id IN (SELECT thread_id FROM messages WHERE sender_user_id=?)) "
-        "AND t.subject LIKE ? ORDER BY last_at DESC",
-        (g.user["id"], g.user["id"], g.user["id"], g.user["id"], f"%{g.user['company']}%"),
-    )
-    team_active, team_archived = split_by_archived(team_rows)
-    team_threads = team_archived if view == "archived" else team_active
-    direct_threads = direct_archived if view == "archived" else direct_active
-
-    if view == "archived":
-        saved_direct = saved_team = []
-    else:
-        direct_threads, saved_direct = split_saved(direct_threads)
-        team_threads, saved_team = split_saved(team_threads)
-
+    sections = _admin_messages_sections(g.user, view)
     return render_template(
-        "admin/messages.html",
-        direct_threads=direct_threads, team_threads=team_threads,
-        saved_direct=saved_direct, saved_team=saved_team, view=view,
+        "admin/messages.html", view=view, thread_route="admin_thread",
+        new_team_route="admin_new_team_thread", **sections,
     )
 
 
@@ -4320,12 +4540,26 @@ def admin_thread(thread_id):
         "SELECT 1 FROM vendor_requests WHERE thread_id = ? LIMIT 1", (thread_id,), one=True
     ) is not None
     g.admin_thread_is_ticket = is_ticket_thread
-    return render_template(
-        "admin/thread.html", thread=thread, messages=messages, info=info,
+    common_kwargs = dict(
+        thread=thread, messages=messages, info=info,
         support_requests=support_requests, category_labels=SUPPORT_CATEGORY_LABELS,
         is_deleted=thread_is_deleted(g.user["id"], thread_id),
         is_saved=thread_flag_value(g.user["id"], thread_id, "is_saved"),
+        is_flagged=thread_flag_value(g.user["id"], thread_id, "is_flagged"),
         is_ticket_thread=is_ticket_thread,
+    )
+    if is_ticket_thread:
+        # Ticket/vendor-suggestion threads keep their own simple page
+        # (with the status dropdown) -- Support Queue's page, not
+        # Messages' Internal/External one, same as before the
+        # 2026-11-15 redesign.
+        return render_template("admin/ticket_thread.html", **common_kwargs)
+    sections = _admin_messages_sections(g.user, "active")
+    return render_template(
+        "admin/thread.html", thread_route="admin_thread",
+        new_team_route="admin_new_team_thread", view="active",
+        open_thread_id=thread_id, header=_thread_header_view(thread, info, g.user),
+        **common_kwargs, **sections,
     )
 
 
@@ -5447,11 +5681,12 @@ def buyer_request_meeting(vendor_id):
     return redirect(url_for("buyer_vendor", vendor_id=vendor_id))
 
 
-@app.route("/app/buyer/messages")
-@role_required("buyer")
-def buyer_messages():
-    u = g.user
-    view = current_view()
+def _buyer_messages_sections(user, view):
+    """Builds the Internal/External sidebar sections a buyer's Messages
+    list page AND its open-thread page both show (2026-11-15 redesign --
+    one single-pane inbox instead of separate Vendor/Team/Direct panes).
+    Support tickets/vendor suggestions are deliberately left out --
+    they live on the Support page now, not Messages (Kj's request)."""
     vendor_rows = dbm.query(
         "SELECT t.*, v.company_name, v.initials, v.accent, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
@@ -5459,7 +5694,7 @@ def buyer_messages():
         f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
         "FROM threads t JOIN vendors v ON v.id = t.vendor_id " + thread_reads_join_sql() + " "
         "WHERE t.type='vendor' AND t.buyer_user_id=? ORDER BY last_at DESC",
-        (u["id"], u["id"], u["id"]),
+        (user["id"], user["id"], user["id"]),
     )
     vendor_active, vendor_archived = split_by_archived(vendor_rows)
     team_rows = dbm.query(
@@ -5467,37 +5702,36 @@ def buyer_messages():
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
         f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
-        "FROM threads t " + thread_reads_join_sql() + " WHERE t.type='teammate' AND "
-        "(t.created_by=? OR t.buyer_user_id=? OR t.id IN "
-        "(SELECT thread_id FROM messages WHERE sender_user_id=?)) "
-        "AND t.subject LIKE ? ORDER BY last_at DESC",
-        (u["id"], u["id"], u["id"], u["id"], u["id"], f"%{u['company']}%"),
+        "FROM threads t JOIN thread_participants tp ON tp.thread_id=t.id "
+        + thread_reads_join_sql() + " WHERE t.type='teammate' AND tp.user_id=? "
+        "ORDER BY last_at DESC",
+        (user["id"], user["id"], user["id"]),
     )
     team_active, team_archived = split_by_archived(team_rows)
-    direct_active, direct_archived, support_active, support_archived = _direct_threads_for(u)
+    direct_active, direct_archived, _support_active, _support_archived = _direct_threads_for(user)
     if view == "archived":
-        vendor_threads, team_threads = vendor_archived, team_archived
-        direct_threads, support_threads = direct_archived, support_archived
-        saved_vendor = saved_team = saved_direct = saved_support = resolved_threads = []
+        vendor_threads, team_threads, direct_threads = vendor_archived, team_archived, direct_archived
+        saved_vendor = saved_team = saved_direct = []
     else:
-        vendor_threads, team_threads = vendor_active, team_active
-        direct_threads, support_threads = direct_active, support_active
-        # Saved is its own bucket PER section (not one combined bucket for
-        # the whole page), so it stays next to the kind of conversation it
-        # came from. It also takes priority over the Resolved split just
-        # below -- a saved+resolved ticket shows only in Saved.
-        vendor_threads, saved_vendor = split_saved(vendor_threads)
-        team_threads, saved_team = split_saved(team_threads)
-        direct_threads, saved_direct = split_saved(direct_threads)
-        support_threads, saved_support = split_saved(support_threads)
-        support_threads, resolved_threads = split_resolved(support_threads)
-    support_threads = sort_support_rows(support_threads)
+        vendor_threads, saved_vendor = split_saved(vendor_active)
+        team_threads, saved_team = split_saved(team_active)
+        direct_threads, saved_direct = split_saved(direct_active)
+    return {
+        "internal_threads": [_shape_team_row(t, user) for t in team_threads],
+        "external_threads": _external_threads_for(user, vendor_threads, direct_threads),
+        "saved_internal": [_shape_team_row(t, user) for t in saved_team],
+        "saved_external": _external_threads_for(user, saved_vendor, saved_direct),
+    }
+
+
+@app.route("/app/buyer/messages")
+@role_required("buyer")
+def buyer_messages():
+    view = current_view()
+    sections = _buyer_messages_sections(g.user, view)
     return render_template(
-        "buyer/messages.html", vendor_threads=vendor_threads, team_threads=team_threads,
-        direct_threads=direct_threads, support_threads=support_threads,
-        resolved_threads=resolved_threads, saved_vendor=saved_vendor, saved_team=saved_team,
-        saved_direct=saved_direct, saved_support=saved_support,
-        view=view, category_labels=SUPPORT_CATEGORY_LABELS,
+        "buyer/messages.html", view=view, thread_route="buyer_thread",
+        new_team_route="buyer_new_team_thread", **sections,
     )
 
 
@@ -5545,20 +5779,52 @@ def _direct_threads_for(user):
     return direct_active, direct_archived, support_active, support_archived
 
 
-@app.route("/app/buyer/messages/team/new", methods=("POST",))
-@role_required("buyer")
-def buyer_new_team_thread():
+def company_teammates(user):
+    """Everyone else at this user's company, same role -- the roster a
+    "new team thread" picker offers to add (2026-11-15, replacing the
+    old whole-company-visible team threads: starting one now means
+    explicitly picking who's on it, like a group DM)."""
+    return dbm.query(
+        "SELECT id, name FROM users WHERE company=? AND role=? AND id != ? ORDER BY name",
+        (user["company"], user["role"], user["id"]),
+    )
+
+
+# Read-only (a plain SELECT, no side effects) and cheap, so the
+# Internal/External Messages sidebar's "+ New team thread" and "Add
+# people" forms call it directly from the template rather than
+# threading it through every one of the 6 routes that render that
+# sidebar.
+app.jinja_env.globals["company_teammates"] = company_teammates
+
+
+def _create_team_thread(user, thread_route):
     subject = request.form.get("subject", "").strip() or "Team discussion"
     body = request.form.get("body", "").strip()
+    teammate_ids = {int(v) for v in request.form.getlist("participant_ids") if v.isdigit()}
+    # Only actual teammates (same company+role) can be added -- never an
+    # arbitrary user id someone tampered into the form.
+    valid_ids = {t["id"] for t in company_teammates(user)}
+    teammate_ids &= valid_ids
     thread_id = dbm.execute(
         "INSERT INTO threads (type, buyer_user_id, subject, created_by) VALUES "
         "('teammate', NULL, ?, ?)",
-        (f"[{g.user['company']}] {subject}", g.user["id"]),
+        (subject, user["id"]),
     )
-    error = _insert_thread_message(thread_id, g.user["id"], body, request.files.get("attachment"))
+    for pid in {user["id"]} | teammate_ids:
+        dbm.execute(
+            "INSERT INTO thread_participants (thread_id, user_id) VALUES (?, ?)", (thread_id, pid)
+        )
+    error = _insert_thread_message(thread_id, user["id"], body, request.files.get("attachment"))
     if error:
         flash(error, "error")
-    return redirect(url_for("buyer_thread", thread_id=thread_id))
+    return redirect(url_for(thread_route, thread_id=thread_id))
+
+
+@app.route("/app/buyer/messages/team/new", methods=("POST",))
+@role_required("buyer")
+def buyer_new_team_thread():
+    return _create_team_thread(g.user, "buyer_thread")
 
 
 def _load_thread_for_user(thread_id, user):
@@ -5576,7 +5842,17 @@ def _load_thread_for_user(thread_id, user):
             if not vendor:
                 abort(403)
     elif thread["type"] == "teammate":
-        if user["role"] not in ("buyer", "seller") or user["company"] not in thread["subject"]:
+        # Privacy fix, 2026-11-15: access is by explicit
+        # thread_participants row now, not by matching the company name
+        # against the thread's subject -- see _add_thread_participants_
+        # table_2026_11_15 in migrate.py. Anyone (buyer, seller, or
+        # admin) who's actually been added to the thread can open it;
+        # nobody else, even at the same company, can.
+        participant = dbm.query(
+            "SELECT 1 FROM thread_participants WHERE thread_id=? AND user_id=?",
+            (thread_id, user["id"]), one=True,
+        )
+        if not participant:
             abort(403)
     elif thread["type"] == "direct":
         if thread["participant_a_id"] != user["id"] and thread["participant_b_id"] != user["id"]:
@@ -5618,11 +5894,16 @@ def buyer_thread(thread_id):
     support_requests = dbm.query(
         "SELECT * FROM support_requests WHERE thread_id = ? ORDER BY created_at DESC", (thread_id,)
     )
+    sections = _buyer_messages_sections(g.user, "active")
     return render_template(
         "buyer/thread.html", thread=thread, messages=messages, info=info,
+        header=_thread_header_view(thread, info, g.user),
         support_requests=support_requests, category_labels=SUPPORT_CATEGORY_LABELS,
         is_deleted=thread_is_deleted(g.user["id"], thread_id),
         is_saved=thread_flag_value(g.user["id"], thread_id, "is_saved"),
+        is_flagged=thread_flag_value(g.user["id"], thread_id, "is_flagged"),
+        thread_route="buyer_thread", new_team_route="buyer_new_team_thread",
+        view="active", open_thread_id=thread_id, **sections,
     )
 
 
@@ -8876,77 +9157,68 @@ def seller_leads_sync(lead_user_id):
     return redirect(url_for("seller_leads"))
 
 
-@app.route("/app/seller/messages")
-@role_required("seller")
-def seller_messages():
-    vendor = seller_company_vendor(g.user)
-    if not vendor:
-        abort(404)
-    u = g.user
-    view = current_view()
-    vendor_rows = dbm.query(
-        "SELECT t.*, u.name buyer_name, u.company buyer_company, u.photo_data_url buyer_photo, "
-        "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
-        "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
-        f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
-        "FROM threads t JOIN users u ON u.id = t.buyer_user_id " + thread_reads_join_sql() + " "
-        "WHERE t.type='vendor' AND t.vendor_id=? ORDER BY last_at DESC",
-        (u["id"], u["id"], vendor["id"]),
-    )
+def _seller_messages_sections(user, view):
+    """Same job as _buyer_messages_sections, for a seller: 'External' is
+    buyer conversations (type='vendor', joined against the user who
+    started them rather than a vendor row) plus direct 1:1s; a seller
+    with no vendor row yet (incomplete profile) just gets an empty
+    vendor_rows rather than a hard 404 here -- they can still have
+    teammate/direct threads."""
+    vendor = seller_company_vendor(user)
+    vendor_rows = []
+    if vendor:
+        vendor_rows = dbm.query(
+            "SELECT t.*, u.name buyer_name, u.company buyer_company, u.photo_data_url buyer_photo, "
+            "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
+            "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
+            f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
+            "FROM threads t JOIN users u ON u.id = t.buyer_user_id " + thread_reads_join_sql() + " "
+            "WHERE t.type='vendor' AND t.vendor_id=? ORDER BY last_at DESC",
+            (user["id"], user["id"], vendor["id"]),
+        )
     vendor_active, vendor_archived = split_by_archived(vendor_rows)
     team_rows = dbm.query(
         "SELECT t.*, "
         "(SELECT body FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_body, "
         "(SELECT created_at FROM messages WHERE thread_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) last_at, "
         f"{THREAD_UNREAD_SQL}, {THREAD_ARCHIVED_SQL}, {THREAD_FLAGGED_SQL}, {THREAD_SAVED_SQL} "
-        "FROM threads t " + thread_reads_join_sql() + " WHERE t.type='teammate' AND "
-        "(t.created_by=? OR t.id IN "
-        "(SELECT thread_id FROM messages WHERE sender_user_id=?)) "
-        "AND t.subject LIKE ? ORDER BY last_at DESC",
-        (u["id"], u["id"], u["id"], u["id"], f"%{u['company']}%"),
+        "FROM threads t JOIN thread_participants tp ON tp.thread_id=t.id "
+        + thread_reads_join_sql() + " WHERE t.type='teammate' AND tp.user_id=? "
+        "ORDER BY last_at DESC",
+        (user["id"], user["id"], user["id"]),
     )
     team_active, team_archived = split_by_archived(team_rows)
-    direct_active, direct_archived, support_active, support_archived = _direct_threads_for(g.user)
+    direct_active, direct_archived, _support_active, _support_archived = _direct_threads_for(user)
     if view == "archived":
-        threads, team_threads = vendor_archived, team_archived
-        direct_threads, support_threads = direct_archived, support_archived
-        saved_buyer = saved_team = saved_direct = saved_support = resolved_threads = []
+        vendor_threads, team_threads, direct_threads = vendor_archived, team_archived, direct_archived
+        saved_vendor = saved_team = saved_direct = []
     else:
-        threads, team_threads = vendor_active, team_active
-        direct_threads, support_threads = direct_active, support_active
-        # Saved is its own bucket PER section (not one combined bucket for
-        # the whole page), so it stays next to the kind of conversation it
-        # came from. It also takes priority over the Resolved split just
-        # below -- a saved+resolved ticket shows only in Saved.
-        threads, saved_buyer = split_saved(threads)
-        team_threads, saved_team = split_saved(team_threads)
-        direct_threads, saved_direct = split_saved(direct_threads)
-        support_threads, saved_support = split_saved(support_threads)
-        support_threads, resolved_threads = split_resolved(support_threads)
-    support_threads = sort_support_rows(support_threads)
+        vendor_threads, saved_vendor = split_saved(vendor_active)
+        team_threads, saved_team = split_saved(team_active)
+        direct_threads, saved_direct = split_saved(direct_active)
+    return {
+        "internal_threads": [_shape_team_row(t, user) for t in team_threads],
+        "external_threads": _external_threads_for(user, vendor_threads, direct_threads),
+        "saved_internal": [_shape_team_row(t, user) for t in saved_team],
+        "saved_external": _external_threads_for(user, saved_vendor, saved_direct),
+    }
+
+
+@app.route("/app/seller/messages")
+@role_required("seller")
+def seller_messages():
+    view = current_view()
+    sections = _seller_messages_sections(g.user, view)
     return render_template(
-        "seller/messages.html", threads=threads, vendor=vendor, direct_threads=direct_threads,
-        team_threads=team_threads, support_threads=support_threads,
-        resolved_threads=resolved_threads, saved_buyer=saved_buyer, saved_team=saved_team,
-        saved_direct=saved_direct, saved_support=saved_support,
-        view=view, category_labels=SUPPORT_CATEGORY_LABELS,
+        "seller/messages.html", view=view, thread_route="seller_thread",
+        new_team_route="seller_new_team_thread", **sections,
     )
 
 
 @app.route("/app/seller/messages/team/new", methods=("POST",))
 @role_required("seller")
 def seller_new_team_thread():
-    subject = request.form.get("subject", "").strip() or "Team discussion"
-    body = request.form.get("body", "").strip()
-    thread_id = dbm.execute(
-        "INSERT INTO threads (type, buyer_user_id, subject, created_by) VALUES "
-        "('teammate', NULL, ?, ?)",
-        (f"[{g.user['company']}] {subject}", g.user["id"]),
-    )
-    error = _insert_thread_message(thread_id, g.user["id"], body, request.files.get("attachment"))
-    if error:
-        flash(error, "error")
-    return redirect(url_for("seller_thread", thread_id=thread_id))
+    return _create_team_thread(g.user, "seller_thread")
 
 
 @app.route("/app/seller/messages/<int:thread_id>", methods=("GET", "POST"))
@@ -8977,11 +9249,16 @@ def seller_thread(thread_id):
     support_requests = dbm.query(
         "SELECT * FROM support_requests WHERE thread_id = ? ORDER BY created_at DESC", (thread_id,)
     )
+    sections = _seller_messages_sections(g.user, "active")
     return render_template(
         "seller/thread.html", thread=thread, messages=messages, info=info,
+        header=_thread_header_view(thread, info, g.user),
         support_requests=support_requests, category_labels=SUPPORT_CATEGORY_LABELS,
         is_deleted=thread_is_deleted(g.user["id"], thread_id),
         is_saved=thread_flag_value(g.user["id"], thread_id, "is_saved"),
+        is_flagged=thread_flag_value(g.user["id"], thread_id, "is_flagged"),
+        thread_route="seller_thread", new_team_route="seller_new_team_thread",
+        view="active", open_thread_id=thread_id, **sections,
     )
 
 

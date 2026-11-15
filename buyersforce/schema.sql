@@ -592,6 +592,26 @@ CREATE UNIQUE INDEX contacts_owner_contact_uniq ON contacts (owner_user_id, cont
 CREATE UNIQUE INDEX contacts_owner_external_email_uniq ON contacts (owner_user_id, external_email)
     WHERE contact_user_id IS NULL AND external_email IS NOT NULL;
 
+-- Explicit membership for a 'teammate' (Internal) thread -- who can
+-- actually see and reply to it. Added 2026-11-15 (Kj's ask: "Only
+-- people who are in a messaging thread should see their messages ...
+-- Org-wide messaging needs to go away") to replace the old behavior,
+-- where ANY teammate at the same company could see every team thread
+-- just by matching the company name against the thread's subject
+-- line -- a real privacy hole, not just a UX quirk. A thread's
+-- creator is always a participant from the moment it's created (see
+-- app.py's buyer_new_team_thread/seller_new_team_thread); more people
+-- are added explicitly, never implied by company membership alone.
+-- 'vendor'/'direct' threads don't need this table -- they're already
+-- scoped to exactly the right people via their own fixed columns
+-- (buyer_user_id/vendor_id, participant_a_id/participant_b_id).
+CREATE TABLE thread_participants (
+    thread_id INTEGER NOT NULL REFERENCES threads(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    added_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')),
+    PRIMARY KEY (thread_id, user_id)
+);
+
 CREATE TABLE messages (
     id SERIAL PRIMARY KEY,
     thread_id INTEGER NOT NULL REFERENCES threads(id),

@@ -1160,3 +1160,54 @@ Known rough edges worth remembering, not yet fixed:
     Password and the new Confirm password labels got the red
     `.required-asterisk` -- Password previously had no asterisk at all
     despite always being required.
+- **Messages redesign, Pass 1 (2026-11-15): Internal/External layout, a
+  real privacy fix, and Support carved out.** Kj asked for a cleaner,
+  Slack/Teams-like Messages page for buyers, sellers, and admin, plus an
+  urgent fix once he noticed team threads weren't actually private.
+  - **Privacy fix (the important one): team threads are now really
+    private.** Before this, a "Team" (Internal) thread was visible to
+    *anyone at the same company* -- access was just a text match on the
+    thread's subject line, not a real membership list. Now there's a
+    `thread_participants` table, and only people actually added to a
+    thread can see or open it -- same model as Slack/Teams/email. The
+    migration backfills every existing team thread's creator and anyone
+    who ever sent a message in it, so nobody loses access to a real
+    conversation they were part of; everyone else (who could only see it
+    before because of the company-name match) loses access, which is
+    the whole point.
+  - **One Messages pane, not several boxes.** Buyer, seller, and admin
+    Messages pages are now a single two-column layout: a list on the
+    left split into "Internal" (your team, lock icon reminding you it's
+    private) and "External" (vendors, buyers/sellers, anyone else),
+    newest activity first; clicking a conversation opens it on the
+    right without leaving the list. Each row is one condensed line
+    (who/what, a snippet, flag/unread dots, timestamp) instead of the
+    old two-line boxes -- clicking it is how you "expand" it, into the
+    right-hand pane. Admin's Messages page got the same treatment for
+    consistency (its own "Direct messages"/"Team" sections map onto
+    External/Internal the same way).
+  - **External rows show the vendor/person's logo, not initials**,
+    using the same logo lookup Discover already uses (uploaded logo ->
+    link -> Wikipedia -> favicon -> initials as a last resort) -- Kj's
+    one tweak request on the mockup before this shipped.
+  - **Starting and growing a team thread**: "+ New internal thread" now
+    lets you name the thread and pick who else (same company, same
+    role) joins it up front, instead of everyone at the company being
+    able to see it automatically. "Add people" in an open team thread's
+    header adds more people later the same way. Vendor/direct threads
+    don't have this yet -- see Pass 2 below.
+  - **Support tickets moved out of Messages entirely** -- they were
+    already split onto their own Support Queue page for admin
+    (2026-11-07); this finishes the job by removing the "Support &
+    BuyersForce" section from buyer/seller Messages too. Nothing was
+    lost: the Support page's "Your past requests" list now also shows
+    each ticket's latest reply and a "New reply" badge when there's one
+    you haven't seen, which it didn't do before.
+  - **Not in this pass (planned next)**: 5-6 selectable flag colors
+    (still a single flag for now), a free-text custom name on a vendor/
+    direct thread with the vendor's name always shown first, and "add
+    people" for vendor/direct threads (Internal already has it).
+  - The old per-section "select several conversations and bulk mark
+    read/flag/save/archive" toolbar doesn't have a home in the new
+    one-line-row design and was dropped; its route is still there
+    un-wired if it's ever worth bringing back in some form.

@@ -1,71 +1,18 @@
 {% extends "base.html" %}
-{% import "_thread_row.html" as tr %}
+{% import "_messages_pane.html" as mp %}
 {% block title %}Messages{% endblock %}
-
-{% macro direct_body(t) %}
-  {% if t.other_user.photo_data_url %}
-  <img src="{{ t.other_user.photo_data_url }}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
-  {% else %}
-  <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:13px;">{{ t.other_user.name[0] }}</span>
-  {% endif %}
-  <div style="flex:1; min-width:0;">
-    <strong style="font-size:14px;">{{ t.other_user.name }}</strong>
-    <span class="hint">· {{ t.other_user.role|capitalize }} · {{ t.other_user.company }}</span>
-    <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
-  </div>
-  <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
-{% endmacro %}
-
-{% macro team_body(t) %}
-  <span class="vendor-logo" style="background:var(--brand); width:36px;height:36px;font-size:14px;">{{ g.user.company[0] }}</span>
-  <div style="flex:1; min-width:0;">
-    <strong style="font-size:14px;">{{ t.subject.split('] ')[1] if '] ' in t.subject else t.subject }}</strong>
-    <div class="snippet">{{ t.last_body or "No messages yet" }}</div>
-  </div>
-  <span class="hint">{{ t.last_at|fmt_time if t.last_at }}</span>
-{% endmacro %}
-
 {% block content %}
 <div class="page-header">
   <div>
     <span class="eyebrow">Communications</span>
-    <h1>Messages {% if g.unread_count %}<span class="badge badge-brand" style="vertical-align:middle;">{{ g.unread_count }} unread</span>{% endif %}</h1>
-    <p class="lede">Plain messages to BuyersForce and team threads, split the same way buyers and
-      sellers see their own Messages page. Support tickets and vendor suggestions live on
-      <a href="{{ url_for('admin_support_queue') }}">Support Queue</a> instead.</p>
+    <h1>Messages</h1>
+    <p class="lede">Same Internal/External layout buyers and sellers get. Support tickets and
+      vendor suggestions live on <a href="{{ url_for('admin_support_queue') }}">Support Queue</a> instead.</p>
   </div>
-  <div style="display:flex; gap:8px; align-items:flex-start;">
-    <a href="{{ url_for('messages_new') }}" class="btn btn-primary btn-sm">+ New message</a>
-    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">← Back to dashboard</a>
-  </div>
+  <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost btn-sm">&larr; Back to dashboard</a>
 </div>
-
-{% include "_archive_toggle.html" %}
-
-<div class="section-title"><h2>Direct messages</h2></div>
-{{ tr.bulk_bar('direct', request.full_path, show_restore=(view == 'archived')) }}
-<div class="thread-list" style="margin-bottom:8px;">
-  {% for t in direct_threads %}
-  {% call tr.thread_row(t, 'admin_thread', request.full_path, form_id='direct') %}{{ direct_body(t) }}{% endcall %}
-  {% else %}
-  <div class="card empty-state"><div class="icon">💬</div>
-    {% if view == 'active' %}Nothing here yet -- a plain message to BuyersForce (not a support ticket or vendor suggestion) will show up here.{% else %}Nothing archived.{% endif %}
-  </div>
-  {% endfor %}
+<div class="mp-shell">
+  {{ mp.sidebar(internal_threads, external_threads, saved_internal, saved_external, thread_route, new_team_route, view) }}
+  {{ mp.detail_placeholder() }}
 </div>
-{% if view != 'archived' %}{{ tr.saved_subsection(saved_direct, direct_body, 'admin_thread', request.full_path, form_id='direct') }}{% endif %}
-
-<div class="section-title" style="margin-top:28px;"><h2>Team</h2></div>
-{{ tr.bulk_bar('team', request.full_path, show_restore=(view == 'archived')) }}
-<div class="thread-list" style="margin-bottom:8px;">
-  {% for t in team_threads %}
-  {% call tr.thread_row(t, 'admin_thread', request.full_path, form_id='team') %}{{ team_body(t) }}{% endcall %}
-  {% else %}
-  <div class="card empty-state"><div class="icon">👥</div>
-    {% if view == 'active' %}No team threads yet -- once there's more than one BuyersForce teammate, conversations with them will show up here.{% else %}Nothing archived.{% endif %}
-  </div>
-  {% endfor %}
-</div>
-{% if view != 'archived' %}{{ tr.saved_subsection(saved_team, team_body, 'admin_thread', request.full_path, form_id='team') }}{% endif %}
-
 {% endblock %}

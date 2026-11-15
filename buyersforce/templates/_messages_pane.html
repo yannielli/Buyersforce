@@ -1,0 +1,244 @@
+{#
+  Shared Internal/External Messages shell (2026-11-15 redesign) -- one
+  single pane with two sections (Internal: thread_participants-gated
+  team threads; External: vendor + direct conversations), newest
+  activity first, used identically by buyer, seller, and admin's
+  Messages list page and open-thread page. Support tickets/vendor
+  suggestions live on their own Support page now, not here.
+
+  Callers pass internal_threads / external_threads / saved_internal /
+  saved_external (already shaped by app.py's _shape_*_row /
+  _external_threads_for helpers -- each row carries ext_title,
+  ext_subtitle, ext_logo_url, ext_initials, ext_accent, last_body,
+  last_at, is_unread, is_flagged, is_saved), plus thread_route (the
+  per-role single-thread endpoint name) and new_team_route (the
+  per-role "start an Internal thread" endpoint name).
+#}
+
+{% macro row(t, thread_route, open_thread_id) %}
+<a class="mp-row{{ ' unread' if t.is_unread }}{{ ' active' if open_thread_id and t.id == open_thread_id }}" href="{{ url_for(thread_route, thread_id=t.id) }}">
+  <span class="vendor-logo mp-avatar" style="background:{{ t.ext_accent }};">
+    {% if t.ext_logo_url %}<img src="{{ t.ext_logo_url }}" alt="" onerror="this.remove();">{% endif %}
+    {{ t.ext_initials }}
+  </span>
+  <span class="mp-main">
+    <span class="mp-title">{{ t.ext_title }}{% if t.ext_subtitle %}<span class="mp-subtitle"> &middot; {{ t.ext_subtitle }}</span>{% endif %}</span>
+    <span class="mp-snippet">{{ t.last_body or "No messages yet" }}</span>
+  </span>
+  <span class="mp-meta">
+    {% if t.is_flagged %}<span class="mp-flag-dot" title="Flagged"></span>{% endif %}
+    {% if t.is_unread %}<span class="mp-unread-dot" title="Unread"></span>{% endif %}
+    <span class="mp-time">{{ t.last_at|fmt_time if t.last_at }}</span>
+  </span>
+</a>
+{% endmacro %}
+
+{% macro section(label, items, thread_route, open_thread_id, lock_hint=false) %}
+<div class="mp-section-head">
+  <span>{{ label }}</span>
+  {% if lock_hint %}<span class="mp-lock">&#128274; only people on the thread can see it</span>{% endif %}
+</div>
+{% for t in items %}{{ row(t, thread_route, open_thread_id) }}{% else %}<p class="mp-empty">Nothing here yet.</p>{% endfor %}
+{% endmacro %}
+
+{% macro saved_section(label, items, thread_route, open_thread_id) %}
+{% if items %}
+<details class="mp-saved">
+  <summary>&#128278; Saved in {{ label }} <span class="hint">({{ items|length }})</span></summary>
+  <div class="mp-saved-body">
+    {% for t in items %}{{ row(t, thread_route, open_thread_id) }}{% endfor %}
+  </div>
+</details>
+{% endif %}
+{% endmacro %}
+
+{% macro sidebar(internal_threads, external_threads, saved_internal, saved_external, thread_route, new_team_route, view, open_thread_id=none, show_archive_toggle=true) %}
+<div class="mp-sidebar">
+  <div class="mp-sidebar-head">
+    <h1>Messages {% if g.unread_count %}<span class="badge badge-brand">{{ g.unread_count }}</span>{% endif %}</h1>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('messages_new') }}">+ Create message</a>
+  </div>
+  {% if show_archive_toggle %}
+  <div class="mp-archive-toggle">{% include "_archive_toggle.html" %}</div>
+  {% endif %}
+  <div class="mp-scroll">
+    {{ section('Internal', internal_threads, thread_route, open_thread_id, lock_hint=true) }}
+    {{ saved_section('Internal', saved_internal, thread_route, open_thread_id) }}
+
+    <details class="card mp-new-team">
+      <summary>+ New internal thread</summary>
+      <form method="post" action="{{ url_for(new_team_route) }}" enctype="multipart/form-data">
+        <div class="field"><label>Name this thread</label><input type="text" name="subject" placeholder="e.g. Runtime security shortlist" required></div>
+        {% set mates = company_teammates(g.user) %}
+        {% if mates %}
+        <div class="field">
+          <label>Add people <span class="hint">(optional -- just you otherwise)</span></label>
+          <div class="mp-people-list">
+            {% for m in mates %}<label class="mp-people-opt"><input type="checkbox" name="participant_ids" value="{{ m.id }}"> {{ m.name }}</label>{% endfor %}
+          </div>
+        </div>
+        {% else %}
+        <p class="hint">Nobody else at {{ g.user.company }} on BuyersForce yet -- this'll just be your own notes thread for now.</p>
+        {% endif %}
+        <div class="field"><label>Message</label><textarea name="body" placeholder="Kick off the discussion&hellip;"></textarea></div>
+        <button class="btn btn-primary btn-sm" type="submit">Post</button>
+      </form>
+    </details>
+
+    {{ section('External', external_threads, thread_route, open_thread_id) }}
+    {{ saved_section('External', saved_external, thread_route, open_thread_id) }}
+  </div>
+</div>
+{% endmacro %}
+
+{% macro detail_placeholder() %}
+<div class="mp-detail mp-detail-empty">
+  <div class="mp-detail-empty-icon">&#128172;</div>
+  <p>Select a conversation to view it here</p>
+</div>
+{% endmacro %}
+
+{% macro thread_detail(thread, info, header, messages, support_requests, category_labels, is_deleted, is_saved, is_flagged, messages_route, role) %}
+<div class="mp-detail">
+  <div class="mp-detail-head">
+    <span class="vendor-logo mp-avatar mp-avatar-lg" style="background:{{ header.accent }};">
+      {% if header.logo_url %}<img src="{{ header.logo_url }}" alt="" onerror="this.remove();">{% endif %}
+      {{ header.initials }}
+    </span>
+    <div class="mp-detail-titles">
+      <div class="mp-detail-name">
+        {{ header.title }}
+        {% if header.kind == 'vendor' and role == 'seller' %}{% set badge = buyer_outreach_badge(info.buyer) %}{% if badge %}<span class="badge {{ badge.css_class }}">{{ badge.label }}</span>{% endif %}{% endif %}
+        {% if header.kind == 'direct' and role == 'seller' and info.other_user.role == 'buyer' %}{% set badge = buyer_outreach_badge(info.other_user) %}{% if badge %}<span class="badge {{ badge.css_class }}">{{ badge.label }}</span>{% endif %}{% endif %}
+      </div>
+      {% if header.subtitle %}<div class="mp-detail-sub">{{ header.subtitle }}</div>{% endif %}
+      {% if header.kind == 'teammate' and header.participants %}
+      <div class="mp-participants">{% for p in header.participants %}<span class="mp-chip">{{ p.name }}</span>{% endfor %}</div>
+      {% endif %}
+      {% if header.kind == 'pending_email' %}
+      <div class="mp-detail-sub">{{ "We emailed them your message" if info.email_sent else "Not delivered yet" }}</div>
+      {% endif %}
+    </div>
+    <div class="mp-head-actions">
+      {% if header.kind == 'teammate' %}
+      <details class="mp-popover-wrap">
+        <summary class="icon-btn" title="Add people">&#128101;</summary>
+        <div class="mp-popover">
+          {% set existing_ids = header.participants|map(attribute='id')|list %}
+          {% set candidates = company_teammates(g.user)|rejectattr('id', 'in', existing_ids)|list %}
+          {% if candidates %}
+          <form method="post" action="{{ url_for('add_thread_participants', thread_id=thread.id) }}">
+            <input type="hidden" name="next" value="{{ request.path }}">
+            {% for m in candidates %}<label class="mp-people-opt"><input type="checkbox" name="participant_ids" value="{{ m.id }}"> {{ m.name }}</label>{% endfor %}
+            <button class="btn btn-primary btn-sm" type="submit" style="margin-top:6px; width:100%;">Add selected</button>
+          </form>
+          {% else %}
+          <p class="hint" style="margin:2px;">Everyone on your team is already on this thread.</p>
+          {% endif %}
+        </div>
+      </details>
+      {% endif %}
+      {# Redirects to the list, not back to this same thread page --
+         opening a thread always calls mark_thread_read(), so bouncing
+         back here would immediately clear the manually_unread flag
+         this button just set. #}
+      <form method="post" action="{{ url_for('toggle_thread_unread', thread_id=thread.id) }}">
+        <input type="hidden" name="next" value="{{ url_for(messages_route) }}">
+        <button class="icon-btn" type="submit" title="Mark as unread (follow up later)">&#9993;&#65039;</button>
+      </form>
+      <form method="post" action="{{ url_for('toggle_thread_flag', thread_id=thread.id) }}">
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <button class="icon-btn{{ ' flag-active' if is_flagged }}" type="submit" title="{{ 'Remove important flag' if is_flagged else 'Flag as important' }}">&#128681;</button>
+      </form>
+      <form method="post" action="{{ url_for('toggle_thread_save', thread_id=thread.id) }}">
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <button class="icon-btn{{ ' save-active' if is_saved }}" type="submit" title="{{ 'Remove from Saved' if is_saved else 'Save conversation' }}">&#128278;</button>
+      </form>
+      {% if header.block_user_id %}
+      <form method="post" action="{{ url_for('block_vendor') }}">
+        <input type="hidden" name="blocked_user_id" value="{{ header.block_user_id }}">
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <button class="icon-btn" type="submit" title="Block this vendor">&#128683;</button>
+      </form>
+      {% endif %}
+      {% if is_deleted %}
+      <form method="post" action="{{ url_for('restore_thread', thread_id=thread.id) }}">
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <button class="icon-btn" type="submit" title="Restore from Archive">&#8617;&#65039;</button>
+      </form>
+      {% else %}
+      <form method="post" action="{{ url_for('delete_thread', thread_id=thread.id) }}">
+        <input type="hidden" name="next" value="{{ url_for(messages_route) }}">
+        <button class="icon-btn" type="submit" title="Archive conversation">&#128450;&#65039;</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if is_deleted %}<p class="hint mp-archived-note">This conversation is archived. It'll be gone for good in 30 days unless you restore it.</p>{% endif %}
+
+  {% if support_requests %}
+  <div class="mp-scroll-area mp-tickets">
+    {% for support_request in support_requests %}
+    <div class="mock-row" style="background:var(--brand-tint); border-radius:10px; padding:10px 14px; margin-bottom:10px; align-items:flex-start;">
+      <span>
+        {% if support_request.reference_number %}<span class="ref-badge" style="margin-right:4px;">#BF-{{ support_request.reference_number }}</span>{% endif %}
+        <span class="cat-badge cat-{{ support_request.category }}">{{ category_labels[support_request.category] }}</span>
+        <span class="badge {{ 'badge-good' if support_request.status == 'resolved' else ('badge-progress' if support_request.status == 'in_progress' else 'badge-warning') }}" style="margin-left:4px;">{{ support_request.status.replace('_', ' ')|capitalize }}</span>
+        <span class="hint" style="margin-left:8px;">Submitted {{ support_request.created_at|fmt_time }}</span>
+        {% if support_request.attachment_data_url %}
+        <div style="margin-top:10px;">
+          {% if support_request.attachment_content_type and support_request.attachment_content_type.startswith('image/') %}
+          <a href="{{ url_for('support_download_attachment', request_id=support_request.id) }}" target="_blank">
+            <img src="{{ url_for('support_download_attachment', request_id=support_request.id) }}" alt="Attached screenshot"
+              style="max-width:320px; max-height:240px; border-radius:8px; border:1px solid var(--border); display:block;">
+          </a>
+          {% else %}
+          <a class="btn btn-ghost btn-sm" href="{{ url_for('support_download_attachment', request_id=support_request.id) }}">
+            &#128206; Download {{ support_request.attachment_filename }}
+          </a>
+          {% endif %}
+        </div>
+        {% endif %}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="msg-list" data-thread-id="{{ thread.id }}" data-latest-id="{{ messages|max(attribute='id')|attr('id') if messages else 0 }}">
+    {% for m in messages %}
+    <div class="msg-bubble {{ 'mine' if m.sender_user_id == g.user.id }}">
+      <div class="msg-meta">{{ m.sender_name }} &middot; {{ m.created_at|fmt_time }}</div>
+      {% if m.body %}<div class="msg-body">{{ m.body }}</div>{% endif %}
+      {% if m.share_id %}
+      <a href="{{ url_for('buyer_download_share', share_id=m.share_id) }}" data-no-loading class="btn btn-secondary btn-sm" style="margin-top:8px; display:inline-block;">&#11015; Download {{ m.share_filename }}</a>
+      {% endif %}
+      {% if m.attachment_data_url %}
+      <div style="margin-top:8px;">
+        {% if m.attachment_content_type and m.attachment_content_type.startswith('image/') %}
+        <a href="{{ url_for('message_attachment', message_id=m.id) }}" target="_blank">
+          <img src="{{ url_for('message_attachment', message_id=m.id) }}" alt="Attached image"
+            style="max-width:280px; max-height:200px; border-radius:8px; border:1px solid var(--border); display:block;">
+        </a>
+        {% else %}
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('message_attachment', message_id=m.id) }}">&#128206; {{ m.attachment_filename }}</a>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="empty-state"><div class="icon">&#128172;</div>No messages yet &mdash; say hello.</div>
+    {% endfor %}
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="mp-composer">
+    <textarea name="body" placeholder="Write a message&hellip;"></textarea>
+    <div class="field" style="margin-top:8px;">
+      <label>Attach a file <span class="hint">(optional, up to 10MB)</span></label>
+      <input type="file" name="attachment">
+    </div>
+    <button class="btn btn-primary" type="submit" style="margin-top:10px;">Send</button>
+  </form>
+</div>
+{% endmacro %}

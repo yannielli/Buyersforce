@@ -106,6 +106,7 @@ def run_migrations():
             _empty_prelaunch_checklist_items_2026_11_08(cur)
             _add_users_work_email_verification_columns_2026_11_08(cur)
             _add_users_country_column_2026_11_08(cur)
+            _add_thread_participants_table_2026_11_15(cur)
     finally:
         con.close()
 
@@ -2398,6 +2399,56 @@ def _add_users_country_column_2026_11_08(cur):
     # Nullable here since existing rows predate this field; new signups
     # and newly-completed profiles always set it going forward.
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS country TEXT")
+
+
+def _add_thread_participants_table_2026_11_15(cur):
+    """Privacy fix (Kj's ask, 2026-11-15): "Only people who are in a
+    messaging thread should see their messages ... Org-wide messaging
+    needs to go away so messaging is private just like Slack and
+    Microsoft Teams." Until now, a 'teammate' (Internal) thread was
+    visible to ANYONE at the same company, via a hack where the thread's
+    subject line was prefixed "[Company Name] ..." and every listing
+    query matched it with a LIKE -- not an actual participant list.
+    That's being replaced with a real thread_participants table (see
+    schema.sql), checked directly in app.py's _load_thread_for_user and
+    every team-thread listing query.
+
+    Two backfill steps so switching the access-control model doesn't
+    silently lock anyone out of a conversation they're actually part
+    of: every existing team thread's creator, AND everyone who's ever
+    actually sent a message in it, become participants. Everyone else
+    at the company -- who could see it before only because of the
+    company-name match, never because they were actually in the
+    conversation -- loses access, which is the whole point of this fix.
+
+    Also strips the now-unnecessary "[Company Name] " prefix off every
+    existing team thread's subject (see buyer_new_team_thread /
+    seller_new_team_thread in app.py, which stops adding it going
+    forward) -- it existed only to make the old LIKE-based visibility
+    check work, and now reads as a confusing, redundant label on what
+    is otherwise meant to be a clean, free-text thread name."""
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS thread_participants ("
+        "thread_id INTEGER NOT NULL REFERENCES threads(id), "
+        "user_id INTEGER NOT NULL REFERENCES users(id), "
+        "added_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS')), "
+        "PRIMARY KEY (thread_id, user_id))"
+    )
+    cur.execute(
+        "INSERT INTO thread_participants (thread_id, user_id) "
+        "SELECT id, created_by FROM threads WHERE type='teammate' "
+        "ON CONFLICT DO NOTHING"
+    )
+    cur.execute(
+        "INSERT INTO thread_participants (thread_id, user_id) "
+        "SELECT DISTINCT m.thread_id, m.sender_user_id FROM messages m "
+        "JOIN threads t ON t.id = m.thread_id WHERE t.type='teammate' "
+        "ON CONFLICT DO NOTHING"
+    )
+    cur.execute(
+        "UPDATE threads SET subject = substring(subject FROM position('] ' IN subject) + 2) "
+        "WHERE type='teammate' AND subject LIKE '[%] %'"
+    )
 
 
 if __name__ == "__main__":
