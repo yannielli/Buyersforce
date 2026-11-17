@@ -814,27 +814,29 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .mp-empty { padding: 6px 6px 10px; font-size: 12.5px; color: var(--ink-muted); }
 
 .mp-row {
-  display: flex; align-items: center; gap: 9px; padding: 8px 6px; border-radius: var(--radius-sm);
-  text-decoration: none; color: inherit;
+  display: flex; align-items: center; gap: 2px; border-radius: var(--radius-sm);
 }
 .mp-row:hover { background: var(--page); }
 .mp-row.active { background: var(--brand-tint); }
+.mp-row-link {
+  display: flex; align-items: center; gap: 9px; padding: 8px 6px; flex: 1 1 auto; min-width: 0;
+  text-decoration: none; color: inherit;
+}
 .mp-row .mp-avatar { width: 32px; height: 32px; font-size: 11.5px; border-radius: 9px; flex-shrink: 0; }
-.mp-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 6px; overflow: hidden; }
-.mp-title { font-size: 13.5px; font-weight: 700; color: var(--ink-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; flex: 0 1 auto; }
+.mp-main { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.mp-title { font-size: 13.5px; font-weight: 700; color: var(--ink-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .mp-row.unread .mp-title { font-weight: 800; }
 .mp-subtitle { font-weight: 500; color: var(--ink-muted); }
-.mp-snippet { font-size: 12.5px; color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
-.mp-row.unread .mp-snippet { color: var(--ink-secondary); font-weight: 600; }
-.mp-meta { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; margin-left: 4px; }
-.mp-time { font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
+.mp-meta { flex: 0 0 auto; display: flex; align-items: center; gap: 2px; padding-right: 6px; }
 .mp-unread-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex: 0 0 auto; }
 .mp-flag-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--critical); flex: 0 0 auto; }
-
-.mp-saved { margin: 6px 2px 0; }
-.mp-saved summary { cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--ink-secondary); padding: 4px 4px; list-style: none; }
-.mp-saved summary::-webkit-details-marker { display: none; }
-.mp-saved-body { padding: 2px 0 6px; }
+.mp-star-btn {
+  border: none; background: transparent; cursor: pointer; font-size: 14.5px; line-height: 1; padding: 3px;
+  color: var(--ink-muted); opacity: 0.35; flex: 0 0 auto; border-radius: 6px; font-family: inherit;
+}
+.mp-row:hover .mp-star-btn { opacity: 1; }
+.mp-star-btn:hover { background: var(--border); }
+.mp-star-btn.mp-star-on { opacity: 1; color: var(--brand-mcm-mustard); }
 
 .mp-people-list { max-height: 150px; overflow-y: auto; border: 1px solid var(--gridline); border-radius: var(--radius-sm); padding: 4px 8px; background: var(--page); }
 .mp-people-opt { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 4px 2px; cursor: pointer; }
@@ -882,15 +884,15 @@ html[data-theme="dark"] .mp-popover { box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
 .mp-tickets { padding: 14px 20px 0; }
 .mp-composer { flex: 0 0 auto; padding: 14px 20px 18px; background: var(--surface-raised); border-top: 1px solid var(--gridline); }
 .mp-composer textarea { margin-bottom: 0; }
-/* The follow-up ask: no right-justified "mine" bubbles, and use the
-   full width of the pane -- scoped to .mp-detail so the ticket-thread
+/* Fixed-height scrolling message list, and the Teams-style left/right
+   split (2026-11-16): the viewer's own messages right-justified,
+   everyone else's left -- scoped to .mp-detail so the ticket-thread
    page (admin/ticket_thread.html), which shares the same base
    .msg-list/.msg-bubble classes, keeps its own look unless asked. */
 .mp-detail .msg-list { flex: 1 1 auto; margin: 0; padding: 18px 20px; max-height: none; min-height: 0; }
 .mp-detail .mp-tickets ~ .msg-list { padding-top: 0; }
-.mp-detail .msg-bubble { max-width: 100%; }
-.mp-detail .msg-bubble.mine { margin-left: 0; }
-.mp-lede { margin: 2px 14px 10px; }
+.mp-detail .msg-bubble { max-width: 68%; }
+.mp-detail .msg-bubble.mine { margin-left: auto; }
 .mp-page-topbar { margin-bottom: 10px; }
 
 @media (max-width: 860px) {

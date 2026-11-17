@@ -1263,3 +1263,54 @@ Known rough edges worth remembering, not yet fixed:
     `.mp-detail .msg-bubble` specifically, so admin's separate ticket-
     thread page (which shares the same base `.msg-list`/`.msg-bubble`
     classes) keeps its own look unless that's asked for too.
+- **Messages redesign, Teams/Slack-style pass (2026-11-16).** Kj, after
+  trying Pass 1 + its follow-up live: "I don't think we have it right
+  ... function and layout in a similar format to Microsoft Teams and
+  Slack," with a Teams screenshot for reference. Agreed via an
+  interactive HTML mockup first (same workflow as the original
+  redesign) before touching real code.
+  - **Favorites replaces Saved**, same `is_saved` flag/route
+    (`toggle_thread_save`) under the hood -- just renamed in the UI
+    ("Favorites" everywhere, star icon instead of a bookmark) and
+    promoted from a collapsed `<details>` tucked under each section to
+    its own always-visible-when-non-empty section pinned above
+    Internal/External, combining both kinds' saved threads into one
+    list instead of two separate "Saved in Internal"/"Saved in
+    External" buckets. Each row in the sidebar (any section) now has
+    its own small star toggle, not just the open thread's header.
+  - **Sidebar ordering is alphabetical-by-name within each section,
+    except unread/new threads pin to the top** (newest-first among
+    themselves) until opened and marked read --
+    `_sort_alpha_unread_pinned`, replacing the old pure
+    newest-activity-first `_sort_by_last_at`. Fixed a latent gap this
+    surfaced: an unnamed Internal (teammate) thread's title/sort key
+    was silently "Just you" for every row in the sidebar LISTING
+    (only the open thread's own header ever actually loaded real
+    participant names) -- `_shape_team_rows` now enriches each row via
+    `thread_display_info` before shaping, same as direct/vendor rows
+    already did.
+  - **Rows are simplified to just an avatar and name(s)** -- the
+    category/company subtitle line and the last-message snippet are
+    gone from the sidebar list (Kj: "just the logo and persons or
+    people's names"). Flags and timestamps are still visible once you
+    open the thread, just not on every row.
+  - **The sidebar's own "+ New internal thread" and "+ New external
+    thread" entries are gone**; "+ Create message" (top of the
+    sidebar, unchanged) is the only way to start anything new. Its
+    target page, `messages_new.html`, picked up the old "+ New
+    internal thread" popover (same `new_internal_thread_form` macro,
+    same `_create_team_thread` route per role) as an "or start a
+    group" option alongside the existing search/email flow, so naming
+    a multi-person Internal group is still possible from one place.
+  - **The explanatory lede paragraph is gone** ("One inbox, two
+    sections..." on every Messages/thread page) -- Kj: the page should
+    be intuitive without spelling it out. Both pages still render
+    nothing in its place, so the fixed-height shell stays aligned.
+  - **Message bubbles are right-justified for the viewer's own
+    messages, left for everyone else's**, with a real max-width again
+    (68%) -- supersedes the Pass 1 follow-up's "full width, no split"
+    change. Kj's literal wording that day ("left justified for the
+    user, right justified for replies") read as the reverse of this
+    and of his own Teams reference; asked him to pick via a live
+    toggle in the mockup, and he left the call to Claude's judgment --
+    went with the standard/Teams-matching convention.

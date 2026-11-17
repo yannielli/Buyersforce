@@ -2991,6 +2991,17 @@ def _shape_team_row(t, viewer):
     }
 
 
+def _shape_team_rows(rows, user):
+    """Shapes a list of raw 'teammate' thread rows for a sidebar section,
+    first enriching each with its real participant list (team_rows
+    comes straight off a plain SQL join with no participants attached
+    yet, unlike direct/vendor rows -- without this an unnamed group
+    thread's title falls back to "Just you" instead of who's actually
+    on it), then applies the alphabetical/unread-pinned sidebar sort."""
+    enriched = [{**dict(t), **thread_display_info(t, user)} for t in rows]
+    return _sort_alpha_unread_pinned([_shape_team_row(t, user) for t in enriched])
+
+
 def _thread_header_view(thread, info, viewer):
     """Same idea as the sidebar-row shapers above, but for the single
     OPEN thread's header (buyer/seller/admin thread.html) -- built from
@@ -3093,12 +3104,18 @@ def _thread_header_view(thread, info, viewer):
     return base
 
 
-def _sort_by_last_at(rows):
-    """Newest-activity-first across a list merged from more than one
-    query (so a plain SQL ORDER BY can't do it) -- a thread with no
-    messages yet (last_at is None) sorts to the end, same as every
-    per-section listing's own ORDER BY already does."""
-    return sorted(rows, key=lambda r: r.get("last_at") or "", reverse=True)
+def _sort_alpha_unread_pinned(rows):
+    """Sidebar ordering for Messages (2026-11-16, Teams/Slack-style
+    redesign): alphabetical by display title (ext_title) within a
+    section, except unread/new threads are pinned to the top --
+    newest-first among themselves -- until they're opened and marked
+    read. Works across a list merged from more than one query (so a
+    plain SQL ORDER BY can't do it alone)."""
+    unread = [r for r in rows if r.get("is_unread")]
+    read = [r for r in rows if not r.get("is_unread")]
+    unread.sort(key=lambda r: r.get("last_at") or "", reverse=True)
+    read.sort(key=lambda r: (r.get("ext_title") or "").lower())
+    return unread + read
 
 
 def _external_threads_for(user, vendor_rows, direct_rows):
@@ -3108,7 +3125,7 @@ def _external_threads_for(user, vendor_rows, direct_rows):
     already excluding BuyersForce-support/ticket threads -- see
     _direct_threads_for), normalized to one shape and newest-first."""
     shaped = [_shape_vendor_row(t, user) for t in vendor_rows] + [_shape_direct_row(t) for t in direct_rows]
-    return _sort_by_last_at(shaped)
+    return _sort_alpha_unread_pinned(shaped)
 
 
 def visible_thread_ids(user):
@@ -3567,6 +3584,17 @@ def _thread_route_for(user):
     return "buyer_thread" if user["role"] == "buyer" else "seller_thread"
 
 
+def _new_team_route_for(user):
+    """Same idea again, for the per-role "start an Internal/group
+    thread" route -- messages_new() hands this to messages_new.html so
+    the single '+ Create message' entry point can also start a named
+    group, now that the sidebar's own '+ New internal thread' button is
+    gone (2026-11-16, Teams/Slack-style redesign)."""
+    if user["role"] == "admin":
+        return "admin_new_team_thread"
+    return "buyer_new_team_thread" if user["role"] == "buyer" else "seller_new_team_thread"
+
+
 @app.route("/app/poll/badges")
 @login_required
 def poll_badges():
@@ -3799,7 +3827,10 @@ def messages_new():
                 selected = {"kind": "email", "email": to_email}
 
     results = search_recipients(g.user, q) if (q and not selected) else []
-    return render_template("messages_new.html", q=q, results=results, selected=selected)
+    return render_template(
+        "messages_new.html", q=q, results=results, selected=selected,
+        new_team_route=_new_team_route_for(g.user),
+    )
 
 
 @app.route("/app/messages/start", methods=("POST",))
@@ -4631,10 +4662,11 @@ def _admin_messages_sections(user, view):
         direct_threads, saved_direct = split_saved(direct_active)
         team_threads, saved_team = split_saved(team_active)
     return {
-        "internal_threads": [_shape_team_row(t, user) for t in team_threads],
+        "internal_threads": _shape_team_rows(team_threads, user),
         "external_threads": _external_threads_for(user, [], direct_threads),
-        "saved_internal": [_shape_team_row(t, user) for t in saved_team],
-        "saved_external": _external_threads_for(user, [], saved_direct),
+        "favorites": _sort_alpha_unread_pinned(
+            _shape_team_rows(saved_team, user) + _external_threads_for(user, [], saved_direct)
+        ),
     }
 
 
@@ -5889,10 +5921,11 @@ def _buyer_messages_sections(user, view):
         team_threads, saved_team = split_saved(team_active)
         direct_threads, saved_direct = split_saved(direct_active)
     return {
-        "internal_threads": [_shape_team_row(t, user) for t in team_threads],
+        "internal_threads": _shape_team_rows(team_threads, user),
         "external_threads": _external_threads_for(user, vendor_threads, direct_threads),
-        "saved_internal": [_shape_team_row(t, user) for t in saved_team],
-        "saved_external": _external_threads_for(user, saved_vendor, saved_direct),
+        "favorites": _sort_alpha_unread_pinned(
+            _shape_team_rows(saved_team, user) + _external_threads_for(user, saved_vendor, saved_direct)
+        ),
     }
 
 
@@ -9392,10 +9425,11 @@ def _seller_messages_sections(user, view):
         team_threads, saved_team = split_saved(team_active)
         direct_threads, saved_direct = split_saved(direct_active)
     return {
-        "internal_threads": [_shape_team_row(t, user) for t in team_threads],
+        "internal_threads": _shape_team_rows(team_threads, user),
         "external_threads": _external_threads_for(user, vendor_threads, direct_threads),
-        "saved_internal": [_shape_team_row(t, user) for t in saved_team],
-        "saved_external": _external_threads_for(user, saved_vendor, saved_direct),
+        "favorites": _sort_alpha_unread_pinned(
+            _shape_team_rows(saved_team, user) + _external_threads_for(user, saved_vendor, saved_direct)
+        ),
     }
 
 

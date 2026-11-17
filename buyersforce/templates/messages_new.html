@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_messages_pane.html" as mp %}
 {% block title %}New message{% endblock %}
 {% block content %}
 <a href="{{ url_for('admin_messages' if g.user.role == 'admin' else ('buyer_messages' if g.user.role == 'buyer' else 'seller_messages')) }}"
@@ -91,6 +92,13 @@
       <p class="hint" style="margin-top:8px;">If they're not on BuyersForce yet, we'll send your message to
         that email address. (Texting a phone number isn't supported yet.)</p>
     </form>
+
+    {% if new_team_route and company_teammates(g.user) %}
+    <div class="divider-label"><span>or</span></div>
+    <p class="hint" style="margin-bottom:6px;">Starting a group instead? Pick everyone who should be on it and
+      give it a name if you'd like.</p>
+    {{ mp.new_internal_thread_form(new_team_route) }}
+    {% endif %}
   {% endif %}
 </div>
 {% endblock %}

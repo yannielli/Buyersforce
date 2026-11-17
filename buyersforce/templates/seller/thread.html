@@ -2,11 +2,8 @@
 {% import "_messages_pane.html" as mp %}
 {% block title %}{{ header.title }}{% endblock %}
 {% block content %}
-{% set lede %}One inbox, two sections: Internal for your own team (only people on a
-  thread can see it), External for buyers and anyone else on BuyersForce. Support
-  tickets now live on their own <a href="{{ url_for('support_new') }}">Support</a> page.{% endset %}
 <div class="mp-shell">
-  {{ mp.sidebar(internal_threads, external_threads, saved_internal, saved_external, thread_route, new_team_route, view, open_thread_id=open_thread_id, list_url=url_for('seller_messages'), lede=lede) }}
+  {{ mp.sidebar(internal_threads, external_threads, favorites, thread_route, view, open_thread_id=open_thread_id, list_url=url_for('seller_messages')) }}
   {{ mp.thread_detail(thread, info, header, messages, support_requests, category_labels, is_deleted, is_saved, is_flagged, 'seller_messages', 'seller') }}
 </div>
 {% endblock %}

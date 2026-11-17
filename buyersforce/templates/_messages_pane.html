@@ -1,64 +1,71 @@
 {#
-  Shared Internal/External Messages shell (2026-11-15 redesign, with a
-  2026-11-15 follow-up pass) -- one single pane with two sections
-  (Internal: thread_participants-gated team threads; External: vendor
-  + direct conversations), newest activity first, used identically by
-  buyer, seller, and admin's Messages list page and open-thread page.
-  Support tickets/vendor suggestions live on their own Support page
-  now, not here.
+  Shared Internal/External Messages shell (2026-11-15 redesign, a
+  2026-11-15 follow-up pass, and a 2026-11-16 Teams/Slack-style pass)
+  -- one single pane, Favorites on top of two sections (Internal:
+  thread_participants-gated team threads; External: vendor + direct
+  conversations), used identically by buyer, seller, and admin's
+  Messages list page and open-thread page. Support tickets/vendor
+  suggestions live on their own Support page now, not here.
 
-  Callers pass internal_threads / external_threads / saved_internal /
-  saved_external (already shaped by app.py's _shape_*_row /
-  _external_threads_for helpers -- each row carries ext_title,
-  ext_subtitle, ext_logo_url, ext_initials, ext_accent, ext_custom_name,
-  last_body, last_at, is_unread, is_flagged, is_saved), plus
-  thread_route (the per-role single-thread endpoint name) and
-  new_team_route (the per-role "start an Internal thread" endpoint
+  Callers pass internal_threads / external_threads / favorites
+  (already shaped + sorted by app.py's _shape_*_row /
+  _external_threads_for / _shape_team_rows / _sort_alpha_unread_pinned
+  helpers -- each row carries ext_title, ext_logo_url, ext_initials,
+  ext_accent, ext_custom_name, last_at, is_unread, is_flagged,
+  is_saved), plus thread_route (the per-role single-thread endpoint
   name).
 
-  Follow-up pass (same day): the sidebar and the open-thread detail
-  pane are now both a FIXED-height box that scrolls its own contents
-  (see .mp-shell/.mp-scroll/.mp-detail .msg-list in style.css) instead
-  of one shifting the page around when you open a thread -- which
-  meant making sure every page that renders this shell puts the exact
-  same things, in the exact same order, above and inside it (see
-  sidebar()'s list_url/lede params, and buyer/seller/admin's
-  messages.html + thread.html). "Add people" is no longer teammate-only
-  (header.addable_team/addable_other), any open thread but a
-  not-yet-joined pending invite can be renamed/nicknamed at any time
-  (header.can_rename), and starting a new thread -- either section --
-  no longer pushes the list down: Internal opens a small popover in
-  place, External hands off to the existing "start a conversation"
-  search page.
+  2026-11-16 pass (Kevin's "make it function like Teams/Slack"
+  request): Favorites replaces the old collapsed-per-section "Saved"
+  bucket with one combined, always-visible-when-non-empty section
+  pinned above Internal/External (still the same is_saved flag under
+  the hood -- see toggle_thread_save -- just unified and renamed in the
+  UI). Each section sorts alphabetically by display name except
+  unread/new threads, which pin to the top until opened and read (see
+  _sort_alpha_unread_pinned). Rows are simplified to just an avatar and
+  name(s) -- no subtitle/snippet line -- with a star toggle for
+  Favorites. The sidebar's own "+ New internal thread" / "+ New
+  external thread" entries are gone; "+ Create message" (messages_new,
+  which can now also start a named teammate group -- see
+  new_internal_thread_form below, moved onto that page) is the only
+  way to start a new conversation. The explanatory lede paragraph
+  ("One inbox, two sections...") is gone too -- Kevin's call, the page
+  should be self-explanatory. Message bubbles are right-justified for
+  the viewer's own messages, left for everyone else's (standard
+  convention, matching the Teams reference Kevin pointed to).
+
+  The sidebar and the open-thread detail pane are both a FIXED-height
+  box that scrolls its own contents (see .mp-shell/.mp-scroll/
+  .mp-detail .msg-list in style.css) instead of one shifting the page
+  around when you open a thread -- which means every page that renders
+  this shell must put the exact same things, in the exact same order,
+  above and inside it (see sidebar()'s list_url param, and
+  buyer/seller/admin's messages.html + thread.html). "Add people" is
+  not teammate-only (header.addable_team/addable_other), any open
+  thread but a not-yet-joined pending invite can be renamed/nicknamed
+  at any time (header.can_rename), and the composer is always
+  available on any open thread, archived included.
 #}
 
-{% macro row(t, thread_route, open_thread_id) %}
-<a class="mp-row{{ ' unread' if t.is_unread }}{{ ' active' if open_thread_id and t.id == open_thread_id }}" href="{{ url_for(thread_route, thread_id=t.id) }}">
-  <span class="vendor-logo mp-avatar" style="background:{{ t.ext_accent }};">
-    {% if t.ext_logo_url %}<img src="{{ t.ext_logo_url }}" alt="" onerror="this.remove();">{% endif %}
-    {{ t.ext_initials }}
-  </span>
-  <span class="mp-main">
-    <span class="mp-title">{{ t.ext_title }}{% if t.ext_custom_name %} <span class="mp-nickname">&ldquo;{{ t.ext_custom_name }}&rdquo;</span>{% endif %}{% if t.ext_subtitle %}<span class="mp-subtitle"> &middot; {{ t.ext_subtitle }}</span>{% endif %}</span>
-    <span class="mp-snippet">{{ t.last_body or "No messages yet" }}</span>
-  </span>
+{% macro row(t, thread_route, open_thread_id, list_url) %}
+<div class="mp-row{{ ' unread' if t.is_unread }}{{ ' active' if open_thread_id and t.id == open_thread_id }}">
+  <a class="mp-row-link" href="{{ url_for(thread_route, thread_id=t.id) }}">
+    <span class="vendor-logo mp-avatar" style="background:{{ t.ext_accent }};">
+      {% if t.ext_logo_url %}<img src="{{ t.ext_logo_url }}" alt="" onerror="this.remove();">{% endif %}
+      {{ t.ext_initials }}
+    </span>
+    <span class="mp-main">
+      <span class="mp-title">{{ t.ext_title }}{% if t.ext_custom_name %} <span class="mp-nickname">&ldquo;{{ t.ext_custom_name }}&rdquo;</span>{% endif %}</span>
+    </span>
+  </a>
   <span class="mp-meta">
-    {% if t.is_flagged %}<span class="mp-flag-dot" title="Flagged"></span>{% endif %}
     {% if t.is_unread %}<span class="mp-unread-dot" title="Unread"></span>{% endif %}
-    <span class="mp-time">{{ t.last_at|fmt_time if t.last_at }}</span>
+    <form method="post" action="{{ url_for('toggle_thread_save', thread_id=t.id) }}">
+      <input type="hidden" name="next" value="{{ list_url or request.path }}">
+      <button class="mp-star-btn{{ ' mp-star-on' if t.is_saved }}" type="submit" title="{{ 'Remove from Favorites' if t.is_saved else 'Add to Favorites' }}">{% if t.is_saved %}&#9733;{% else %}&#9734;{% endif %}</button>
+    </form>
   </span>
-</a>
-{% endmacro %}
-
-{% macro saved_section(label, items, thread_route, open_thread_id) %}
-{% if items %}
-<details class="mp-saved">
-  <summary>&#128278; Saved in {{ label }} <span class="hint">({{ items|length }})</span></summary>
-  <div class="mp-saved-body">
-    {% for t in items %}{{ row(t, thread_route, open_thread_id) }}{% endfor %}
-  </div>
-</details>
-{% endif %}
+</div>
 {% endmacro %}
 
 {% macro new_internal_thread_form(new_team_route) %}
@@ -85,13 +92,12 @@
 </details>
 {% endmacro %}
 
-{% macro sidebar(internal_threads, external_threads, saved_internal, saved_external, thread_route, new_team_route, view, open_thread_id=none, list_url=none, lede=none) %}
+{% macro sidebar(internal_threads, external_threads, favorites, thread_route, view, open_thread_id=none, list_url=none) %}
 <div class="mp-sidebar">
   <div class="mp-sidebar-head">
     <h1>Messages {% if g.unread_count %}<span class="badge badge-brand">{{ g.unread_count }}</span>{% endif %}</h1>
     <a class="btn btn-primary btn-sm" href="{{ url_for('messages_new') }}">+ Create message</a>
   </div>
-  {% if lede %}<p class="hint mp-lede">{{ lede }}</p>{% endif %}
   {# Always rendered (both the list page and an open-thread page) --
      see the module docstring above: the two pages have to put the
      exact same things in the exact same order above .mp-scroll, or
@@ -99,20 +105,19 @@
      visibly jumps when you click a conversation. #}
   <div class="mp-archive-toggle">{% include "_archive_toggle.html" %}</div>
   <div class="mp-scroll">
+    {% if favorites %}
+    <div class="mp-section-head"><span>Favorites</span></div>
+    {% for t in favorites %}{{ row(t, thread_route, open_thread_id, list_url) }}{% endfor %}
+    {% endif %}
+
     <div class="mp-section-head">
       <span>Internal</span>
       <span class="mp-lock">&#128274; only people on the thread can see it</span>
-      <span class="mp-section-action">{{ new_internal_thread_form(new_team_route) }}</span>
     </div>
-    {% for t in internal_threads %}{{ row(t, thread_route, open_thread_id) }}{% else %}<p class="mp-empty">Nothing here yet.</p>{% endfor %}
-    {{ saved_section('Internal', saved_internal, thread_route, open_thread_id) }}
+    {% for t in internal_threads %}{{ row(t, thread_route, open_thread_id, list_url) }}{% else %}<p class="mp-empty">Nothing here yet.</p>{% endfor %}
 
-    <div class="mp-section-head">
-      <span>External</span>
-      <span class="mp-section-action"><a class="mp-add-link" href="{{ url_for('messages_new') }}">+ New external thread</a></span>
-    </div>
-    {% for t in external_threads %}{{ row(t, thread_route, open_thread_id) }}{% else %}<p class="mp-empty">Nothing here yet.</p>{% endfor %}
-    {{ saved_section('External', saved_external, thread_route, open_thread_id) }}
+    <div class="mp-section-head"><span>External</span></div>
+    {% for t in external_threads %}{{ row(t, thread_route, open_thread_id, list_url) }}{% else %}<p class="mp-empty">Nothing here yet.</p>{% endfor %}
   </div>
 </div>
 {% endmacro %}
@@ -206,7 +211,7 @@
       </form>
       <form method="post" action="{{ url_for('toggle_thread_save', thread_id=thread.id) }}">
         <input type="hidden" name="next" value="{{ request.path }}">
-        <button class="icon-btn{{ ' save-active' if is_saved }}" type="submit" title="{{ 'Remove from Saved' if is_saved else 'Save conversation' }}">&#128278;</button>
+        <button class="icon-btn{{ ' save-active' if is_saved }}" type="submit" title="{{ 'Remove from Favorites' if is_saved else 'Add to Favorites' }}">{% if is_saved %}&#9733;{% else %}&#9734;{% endif %}</button>
       </form>
       {% if header.block_user_id %}
       <form method="post" action="{{ url_for('block_vendor') }}">
