@@ -1321,3 +1321,11 @@ Known rough edges worth remembering, not yet fixed:
     own headers already say which is which, so the tag only appears
     in Favorites, where that context is gone. `row()` takes a new
     `show_kind` flag, off by default.
+  - **Second follow-up (same day): the same two symbols on the
+    Internal/External section headers themselves** -- Kj: mark the
+    headers with the same lock/globe, but not on every row inside
+    them (the per-row tag stays Favorites-only; a row already inside
+    "Internal" doesn't need to be told it's Internal again). Dropped
+    the Internal header's own separate lock glyph from its "only
+    people on the thread can see it" hint text, since the header icon
+    now covers that.
