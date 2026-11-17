@@ -1314,3 +1314,10 @@ Known rough edges worth remembering, not yet fixed:
     and of his own Teams reference; asked him to pick via a live
     toggle in the mockup, and he left the call to Claude's judgment --
     went with the standard/Teams-matching convention.
+  - **Follow-up (same day): a small kind tag (lock = Internal, globe =
+    External) on each Favorites row only** -- Kj: once Internal and
+    External are combined into one Favorites list, "is it known what
+    is internal vs external?" The Internal/External sections'
+    own headers already say which is which, so the tag only appears
+    in Favorites, where that context is gone. `row()` takes a new
+    `show_kind` flag, off by default.

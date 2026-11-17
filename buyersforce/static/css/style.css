@@ -825,6 +825,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); out
 .mp-row .mp-avatar { width: 32px; height: 32px; font-size: 11.5px; border-radius: 9px; flex-shrink: 0; }
 .mp-main { flex: 1 1 auto; min-width: 0; overflow: hidden; }
 .mp-title { font-size: 13.5px; font-weight: 700; color: var(--ink-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.mp-kind-tag { flex: 0 0 auto; font-size: 11.5px; opacity: 0.75; margin-left: 2px; }
 .mp-row.unread .mp-title { font-weight: 800; }
 .mp-subtitle { font-weight: 500; color: var(--ink-muted); }
 .mp-meta { flex: 0 0 auto; display: flex; align-items: center; gap: 2px; padding-right: 6px; }

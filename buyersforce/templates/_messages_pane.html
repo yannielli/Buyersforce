@@ -47,7 +47,7 @@
   available on any open thread, archived included.
 #}
 
-{% macro row(t, thread_route, open_thread_id, list_url) %}
+{% macro row(t, thread_route, open_thread_id, list_url, show_kind=false) %}
 <div class="mp-row{{ ' unread' if t.is_unread }}{{ ' active' if open_thread_id and t.id == open_thread_id }}">
   <a class="mp-row-link" href="{{ url_for(thread_route, thread_id=t.id) }}">
     <span class="vendor-logo mp-avatar" style="background:{{ t.ext_accent }};">
@@ -57,6 +57,13 @@
     <span class="mp-main">
       <span class="mp-title">{{ t.ext_title }}{% if t.ext_custom_name %} <span class="mp-nickname">&ldquo;{{ t.ext_custom_name }}&rdquo;</span>{% endif %}</span>
     </span>
+    {# Favorites mixes Internal and External threads into one list, so
+       (only there -- the Internal/External sections' own headers
+       already say which is which) each row gets a small kind tag.
+       2026-11-17, Kj: "how do I know which is which in Favorites?" #}
+    {% if show_kind %}
+    <span class="mp-kind-tag" title="{{ 'Internal thread -- only people on it can see it' if t.ext_kind == 'teammate' else 'External thread' }}">{% if t.ext_kind == 'teammate' %}&#128274;{% else %}&#127760;{% endif %}</span>
+    {% endif %}
   </a>
   <span class="mp-meta">
     {% if t.is_unread %}<span class="mp-unread-dot" title="Unread"></span>{% endif %}
@@ -107,7 +114,7 @@
   <div class="mp-scroll">
     {% if favorites %}
     <div class="mp-section-head"><span>Favorites</span></div>
-    {% for t in favorites %}{{ row(t, thread_route, open_thread_id, list_url) }}{% endfor %}
+    {% for t in favorites %}{{ row(t, thread_route, open_thread_id, list_url, show_kind=true) }}{% endfor %}
     {% endif %}
 
     <div class="mp-section-head">
