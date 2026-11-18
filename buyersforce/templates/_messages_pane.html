@@ -117,11 +117,8 @@
     {% for t in favorites %}{{ row(t, thread_route, open_thread_id, list_url, show_kind=true) }}{% endfor %}
     {% endif %}
 
-    <div class="mp-section-head">
-      <span>&#128274; Internal</span>
-      <span class="mp-lock">only people on the thread can see it</span>
-    </div>
-    {% for t in internal_threads %}{{ row(t, thread_route, open_thread_id, list_url) }}{% else %}<p class="mp-empty">Nothing here yet.</p>{% endfor %}
+    <div class="mp-section-head"><span>&#128274; Internal</span></div>
+    {% for t in internal_threads %}{{ row(t, thread_route, open_thread_id, list_url) }}{% endfor %}
 
     <div class="mp-section-head"><span>&#127760; External</span></div>
     {% for t in external_threads %}{{ row(t, thread_route, open_thread_id, list_url) }}{% else %}<p class="mp-empty">Nothing here yet.</p>{% endfor %}
