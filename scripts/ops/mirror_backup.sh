@@ -5,23 +5,25 @@
 # remote named "backup-mirror" -- insurance against the main "origin" GitHub
 # repo/account being deleted, compromised, or corrupted. Run every Sunday 4pm
 # by launchd (com.buyersforce.githubmirror). Does not need Claude, only this
-# Mac, its saved GitHub login, and (for alerts) the Mail app.
+# Mac and its saved GitHub login. It does NOT use the Mail app: on YELLOW or
+# RED it shows a Mac notification. The emails for yellow/red come from the
+# Sunday ~5pm Pacific cloud check (Gmail), which also writes the weekly log entry.
 #
 # Result, one of:
 #   GREEN  - pushed on the first try AND the backup repo's main matches this
 #            repo's main. Nothing to do.
 #   YELLOW - pushed fine, but with a hiccup (needed a retry, or the last good
-#            backup was more than 9 days ago, i.e. a week was missed). An
-#            email goes to kj.jackson9@gmail.com.
-#   RED    - the push failed twice, or the copy doesn't match. An email goes
-#            to kj.jackson9@gmail.com.
+#            backup was more than 9 days ago, i.e. a week was missed). A Mac
+#            notification is shown.
+#   RED    - the push failed twice, or the copy doesn't match. A Mac
+#            notification is shown.
 #
 # Files (all in _local_backups/, which is gitignored):
 #   mirror_backup.log      - full history of every run
 #   mirror_status.txt      - one line: the latest result
 #   mirror_last_ok.txt     - unix time of the last GREEN/YELLOW run
 #
-# Test the email without pushing anything:  bash scripts/ops/mirror_backup.sh --test-alert
+# Test the notification without pushing anything:  bash scripts/ops/mirror_backup.sh --test-alert
 set -uo pipefail
 export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin"
 export GIT_TERMINAL_PROMPT=0
@@ -31,30 +33,21 @@ mkdir -p _local_backups
 LOG="_local_backups/mirror_backup.log"
 STATUS="_local_backups/mirror_status.txt"
 LAST_OK="_local_backups/mirror_last_ok.txt"
-ALERT_TO="kj.jackson9@gmail.com"
 STALE_DAYS=9
 
 log() { echo "$*" >> "$LOG"; }
 now_utc() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
-send_alert() {  # $1 = subject, $2 = body
-  if /usr/bin/osascript - "$ALERT_TO" "$1" "$2" >> "$LOG" 2>&1 <<'APPLESCRIPT'
+send_alert() {  # $1 = title, $2 = message. A Mac notification only -- never the Mail app.
+  if /usr/bin/osascript - "$1" "$2" >> "$LOG" 2>&1 <<'APPLESCRIPT'
 on run argv
-  set theTo to item 1 of argv
-  set theSubject to item 2 of argv
-  set theBody to item 3 of argv
-  tell application "Mail"
-    set msg to make new outgoing message with properties {subject:theSubject, content:theBody, visible:false}
-    tell msg to make new to recipient at end of to recipients with properties {address:theTo}
-    send msg
-  end tell
+  display notification (item 2 of argv) with title (item 1 of argv)
 end run
 APPLESCRIPT
   then
-    log "ALERT email sent to $ALERT_TO"
+    log "ALERT: Mac notification shown ($1)"
   else
-    log "ALERT email FAILED to send (Mail app problem) -- showing a Mac notification instead"
-    /usr/bin/osascript -e "display notification \"$1\" with title \"BuyersForce mirror backup\"" >> "$LOG" 2>&1
+    log "ALERT: could not show a Mac notification ($1)"
   fi
 }
 
@@ -66,14 +59,8 @@ finish() {
   log "RESULT: $color -- $summary"
   if [ "$color" != "GREEN" ]; then
     local todo="Probably nothing -- it went through. Check _local_backups/mirror_backup.log if it keeps happening."
-    [ "$color" = "RED" ] && todo="The backup did NOT complete. Open Claude Code in the BuyersForce repo and say: the weekly GitHub mirror backup failed -- here is the email."
-    send_alert "BuyersForce weekly GitHub mirror: $color" \
-"Status: $color
-When: $stamp (UTC)
-
-What happened: $summary
-
-What to do: $todo"
+    [ "$color" = "RED" ] && todo="The backup did NOT complete. Open Claude Code in the BuyersForce repo and ask Claude to check the weekly GitHub mirror."
+    send_alert "BuyersForce weekly GitHub mirror: $color" "$summary $todo"
   fi
   [ "$color" = "RED" ] && exit 1
   exit 0
@@ -82,7 +69,7 @@ What to do: $todo"
 log "=== $(now_utc) starting mirror backup ==="
 
 if [ "${1:-}" = "--test-alert" ]; then
-  send_alert "BuyersForce weekly GitHub mirror: TEST (ignore)" "This is a test of the alert email. If you can read it, YELLOW and RED alerts will reach you."
+  send_alert "BuyersForce weekly GitHub mirror: TEST (ignore)" "This is a test of the Mac alert notification."
   exit 0
 fi
 
