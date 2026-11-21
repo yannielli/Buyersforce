@@ -13,10 +13,22 @@
 - BuyersForce: invite-only web app for technology buyers, live at
   https://buyersforce-web-production.up.railway.app
 - Code lives in GitHub repo `yannielli/buyersforce`, in the `buyersforce/` folder.
-  Claude commits and pushes file changes directly (via the `claude-ssh` deploy-key remote --
-  see the daily backup routine for how it's set up); every push to `main` auto-deploys on
+  Claude commits and pushes file changes directly; every push to `main` auto-deploys on
   Railway. (Before 2026-10-15, Kj committed changes himself through the GitHub website --
   he can still ask Claude to show a diff before pushing if he wants to double check something.)
+- **How work happens now (since 2026-11-21): Claude Code on Kj's own Mac.** Kj works in the
+  Claude desktop app's Code tab, in the local git repo at `~/Developer/BuyersForce Code Repo`
+  (the git root; the Flask app is the `buyersforce/` folder inside it). Claude edits files
+  there and pushes with a plain `git push origin main` over HTTPS, using the GitHub login
+  saved in the Mac's keychain -- no deploy key or Cowork sandbox involved, and Kj never has
+  to open Terminal to push. Git name/email are set Mac-wide (Kevin Jackson,
+  kj.jackson9@gmail.com), so commits link to his GitHub account. The old `claude-ssh`
+  remote still exists in the repo but has no working SSH key on this Mac -- don't use it.
+  (A session started in the old Cowork sandbox can't push at all -- no credentials there.)
+- **Backups**: all four backups (database, local code, Railway config, GitHub mirror) log to
+  one running doc, the pinned "BuyersForce Backup Health Log" Claude Doc (newest first);
+  the rules and restore steps are in the pinned "BuyersForce Backup & Recovery Runbook".
+  A request about backups means those two docs, never this app's code or database.
 - Database: Railway's managed Postgres (service "Postgres" in the `buyersforce` project).
   Do NOT switch back to SQLite or Railway volumes — volumes had an unresolved data-wiping bug.
 - Kj is the admin account. One email = one role (buyer, seller, or admin);
@@ -184,8 +196,9 @@ land in one read, without Kj having to re-explain months of context.
   single flex child that sits before the label text, so button spacing
   to the label is unaffected. Verified with zoomed light/dark
   screenshots on both buttons.
-- **Infra**: Claude pushes directly to `main` via the `claude-ssh` deploy-key
-  remote (since 2026-10-15); every push auto-deploys on Railway. Database is
+- **Infra**: Claude pushes directly to `main` -- via `origin` over HTTPS from Kj's Mac
+  (since 2026-11-21; before that, via the `claude-ssh` deploy-key remote from the
+  Cowork sandbox, since 2026-10-15); every push auto-deploys on Railway. Database is
   Railway's managed Postgres -- never SQLite or Railway volumes (data-wiping
   bug, unresolved, don't revisit).
 - **AI support ticket agent + external message alerts** (2026-11-07): Kj's
@@ -282,7 +295,7 @@ land in one read, without Kj having to re-explain months of context.
     to BF**, that's `approved_to_ship` in the DB (an ordinary admin
     action, no credentials involved); Claude still has to actually do
     the `git push` to merge it to `main` (which it already can, via
-    `claude-ssh` -- no new access needed), and marks it `shipped` the
+    `origin` from Kj's Mac -- no new access needed), and marks it `shipped` the
     same one-shot-patch way. Net: no new infrastructure, no credentials
     ever touched, but also not push-button-automatic -- Kj pinging
     Claude is still the trigger at both the "go build it" and "I've
